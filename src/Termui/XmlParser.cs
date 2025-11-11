@@ -21,6 +21,8 @@ internal static class XmlParser
             "text" => new Text(),
             "button" => new Button(),
             "input" => new Input(),
+            "checkbox" => new Checkbox(),
+            "radiobutton" => new RadioButton(),
             _ => throw new NotSupportedException($"Widget type '{element.Name.LocalName}' is not supported")
         };
 

@@ -67,6 +67,14 @@ public sealed class Termui
         return FindWidget<T>(_widget, name);
     }
 
+    public List<T> GetWidgetsByGroup<T>(string group) where T : class, IWidget
+    {
+        var results = new List<T>();
+        if (_widget is null) return results;
+        FindWidgetsByGroup(_widget, group, results);
+        return results;
+    }
+
     private static T? FindWidget<T>(IWidget widget, string name) where T : class, IWidget
     {
         if (widget.Name == name && widget is T typedWidget)
@@ -81,6 +89,19 @@ public sealed class Termui
         }
 
         return null;
+    }
+
+    private static void FindWidgetsByGroup<T>(IWidget widget, string group, List<T> results) where T : class, IWidget
+    {
+        if (widget.Group == group && widget is T typedWidget)
+        {
+            results.Add(typedWidget);
+        }
+
+        foreach (var child in widget.Children)
+        {
+            FindWidgetsByGroup(child, group, results);
+        }
     }
 
     private void RebuildFocusList()

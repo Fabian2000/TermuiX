@@ -27,6 +27,7 @@ public class Input : IWidget
 
     // IWidget properties
     public string? Name { get; set; }
+    public string? Group { get; set; }
     public string Width { get; set; } = "30ch";
     public string Height { get; set; } = "3ch";
     public string PaddingLeft { get; set; } = "1ch";
