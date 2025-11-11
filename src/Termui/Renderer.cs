@@ -142,20 +142,25 @@ namespace Termui
                 RenderWidget(output, fgColors, bgColors, child, contentX, contentY, contentWidth, contentHeight, scrollX, scrollY);
             }
 
-            // Render scrollbar AFTER children so it's always on top
-            if (widget.Scrollable && widget.Children.Count > 0 && contentWidth > 0)
+            // Render scrollbars AFTER children so they're always on top
+            if (widget.Scrollable && widget.Children.Count > 0)
             {
-                // Calculate total content height by finding max child position
+                // Calculate total content dimensions by finding max child positions
                 int maxChildBottom = 0;
+                int maxChildRight = 0;
                 foreach (var child in widget.Children)
                 {
                     int childPosY = ParseSize(child.PositionY, contentHeight);
                     int childHeight = ParseSize(child.Height, contentHeight);
                     maxChildBottom = Math.Max(maxChildBottom, childPosY + childHeight);
+
+                    int childPosX = ParseSize(child.PositionX, contentWidth);
+                    int childWidth = ParseSize(child.Width, contentWidth);
+                    maxChildRight = Math.Max(maxChildRight, childPosX + childWidth);
                 }
 
-                // Show scrollbar if content is larger OR if already scrolled
-                if (maxChildBottom > contentHeight || scrollY > 0)
+                // Vertical scrollbar
+                if (contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0))
                 {
                     int scrollbarHeight = Math.Max(1, (contentHeight * contentHeight) / maxChildBottom);
                     int scrollbarPos = maxChildBottom > contentHeight ? (int)((float)scrollY / (maxChildBottom - contentHeight) * (contentHeight - scrollbarHeight)) : 0;
@@ -180,6 +185,37 @@ namespace Termui
                             else
                             {
                                 output[targetY][scrollbarX] = '┊';
+                            }
+                        }
+                    }
+                }
+
+                // Horizontal scrollbar
+                if (contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0))
+                {
+                    int scrollbarWidth = Math.Max(1, (contentWidth * contentWidth) / maxChildRight);
+                    int scrollbarPos = maxChildRight > contentWidth ? (int)((float)scrollX / (maxChildRight - contentWidth) * (contentWidth - scrollbarWidth)) : 0;
+                    scrollbarPos = Math.Max(0, Math.Min(scrollbarPos, contentWidth - scrollbarWidth));
+
+                    // Position scrollbar inside content area, 1 line from bottom edge
+                    int scrollbarY = contentY + contentHeight - 1;
+
+                    for (int x = 0; x < contentWidth; x++)
+                    {
+                        int targetX = contentX + x;
+
+                        if (scrollbarY >= 0 && scrollbarY < output.Length &&
+                            targetX >= 0 && targetX < output[0].Length &&
+                            targetX >= parentX && scrollbarY >= parentY &&
+                            targetX < parentX + parentWidth && scrollbarY < parentY + parentHeight)
+                        {
+                            if (x >= scrollbarPos && x < scrollbarPos + scrollbarWidth)
+                            {
+                                output[scrollbarY][targetX] = '▄';
+                            }
+                            else
+                            {
+                                output[scrollbarY][targetX] = '┈';
                             }
                         }
                     }

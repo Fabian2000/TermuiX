@@ -25,6 +25,7 @@ internal static class XmlParser
             "radiobutton" => new RadioButton(),
             "progressbar" => new ProgressBar(),
             "chart" => new Chart(),
+            "slider" => new Slider(),
             _ => throw new NotSupportedException($"Widget type '{element.Name.LocalName}' is not supported")
         };
 

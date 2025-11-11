@@ -190,25 +190,110 @@ public sealed class Termui
             scrollTarget = scrollTarget.Parent;
         }
 
-        if (scrollTarget is null || scrollTarget.Children.Count == 0) return;
+        if (scrollTarget is null) return;
 
-        // Calculate widget position relative to scrollable parent
+        // Get scrollable parent's content dimensions
         int contentHeight = CalculateContentHeight(scrollTarget);
+        int contentWidth = CalculateContentWidth(scrollTarget);
+
+        // Widget position and size are relative to the scrollable parent
+        // We need to parse them using the content dimensions
         int widgetPosY = ParseSize(widget.PositionY, contentHeight);
         int widgetHeight = ParseSize(widget.Height, contentHeight);
+        int widgetPosX = ParseSize(widget.PositionX, contentWidth);
+        int widgetWidth = ParseSize(widget.Width, contentWidth);
 
-        long currentScroll = scrollTarget.ScrollOffsetY;
+        // Vertical scrolling
+        long currentScrollY = scrollTarget.ScrollOffsetY;
 
         // Check if widget is above visible area (need to scroll up)
-        if (widgetPosY < currentScroll)
+        if (widgetPosY < currentScrollY)
         {
             scrollTarget.ScrollOffsetY = widgetPosY;
         }
         // Check if widget is below visible area (need to scroll down)
-        else if (widgetPosY + widgetHeight > currentScroll + contentHeight)
+        else if (widgetPosY + widgetHeight > currentScrollY + contentHeight)
         {
             scrollTarget.ScrollOffsetY = widgetPosY + widgetHeight - contentHeight;
         }
+
+        // Horizontal scrolling
+        long currentScrollX = scrollTarget.ScrollOffsetX;
+
+        // Check if widget is left of visible area (need to scroll left)
+        if (widgetPosX < currentScrollX)
+        {
+            scrollTarget.ScrollOffsetX = widgetPosX;
+        }
+        // Check if widget is right of visible area (need to scroll right)
+        else if (widgetPosX + widgetWidth > currentScrollX + contentWidth)
+        {
+            scrollTarget.ScrollOffsetX = widgetPosX + widgetWidth - contentWidth;
+        }
+    }
+
+    private void HandleScrollHorizontal(bool left)
+    {
+        if (_focusedWidget is null) return;
+
+        // Find the nearest scrollable widget (current or parent)
+        IWidget? scrollTarget = _focusedWidget;
+
+        while (scrollTarget is not null && !scrollTarget.Scrollable)
+        {
+            scrollTarget = scrollTarget.Parent;
+        }
+
+        if (scrollTarget is null || scrollTarget.Children.Count == 0) return;
+
+        // Calculate max scroll based on children positions and widths
+        int contentWidth = CalculateContentWidth(scrollTarget);
+        int maxChildRight = 0;
+
+        foreach (var child in scrollTarget.Children)
+        {
+            int childPosX = ParseSize(child.PositionX, contentWidth);
+            int childWidth = ParseSize(child.Width, contentWidth);
+            maxChildRight = Math.Max(maxChildRight, childPosX + childWidth);
+        }
+
+        long maxScroll = Math.Max(0, maxChildRight - contentWidth);
+
+        // Scroll the target widget with bounds checking
+        if (left)
+        {
+            scrollTarget.ScrollOffsetX = Math.Max(0, scrollTarget.ScrollOffsetX - 1);
+        }
+        else
+        {
+            scrollTarget.ScrollOffsetX = Math.Min(maxScroll, scrollTarget.ScrollOffsetX + 1);
+        }
+    }
+
+    private int CalculateContentWidth(IWidget widget)
+    {
+        // For root widget (no parent), use actual console width
+        int parentWidth = 100;
+        if (widget.Parent == null)
+        {
+            parentWidth = Console.WindowWidth;
+        }
+
+        // Parse widget width
+        int width = ParseSize(widget.Width, parentWidth);
+
+        // Subtract padding
+        int padLeft = ParseSize(widget.PaddingLeft, width);
+        int padRight = ParseSize(widget.PaddingRight, width);
+
+        // If Container with border, add 1ch to padding
+        if (widget is Widgets.Container container && container.HasBorder)
+        {
+            padLeft += 1;
+            padRight += 1;
+        }
+
+        return Math.Max(0, width - padLeft - padRight);
     }
 
     private void HandleScroll(bool up)
@@ -319,6 +404,15 @@ public sealed class Termui
                     if (key.Key == ConsoleKey.A || key.Key == ConsoleKey.C || key.Key == ConsoleKey.V)
                     {
                         _focusedWidget?.KeyPress(key);
+                    }
+                    // Ctrl+PageUp/PageDown for horizontal scrolling
+                    else if (key.Key == ConsoleKey.PageUp)
+                    {
+                        HandleScrollHorizontal(true);
+                    }
+                    else if (key.Key == ConsoleKey.PageDown)
+                    {
+                        HandleScrollHorizontal(false);
                     }
                     else
                     {
