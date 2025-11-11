@@ -82,6 +82,23 @@ var xml = """
           Width="100ch" Height="10ch"
           ForegroundColor="Green" BackgroundColor="DarkBlue">
     </Text>
+
+    <Text PositionX="5ch" PositionY="25ch"
+          ForegroundColor="Yellow" BackgroundColor="DarkBlue">
+        Progress Bar:
+    </Text>
+    <ProgressBar Name="progressBar" PositionX="20ch" PositionY="25ch"
+                 Width="40ch" Mode="Progress" Value="0.65"
+                 ShowPercentage="true"
+                 ForegroundColor="Green" BackgroundColor="DarkBlue" />
+
+    <Text PositionX="5ch" PositionY="27ch"
+          ForegroundColor="Yellow" BackgroundColor="DarkBlue">
+        Marquee:
+    </Text>
+    <ProgressBar Name="marqueeBar" PositionX="20ch" PositionY="27ch"
+                 Width="40ch" Mode="Marquee"
+                 ForegroundColor="Cyan" BackgroundColor="DarkBlue" />
 </Container>
 """;
 
@@ -106,6 +123,18 @@ if (exitButton is not null && submitButton is not null)
     bool running = true;
     DateTime? messageDisplayedAt = null;
     exitButton.Click += (sender, e) => running = false;
+
+    // Keyboard shortcuts
+    termui.Shortcut += (sender, key) =>
+    {
+        if (key.Key == ConsoleKey.S) // Ctrl+S
+        {
+            if (submitButton is not null)
+            {
+                termui.SetFocus(submitButton);
+            }
+        }
+    };
 
     if (submitButton is not null && nameInput is not null && passwordInput is not null && messageInput is not null && agreeCheckbox is not null && outputText is not null)
     {

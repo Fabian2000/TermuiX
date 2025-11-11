@@ -9,6 +9,9 @@ public sealed class Termui
     private IWidget? _focusedWidget = null;
     private readonly List<IWidget> _focusableWidgets = [];
 
+    // Event for keyboard shortcuts (Ctrl+Key combinations)
+    public event EventHandler<ConsoleKeyInfo>? Shortcut;
+
     private Termui() { }
 
     public static Termui Init()
@@ -132,6 +135,22 @@ public sealed class Termui
         }
     }
 
+    public void SetFocus(IWidget widget)
+    {
+        // Check if widget can be focused
+        if (!widget.CanFocus) return;
+
+        // Clear current focus
+        if (_focusedWidget is not null)
+        {
+            _focusedWidget.Focussed = false;
+        }
+
+        // Set new focus
+        _focusedWidget = widget;
+        _focusedWidget.Focussed = true;
+    }
+
     private void MoveFocus(bool forward)
     {
         if (_focusableWidgets.Count == 0) return;
@@ -181,8 +200,22 @@ public sealed class Termui
             {
                 var key = Console.ReadKey(true);
 
+                // Check for Ctrl shortcuts first (except text editing shortcuts)
+                if (key.Modifiers.HasFlag(ConsoleModifiers.Control))
+                {
+                    // Ctrl+A, Ctrl+C, Ctrl+V are allowed to pass through to widgets (select all, copy, paste)
+                    if (key.Key == ConsoleKey.A || key.Key == ConsoleKey.C || key.Key == ConsoleKey.V)
+                    {
+                        _focusedWidget?.KeyPress(key);
+                    }
+                    else
+                    {
+                        // All other Ctrl combinations are shortcuts
+                        Shortcut?.Invoke(this, key);
+                    }
+                }
                 // Handle special keys
-                if (key.Key == ConsoleKey.Tab)
+                else if (key.Key == ConsoleKey.Tab)
                 {
                     MoveFocus(!key.Modifiers.HasFlag(ConsoleModifiers.Shift));
                 }

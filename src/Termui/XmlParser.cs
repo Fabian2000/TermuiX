@@ -23,6 +23,7 @@ internal static class XmlParser
             "input" => new Input(),
             "checkbox" => new Checkbox(),
             "radiobutton" => new RadioButton(),
+            "progressbar" => new ProgressBar(),
             _ => throw new NotSupportedException($"Widget type '{element.Name.LocalName}' is not supported")
         };
 
@@ -146,6 +147,18 @@ internal static class XmlParser
         else if (prop.PropertyType == typeof(TextAlign))
         {
             convertedValue = Enum.Parse<TextAlign>(value, ignoreCase: true);
+        }
+        else if (prop.PropertyType == typeof(ProgressBarMode))
+        {
+            convertedValue = Enum.Parse<ProgressBarMode>(value, ignoreCase: true);
+        }
+        else if (prop.PropertyType == typeof(double))
+        {
+            convertedValue = double.Parse(value);
+        }
+        else if (prop.PropertyType == typeof(char))
+        {
+            convertedValue = value.Length > 0 ? value[0] : ' ';
         }
 
         if (convertedValue is not null)
