@@ -4,6 +4,7 @@ public class Container : IWidget
 {
     private readonly List<IWidget> _children = [];
 
+    public string? Name { get; set; }
     public string Width { get; set; } = "100%";
     public string Height { get; set; } = "100%";
     public string PaddingLeft { get; set; } = "0ch";

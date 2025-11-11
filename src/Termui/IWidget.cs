@@ -2,6 +2,7 @@ namespace Termui
 {
     public interface IWidget
     {
+        string? Name { get; set; }
         IWidget? Parent { get; set; }
         List<IWidget> Children { get; }
         string Width { get; set; }

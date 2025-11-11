@@ -27,6 +27,7 @@ public class Border : IWidget
         set => _child = value;
     }
 
+    public string? Name { get; set; }
     public string Width { get; set; } = "100%";
     public string Height { get; set; } = "100%";
     public string PaddingLeft { get; set; } = "0ch";

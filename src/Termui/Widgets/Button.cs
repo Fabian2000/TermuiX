@@ -24,6 +24,12 @@ public class Button : IWidget
             TextAlign = TextAlign.Center
         };
 
+        // Sync focus colors between container and text
+        _textWidget.FocusBackgroundColor = _container.FocusBackgroundColor;
+        _textWidget.FocusForegroundColor = _container.FocusForegroundColor;
+        _textWidget.BackgroundColor = _container.BackgroundColor;
+        _textWidget.ForegroundColor = _container.ForegroundColor;
+
         _container.Add(_textWidget);
     }
 
@@ -60,10 +66,16 @@ public class Button : IWidget
     public ConsoleColor FocusTextColor
     {
         get => _textWidget.FocusForegroundColor;
-        set => _textWidget.FocusForegroundColor = value;
+        set
+        {
+            _textWidget.FocusForegroundColor = value;
+            _container.FocusForegroundColor = value;
+        }
     }
 
     // IWidget implementation - delegate to container
+    public string? Name { get; set; }
+
     public string Width
     {
         get => _container.Width;

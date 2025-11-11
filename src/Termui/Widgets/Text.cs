@@ -19,6 +19,7 @@ public class Text : IWidget
 
     public TextAlign TextAlign { get; set; } = TextAlign.Left;
 
+    public string? Name { get; set; }
     public string Width { get; set; } = "100%";
     public string Height { get; set; } = "100%";
     public string PaddingLeft { get; set; } = "0ch";
