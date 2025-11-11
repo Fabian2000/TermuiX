@@ -1,60 +1,30 @@
-﻿using Termui.Widgets;
+﻿// XML-based UI definition
+var xml = """
+<Container Width="100%" Height="100%" BackgroundColor="DarkBlue">
+    <Text Width="25ch" Height="1ch" PositionX="2ch" PositionY="1ch"
+          ForegroundColor="Yellow" BackgroundColor="DarkBlue">
+        Welcome to Termui!
+    </Text>
 
-// Create a container
-var container = new Container
-{
-    Width = "100%",
-    Height = "100%",
-    BackgroundColor = ConsoleColor.DarkBlue
-};
+    <Button Width="15ch" Height="3ch" PositionX="5ch" PositionY="5ch"
+            BorderColor="White" TextColor="Cyan"
+            FocusBorderColor="Green" FocusTextColor="White"
+            BackgroundColor="DarkBlue">
+        Click Me!
+    </Button>
 
-// Create a text widget
-var title = new Text("Welcome to Termui!")
-{
-    PositionX = "2ch",
-    PositionY = "1ch",
-    ForegroundColor = ConsoleColor.Yellow
-};
+    <Button Width="20ch" Height="3ch" PositionX="5ch" PositionY="9ch"
+            BorderColor="White" TextColor="Magenta"
+            FocusBorderColor="Green" FocusTextColor="White"
+            BackgroundColor="DarkBlue">
+        Another Button
+    </Button>
+</Container>
+""";
 
-// Create buttons
-var button1 = new Button("Click Me!")
-{
-    Width = "15ch",
-    Height = "3ch",
-    PositionX = "5ch",
-    PositionY = "5ch",
-    BorderColor = ConsoleColor.White,
-    TextColor = ConsoleColor.Cyan,
-    FocusBorderColor = ConsoleColor.Green,
-    FocusTextColor = ConsoleColor.White,
-    BackgroundColor = ConsoleColor.DarkBlue
-};
-
-var button2 = new Button("Another Button")
-{
-    Width = "20ch",
-    Height = "3ch",
-    PositionX = "5ch",
-    PositionY = "9ch",
-    BorderColor = ConsoleColor.White,
-    TextColor = ConsoleColor.Magenta,
-    FocusBorderColor = ConsoleColor.Green,
-    FocusTextColor = ConsoleColor.White,
-    BackgroundColor = ConsoleColor.DarkBlue
-};
-
-// Add click handlers
-button1.Click += (sender, e) => Console.Title = "Button 1 clicked!";
-button2.Click += (sender, e) => Console.Title = "Button 2 clicked!";
-
-// Add widgets to container
-container.Add(title);
-container.Add(button1);
-container.Add(button2);
-
-// Initialize Termui and add container
+// Initialize Termui and load XML (parsed once, kept in DOM)
 var termui = Termui.Termui.Init();
-termui.AddToWindow(container);
+termui.LoadXml(xml);
 
 try
 {

@@ -11,28 +11,35 @@ namespace Termui
             _height = height;
         }
 
-        internal char[][] Render(IWidget widget)
+        internal (char[][] chars, ConsoleColor[][] fg, ConsoleColor[][] bg) Render(IWidget widget)
         {
             if (_width == 0 || _height == 0)
             {
                 throw new InvalidOperationException("Renderer size not set. Call Size(width, height) before Render().");
             }
 
-            // Create output buffer
+            // Create output buffers
             var output = new char[_height][];
+            var fgColors = new ConsoleColor[_height][];
+            var bgColors = new ConsoleColor[_height][];
+
             for (int i = 0; i < _height; i++)
             {
                 output[i] = new char[_width];
+                fgColors[i] = new ConsoleColor[_width];
+                bgColors[i] = new ConsoleColor[_width];
                 Array.Fill(output[i], ' ');
+                Array.Fill(fgColors[i], ConsoleColor.White);
+                Array.Fill(bgColors[i], ConsoleColor.Black);
             }
 
             // Render the root widget
-            RenderWidget(output, widget, 0, 0, _width, _height, 0, 0);
+            RenderWidget(output, fgColors, bgColors, widget, 0, 0, _width, _height, 0, 0);
 
-            return output;
+            return (output, fgColors, bgColors);
         }
 
-        private static void RenderWidget(char[][] output, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY)
+        private static void RenderWidget(char[][] output, ConsoleColor[][] fgColors, ConsoleColor[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY)
         {
             if (!widget.Visible) return;
 
@@ -73,6 +80,10 @@ namespace Termui
             int scrollX = widget.Scrollable ? (int)widget.ScrollOffsetX : 0;
             int scrollY = widget.Scrollable ? (int)widget.ScrollOffsetY : 0;
 
+            // Determine colors based on focus state
+            var bgColor = widget.Focussed ? widget.FocusBackgroundColor : widget.BackgroundColor;
+            var fgColor = widget.Focussed ? widget.FocusForegroundColor : widget.ForegroundColor;
+
             // Render background (entire widget area including padding)
             for (int y = 0; y < height && absY + y < output.Length; y++)
             {
@@ -81,6 +92,8 @@ namespace Termui
                     if (absX + x >= 0 && absY + y >= 0 && absX + x >= parentX && absY + y >= parentY && absX + x < parentX + parentWidth && absY + y < parentY + parentHeight)
                     {
                         output[absY + y][absX + x] = ' ';
+                        bgColors[absY + y][absX + x] = bgColor;
+                        fgColors[absY + y][absX + x] = fgColor;
                     }
                 }
             }
@@ -128,6 +141,7 @@ namespace Termui
                             targetX < parentX + parentWidth && targetY < parentY + parentHeight)
                         {
                             output[targetY][targetX] = raw[srcY][srcX];
+                            // Colors are already set by background rendering
                         }
 
                         currentX++;
@@ -172,7 +186,7 @@ namespace Termui
             // Children are positioned relative to content area and affected by scroll
             foreach (var child in widget.Children)
             {
-                RenderWidget(output, child, contentX, contentY, contentWidth, contentHeight, scrollX, scrollY);
+                RenderWidget(output, fgColors, bgColors, child, contentX, contentY, contentWidth, contentHeight, scrollX, scrollY);
             }
         }
 

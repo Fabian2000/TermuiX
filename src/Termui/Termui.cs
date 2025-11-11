@@ -26,6 +26,11 @@ public sealed class Termui
         _widget = widget;
     }
 
+    public void LoadXml(string xml)
+    {
+        _widget = XmlParser.Parse(xml);
+    }
+
     public void Render()
     {
         if (_widget is null)
@@ -45,7 +50,7 @@ public sealed class Termui
         }
 
         _renderer.Size(width, height);
-        var output = _renderer.Render(_widget);
+        var (chars, fgColors, bgColors) = _renderer.Render(_widget);
 
         try
         {
@@ -60,11 +65,12 @@ public sealed class Termui
             // Console too small for cursor positioning
         }
 
-        for (int x = 0; x < output.Length; x++)
+        // Render with colors
+        for (int y = 0; y < chars.Length; y++)
         {
             try
             {
-                Console.SetCursorPosition(0, x);
+                Console.SetCursorPosition(0, y);
             }
             catch (IOException)
             {
@@ -74,7 +80,17 @@ public sealed class Termui
             {
                 // Position out of range
             }
-            Console.WriteLine(new string(output[x]));
+
+            // Render each character with its color
+            for (int x = 0; x < chars[y].Length; x++)
+            {
+                Console.BackgroundColor = bgColors[y][x];
+                Console.ForegroundColor = fgColors[y][x];
+                Console.Write(chars[y][x]);
+            }
         }
+
+        // Reset colors
+        Console.ResetColor();
     }
 }
