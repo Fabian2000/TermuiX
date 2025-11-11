@@ -68,8 +68,11 @@ public class Chart : IWidget
             return CreateEmptyResult(width, height);
 
         // Calculate dimensions
-        int legendHeight = ShowLegend && _series.Count > 0 ? 1 : 0;
-        int xAxisHeight = ShowAxes ? 1 : 0;
+        // Layout: [Legend                  ]
+        //         [Y-axis labels][Chart area]
+        //         [           ][X-axis line]
+        int legendHeight = ShowLegend && _series.Count > 0 ? 1 : 0; // 1 line for legend at top
+        int xAxisHeight = ShowAxes ? 2 : 0; // 1 for line, 1 for labels
         int yAxisWidth = ShowAxes ? YAxisWidth : 0;
 
         int chartHeight = height - legendHeight - xAxisHeight;
@@ -86,6 +89,12 @@ public class Chart : IWidget
             Array.Fill(result[i], ' ');
         }
 
+        // Render legend at the TOP
+        if (ShowLegend && _series.Count > 0)
+        {
+            RenderLegend(result, 0, width);
+        }
+
         // Calculate Y-axis range
         double minY = MinY ?? CalculateMinY();
         double maxY = MaxY ?? CalculateMaxY();
@@ -95,25 +104,19 @@ public class Chart : IWidget
             maxY = minY + 1;
         }
 
-        // Render Y-axis
+        // Render Y-axis (offset by legend height)
         if (ShowAxes)
         {
-            RenderYAxis(result, minY, maxY, chartHeight, yAxisWidth);
+            RenderYAxis(result, minY, maxY, chartHeight, yAxisWidth, legendHeight);
         }
 
-        // Render chart area (just the plot)
-        RenderChartData(result, minY, maxY, chartWidth, chartHeight, yAxisWidth);
+        // Render chart area (ONLY dots, no lines)
+        RenderChartData(result, minY, maxY, chartWidth, chartHeight, yAxisWidth, legendHeight);
 
-        // Render X-axis
+        // Render X-axis (offset by legend height)
         if (ShowAxes)
         {
-            RenderXAxis(result, chartHeight, yAxisWidth, chartWidth);
-        }
-
-        // Render legend at the bottom
-        if (ShowLegend && _series.Count > 0)
-        {
-            RenderLegend(result, height - 1, width);
+            RenderXAxis(result, legendHeight + chartHeight, yAxisWidth, chartWidth);
         }
 
         return result;
@@ -164,12 +167,12 @@ public class Chart : IWidget
         return max == double.MinValue ? 100 : max;
     }
 
-    private void RenderYAxis(char[][] result, double minY, double maxY, int chartHeight, int yAxisWidth)
+    private void RenderYAxis(char[][] result, double minY, double maxY, int chartHeight, int yAxisWidth, int yOffset)
     {
         // Draw 4 Y-axis labels evenly distributed
         for (int i = 0; i < 4; i++)
         {
-            int y = (chartHeight - 1) * i / 3;
+            int y = yOffset + (chartHeight - 1) * i / 3;
             double value = maxY - (maxY - minY) * i / 3;
             string label = FormatNumber(value);
 
@@ -185,7 +188,7 @@ public class Chart : IWidget
         // Draw vertical line
         for (int y = 0; y < chartHeight; y++)
         {
-            result[y][yAxisWidth - 1] = '│';
+            result[yOffset + y][yAxisWidth - 1] = '│';
         }
     }
 
@@ -220,28 +223,20 @@ public class Chart : IWidget
         }
     }
 
-    private void RenderChartData(char[][] result, double minY, double maxY, int chartWidth, int chartHeight, int xOffset)
+    private void RenderChartData(char[][] result, double minY, double maxY, int chartWidth, int chartHeight, int xOffset, int yOffset)
     {
+        // Draw ONLY data points, no lines
+        // Use different symbols for different series
+        char[] symbols = ['●', '○', '■', '□', '▲', '△'];
+
+        int seriesIndex = 0;
         foreach (var series in _series)
         {
             if (series.Data.Count == 0) continue;
 
-            // Draw lines connecting data points
-            for (int i = 0; i < series.Data.Count - 1; i++)
-            {
-                double val1 = series.Data[i];
-                double val2 = series.Data[i + 1];
+            char symbol = symbols[seriesIndex % symbols.Length];
+            seriesIndex++;
 
-                int x1 = (int)(i * (double)(chartWidth - 1) / Math.Max(1, series.Data.Count - 1));
-                int x2 = (int)((i + 1) * (double)(chartWidth - 1) / Math.Max(1, series.Data.Count - 1));
-
-                int y1 = MapValueToY(val1, minY, maxY, chartHeight);
-                int y2 = MapValueToY(val2, minY, maxY, chartHeight);
-
-                DrawLine(result, x1, y1, x2, y2, xOffset, chartWidth, chartHeight);
-            }
-
-            // Draw data points on top
             for (int i = 0; i < series.Data.Count; i++)
             {
                 double value = series.Data[i];
@@ -249,12 +244,12 @@ public class Chart : IWidget
                 int y = MapValueToY(value, minY, maxY, chartHeight);
 
                 int screenX = xOffset + x;
-                int screenY = y;
+                int screenY = yOffset + y;
 
                 if (screenX >= xOffset && screenX < xOffset + chartWidth &&
-                    screenY >= 0 && screenY < chartHeight)
+                    screenY >= yOffset && screenY < yOffset + chartHeight)
                 {
-                    result[screenY][screenX] = '●';
+                    result[screenY][screenX] = symbol;
                 }
             }
         }
@@ -326,6 +321,9 @@ public class Chart : IWidget
 
         int x = 0;
 
+        // Use same symbols as in RenderChartData
+        char[] symbols = ['●', '○', '■', '□', '▲', '△'];
+
         // Write series labels with markers
         for (int i = 0; i < _series.Count; i++)
         {
@@ -338,8 +336,9 @@ public class Chart : IWidget
                 if (x < width) result[y][x++] = ' ';
             }
 
-            // Add marker
-            if (x < width) result[y][x++] = '●';
+            // Add marker (matching symbol from chart)
+            char symbol = symbols[i % symbols.Length];
+            if (x < width) result[y][x++] = symbol;
             if (x < width) result[y][x++] = ' ';
 
             // Add label
