@@ -175,6 +175,40 @@ public sealed class Termui
 
         _focusedWidget = _focusableWidgets[currentIndex];
         _focusedWidget.Focussed = true;
+
+        // Auto-scroll to the focused widget if it's outside the visible area
+        ScrollToWidget(_focusedWidget);
+    }
+
+    private void ScrollToWidget(IWidget widget)
+    {
+        // Find the nearest scrollable parent
+        IWidget? scrollTarget = widget.Parent;
+
+        while (scrollTarget is not null && !scrollTarget.Scrollable)
+        {
+            scrollTarget = scrollTarget.Parent;
+        }
+
+        if (scrollTarget is null || scrollTarget.Children.Count == 0) return;
+
+        // Calculate widget position relative to scrollable parent
+        int contentHeight = CalculateContentHeight(scrollTarget);
+        int widgetPosY = ParseSize(widget.PositionY, contentHeight);
+        int widgetHeight = ParseSize(widget.Height, contentHeight);
+
+        long currentScroll = scrollTarget.ScrollOffsetY;
+
+        // Check if widget is above visible area (need to scroll up)
+        if (widgetPosY < currentScroll)
+        {
+            scrollTarget.ScrollOffsetY = widgetPosY;
+        }
+        // Check if widget is below visible area (need to scroll down)
+        else if (widgetPosY + widgetHeight > currentScroll + contentHeight)
+        {
+            scrollTarget.ScrollOffsetY = widgetPosY + widgetHeight - contentHeight;
+        }
     }
 
     private void HandleScroll(bool up)
