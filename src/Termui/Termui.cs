@@ -179,17 +179,95 @@ public sealed class Termui
 
     private void HandleScroll(bool up)
     {
-        if (_focusedWidget is null || !_focusedWidget.Scrollable) return;
+        if (_focusedWidget is null) return;
 
-        var widget = (IWidget)_focusedWidget;
+        // Find the nearest scrollable widget (current or parent)
+        IWidget? scrollTarget = _focusedWidget;
+
+        while (scrollTarget is not null && !scrollTarget.Scrollable)
+        {
+            scrollTarget = scrollTarget.Parent;
+        }
+
+        if (scrollTarget is null || scrollTarget.Children.Count == 0) return;
+
+        // Calculate max scroll based on children positions and heights
+        // We need to calculate the content height to determine max scroll
+        int contentHeight = CalculateContentHeight(scrollTarget);
+        int maxChildBottom = 0;
+
+        foreach (var child in scrollTarget.Children)
+        {
+            int childPosY = ParseSize(child.PositionY, contentHeight);
+            int childHeight = ParseSize(child.Height, contentHeight);
+            maxChildBottom = Math.Max(maxChildBottom, childPosY + childHeight);
+        }
+
+        long maxScroll = Math.Max(0, maxChildBottom - contentHeight);
+
+        // Scroll the target widget with bounds checking
         if (up)
         {
-            widget.ScrollOffsetY = Math.Max(0, widget.ScrollOffsetY - 1);
+            scrollTarget.ScrollOffsetY = Math.Max(0, scrollTarget.ScrollOffsetY - 1);
         }
         else
         {
-            widget.ScrollOffsetY++;
+            scrollTarget.ScrollOffsetY = Math.Min(maxScroll, scrollTarget.ScrollOffsetY + 1);
         }
+    }
+
+    private int CalculateContentHeight(IWidget widget)
+    {
+        // For root widget (no parent), use actual console height
+        int parentHeight = 100;
+        if (widget.Parent == null)
+        {
+            parentHeight = Console.WindowHeight;
+        }
+
+        // Parse widget height
+        int height = ParseSize(widget.Height, parentHeight);
+
+        // Subtract padding
+        int padTop = ParseSize(widget.PaddingTop, height);
+        int padBottom = ParseSize(widget.PaddingBottom, height);
+
+        // If Container with border, add 1ch to padding
+        if (widget is Widgets.Container container && container.HasBorder)
+        {
+            padTop += 1;
+            padBottom += 1;
+        }
+
+        return Math.Max(0, height - padTop - padBottom);
+    }
+
+    private static int ParseSize(string size, int parentSize)
+    {
+        if (string.IsNullOrEmpty(size)) return 0;
+
+        size = size.Trim();
+
+        if (size.EndsWith("ch"))
+        {
+            var value = size[..^2].Trim();
+            if (int.TryParse(value, out int result))
+            {
+                return result;
+            }
+            return 0;
+        }
+        else if (size.EndsWith('%'))
+        {
+            var value = size[..^1].Trim();
+            if (float.TryParse(value, out float percent))
+            {
+                return (int)(parentSize * percent / 100.0f);
+            }
+            return 0;
+        }
+
+        return 0;
     }
 
     private void ProcessInput()

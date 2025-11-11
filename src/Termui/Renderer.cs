@@ -59,6 +59,15 @@ namespace Termui
             int padRight = ParseSize(widget.PaddingRight, width);
             int padBottom = ParseSize(widget.PaddingBottom, height);
 
+            // If widget is a Container with a border, add 1ch to all padding for the border
+            if (widget is Widgets.Container container && container.HasBorder)
+            {
+                padLeft += 1;
+                padTop += 1;
+                padRight += 1;
+                padBottom += 1;
+            }
+
             // Calculate absolute position
             int absX = parentX + posX;
             int absY = parentY + posY;
@@ -98,39 +107,18 @@ namespace Termui
                 }
             }
 
-            // Render content in FULL widget area (including padding area for borders)
+            // Render content - widgets render in FULL widget area (for borders)
+            // But scrolling only affects content INSIDE padding area
             if (raw?.Length > 0)
             {
-                int currentX = 0;
-                int currentY = 0;
-
-                for (int srcY = scrollY; srcY < raw.Length && currentY < height; srcY++)
+                // First render the raw content WITHOUT scroll (for borders, static content)
+                // This is rendered in the full widget area
+                for (int y = 0; y < raw.Length && y < height; y++)
                 {
-                    if (srcY < 0) continue;
-
-                    for (int srcX = scrollX; srcX < raw[srcY].Length; srcX++)
+                    for (int x = 0; x < raw[y].Length && x < width; x++)
                     {
-                        if (srcX < 0) continue;
-
-                        int targetX = absX + currentX;
-                        int targetY = absY + currentY;
-
-                        // Check if we hit the widget width boundary
-                        if (currentX >= width)
-                        {
-                            if (widget.AllowWrapping)
-                            {
-                                currentX = 0;
-                                currentY++;
-                                if (currentY >= height) break;
-                                targetX = absX;
-                                targetY = absY + currentY;
-                            }
-                            else
-                            {
-                                break; // Stop at edge if no wrapping
-                            }
-                        }
+                        int targetX = absX + x;
+                        int targetY = absY + y;
 
                         // Clip to widget area and parent bounds
                         if (targetY >= absY && targetY < absY + height &&
@@ -140,43 +128,8 @@ namespace Termui
                             targetX >= parentX && targetY >= parentY &&
                             targetX < parentX + parentWidth && targetY < parentY + parentHeight)
                         {
-                            output[targetY][targetX] = raw[srcY][srcX];
+                            output[targetY][targetX] = raw[y][x];
                             // Colors are already set by background rendering
-                        }
-
-                        currentX++;
-                    }
-
-                    // Move to next line after each source line (if not wrapping mid-line)
-                    currentX = 0;
-                    currentY++;
-                }
-
-                // Render scrollbar if scrollable and content is larger than visible area
-                if (widget.Scrollable && raw.Length > contentHeight && contentWidth > 0)
-                {
-                    int scrollbarHeight = Math.Max(1, (contentHeight * contentHeight) / raw.Length);
-                    int scrollbarPos = raw.Length > contentHeight ? (int)((float)scrollY / (raw.Length - contentHeight) * (contentHeight - scrollbarHeight)) : 0;
-                    scrollbarPos = Math.Max(0, Math.Min(scrollbarPos, contentHeight - scrollbarHeight));
-
-                    for (int y = 0; y < contentHeight; y++)
-                    {
-                        int targetY = contentY + y;
-                        int targetX = contentX + contentWidth - 1;
-
-                        if (targetY >= 0 && targetY < output.Length &&
-                            targetX >= 0 && targetX < output[0].Length &&
-                            targetX >= parentX && targetY >= parentY &&
-                            targetX < parentX + parentWidth && targetY < parentY + parentHeight)
-                        {
-                            if (y >= scrollbarPos && y < scrollbarPos + scrollbarHeight)
-                            {
-                                output[targetY][targetX] = '█';
-                            }
-                            else
-                            {
-                                output[targetY][targetX] = '│';
-                            }
                         }
                     }
                 }
@@ -187,6 +140,50 @@ namespace Termui
             foreach (var child in widget.Children)
             {
                 RenderWidget(output, fgColors, bgColors, child, contentX, contentY, contentWidth, contentHeight, scrollX, scrollY);
+            }
+
+            // Render scrollbar AFTER children so it's always on top
+            if (widget.Scrollable && widget.Children.Count > 0 && contentWidth > 0)
+            {
+                // Calculate total content height by finding max child position
+                int maxChildBottom = 0;
+                foreach (var child in widget.Children)
+                {
+                    int childPosY = ParseSize(child.PositionY, contentHeight);
+                    int childHeight = ParseSize(child.Height, contentHeight);
+                    maxChildBottom = Math.Max(maxChildBottom, childPosY + childHeight);
+                }
+
+                // Show scrollbar if content is larger OR if already scrolled
+                if (maxChildBottom > contentHeight || scrollY > 0)
+                {
+                    int scrollbarHeight = Math.Max(1, (contentHeight * contentHeight) / maxChildBottom);
+                    int scrollbarPos = maxChildBottom > contentHeight ? (int)((float)scrollY / (maxChildBottom - contentHeight) * (contentHeight - scrollbarHeight)) : 0;
+                    scrollbarPos = Math.Max(0, Math.Min(scrollbarPos, contentHeight - scrollbarHeight));
+
+                    // Position scrollbar inside content area, 1 char from right edge
+                    int scrollbarX = contentX + contentWidth - 1;
+
+                    for (int y = 0; y < contentHeight; y++)
+                    {
+                        int targetY = contentY + y;
+
+                        if (targetY >= 0 && targetY < output.Length &&
+                            scrollbarX >= 0 && scrollbarX < output[0].Length &&
+                            scrollbarX >= parentX && targetY >= parentY &&
+                            scrollbarX < parentX + parentWidth && targetY < parentY + parentHeight)
+                        {
+                            if (y >= scrollbarPos && y < scrollbarPos + scrollbarHeight)
+                            {
+                                output[targetY][scrollbarX] = '▐';
+                            }
+                            else
+                            {
+                                output[targetY][scrollbarX] = '┊';
+                            }
+                        }
+                    }
+                }
             }
         }
 

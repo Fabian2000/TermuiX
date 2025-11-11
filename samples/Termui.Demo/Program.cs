@@ -2,7 +2,7 @@ using Termui.Widgets;
 
 // XML-based UI definition with named widgets for event binding
 var xml = """
-<Container Width="100%" Height="100%" BackgroundColor="DarkBlue">
+<Container Width="100%" Height="100%" BackgroundColor="DarkBlue" Scrollable="true">
     <Text PositionX="2ch" PositionY="1ch"
           ForegroundColor="Yellow" BackgroundColor="DarkBlue">
         Welcome to Termui!
@@ -32,8 +32,9 @@ var xml = """
         I agree to the terms
     </Text>
 
-    <Container PositionX="60ch" PositionY="5ch" Width="30ch" Height="10ch"
-               BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White">
+    <Container PositionX="60ch" PositionY="5ch" Width="30ch" Height="6ch"
+               BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White"
+               Scrollable="true">
         <Text PositionX="0ch" PositionY="0ch"
               ForegroundColor="Yellow" BackgroundColor="DarkBlue">
             Delivery Method:
@@ -61,6 +62,70 @@ var xml = """
         <Text PositionX="4ch" PositionY="4ch"
               ForegroundColor="White" BackgroundColor="DarkBlue">
             Overnight
+        </Text>
+
+        <RadioButton Name="deliverySameDay" PositionX="2ch" PositionY="5ch"
+                     BackgroundColor="DarkBlue" ForegroundColor="White"
+                     FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+        <Text PositionX="4ch" PositionY="5ch"
+              ForegroundColor="White" BackgroundColor="DarkBlue">
+            Same Day
+        </Text>
+
+        <RadioButton Name="deliveryScheduled" PositionX="2ch" PositionY="6ch"
+                     BackgroundColor="DarkBlue" ForegroundColor="White"
+                     FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+        <Text PositionX="4ch" PositionY="6ch"
+              ForegroundColor="White" BackgroundColor="DarkBlue">
+            Scheduled
+        </Text>
+
+        <RadioButton Name="deliveryInStore" PositionX="2ch" PositionY="7ch"
+                     BackgroundColor="DarkBlue" ForegroundColor="White"
+                     FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+        <Text PositionX="4ch" PositionY="7ch"
+              ForegroundColor="White" BackgroundColor="DarkBlue">
+            In-Store Pickup
+        </Text>
+
+        <RadioButton Name="deliveryLocker" PositionX="2ch" PositionY="8ch"
+                     BackgroundColor="DarkBlue" ForegroundColor="White"
+                     FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+        <Text PositionX="4ch" PositionY="8ch"
+              ForegroundColor="White" BackgroundColor="DarkBlue">
+            Locker Pickup
+        </Text>
+    </Container>
+
+    <Container PositionX="60ch" PositionY="13ch" Width="30ch" Height="6ch"
+               BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White">
+        <Text PositionX="0ch" PositionY="0ch"
+              ForegroundColor="Yellow" BackgroundColor="DarkBlue">
+            Payment Method:
+        </Text>
+
+        <RadioButton Name="paymentCard" PositionX="2ch" PositionY="2ch"
+                     BackgroundColor="DarkBlue" ForegroundColor="White"
+                     FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+        <Text PositionX="4ch" PositionY="2ch"
+              ForegroundColor="White" BackgroundColor="DarkBlue">
+            Credit/Debit Card
+        </Text>
+
+        <RadioButton Name="paymentPaypal" PositionX="2ch" PositionY="3ch"
+                     BackgroundColor="DarkBlue" ForegroundColor="White"
+                     FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+        <Text PositionX="4ch" PositionY="3ch"
+              ForegroundColor="White" BackgroundColor="DarkBlue">
+            PayPal
+        </Text>
+
+        <RadioButton Name="paymentBank" PositionX="2ch" PositionY="4ch"
+                     BackgroundColor="DarkBlue" ForegroundColor="White"
+                     FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+        <Text PositionX="4ch" PositionY="4ch"
+              ForegroundColor="White" BackgroundColor="DarkBlue">
+            Bank Transfer
         </Text>
     </Container>
 
@@ -99,6 +164,11 @@ var xml = """
     <ProgressBar Name="marqueeBar" PositionX="20ch" PositionY="27ch"
                  Width="40ch" Mode="Marquee"
                  ForegroundColor="Cyan" BackgroundColor="DarkBlue" />
+
+    <Chart Name="salesChart" PositionX="5ch" PositionY="30ch"
+           Width="80ch" Height="12ch"
+           ShowLegend="true" ShowAxes="true"
+           ForegroundColor="White" BackgroundColor="DarkBlue" />
 </Container>
 """;
 
@@ -117,6 +187,38 @@ var deliveryOvernight = termui.GetWidget<RadioButton>("deliveryOvernight");
 var submitButton = termui.GetWidget<Button>("submitButton");
 var exitButton = termui.GetWidget<Button>("exitButton");
 var outputText = termui.GetWidget<Text>("outputText");
+var salesChart = termui.GetWidget<Termui.Widgets.Chart>("salesChart");
+
+// Setup chart with sample data
+if (salesChart is not null)
+{
+    // Sales data series
+    var series1 = new Termui.Widgets.ChartDataSeries
+    {
+        Label = "Product A",
+        Color = ConsoleColor.Green,
+        Data = [10, 15, 13, 17, 22, 28, 35, 42, 38, 45, 52, 58]
+    };
+
+    var series2 = new Termui.Widgets.ChartDataSeries
+    {
+        Label = "Product B",
+        Color = ConsoleColor.Cyan,
+        Data = [5, 8, 12, 18, 25, 20, 22, 28, 35, 40, 38, 42]
+    };
+
+    var series3 = new Termui.Widgets.ChartDataSeries
+    {
+        Label = "Product C",
+        Color = ConsoleColor.Yellow,
+        Data = [20, 18, 22, 19, 25, 30, 28, 32, 35, 38, 42, 48]
+    };
+
+    salesChart.AddSeries(series1);
+    salesChart.AddSeries(series2);
+    salesChart.AddSeries(series3);
+    salesChart.XLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+}
 
 if (exitButton is not null && submitButton is not null)
 {

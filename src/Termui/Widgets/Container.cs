@@ -23,7 +23,7 @@ public class Container : IWidget
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     public bool CanFocus => false;
-    public bool Scrollable => false;
+    public bool Scrollable { get; set; } = false;
 
     // Border support
     public BorderStyle? BorderStyle { get; set; } = null;
