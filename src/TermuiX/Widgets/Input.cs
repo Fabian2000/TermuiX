@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 
 namespace TermuiX.Widgets;
@@ -397,9 +398,9 @@ public class Input : IWidget
         try
         {
             // For Linux with xclip
-            var process = new System.Diagnostics.Process
+            var process = new Process
             {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
+                StartInfo = new ProcessStartInfo
                 {
                     FileName = "xclip",
                     Arguments = "-selection clipboard -o",

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Xml.Linq;
 using TermuiX.Widgets;
 
@@ -27,6 +28,7 @@ internal static class XmlParser
             "chart" => new Chart(),
             "slider" => new Slider(),
             "line" => new Line(),
+            "table" => new Table(),
             _ => throw new NotSupportedException($"Widget type '{element.Name.LocalName}' is not supported")
         };
 
@@ -93,14 +95,95 @@ internal static class XmlParser
                 container.Add(childWidget);
             }
         }
+        else if (widget is Table table)
+        {
+            foreach (var rowElement in element.Elements())
+            {
+                if (rowElement.Name.LocalName.Equals("TableRow", StringComparison.OrdinalIgnoreCase))
+                {
+                    var row = ParseTableRow(rowElement);
+                    table.AddRow(row);
+                }
+            }
+        }
 
         return widget;
+    }
+
+    private static TableRow ParseTableRow(XElement element)
+    {
+        var row = new TableRow();
+
+        foreach (var cellElement in element.Elements())
+        {
+            if (cellElement.Name.LocalName.Equals("TableCell", StringComparison.OrdinalIgnoreCase))
+            {
+                var cell = ParseTableCell(cellElement);
+                row.AddCell(cell);
+            }
+        }
+
+        return row;
+    }
+
+    private static TableCell ParseTableCell(XElement element)
+    {
+        var cell = new TableCell();
+
+        foreach (var attr in element.Attributes())
+        {
+            SetTableCellProperty(cell, attr.Name.LocalName, attr.Value);
+        }
+
+        // Check if cell contains a widget or text
+        if (element.Elements().Any())
+        {
+            var childWidget = ParseElement(element.Elements().First());
+            cell.Widget = childWidget;
+        }
+        else if (!string.IsNullOrWhiteSpace(element.Value))
+        {
+            cell.Text = element.Value.Trim();
+        }
+
+        return cell;
+    }
+
+    private static void SetTableCellProperty(TableCell cell, string propertyName, string value)
+    {
+        var prop = cell.GetType().GetProperty(propertyName,
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+        if (prop is null || !prop.CanWrite)
+        {
+            return;
+        }
+
+        object? convertedValue = null;
+
+        if (prop.PropertyType == typeof(string))
+        {
+            convertedValue = value;
+        }
+        else if (prop.PropertyType == typeof(ConsoleColor) || prop.PropertyType == typeof(ConsoleColor?))
+        {
+            convertedValue = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+        }
+        else if (prop.PropertyType == typeof(TextStyle))
+        {
+            convertedValue = Enum.Parse<TextStyle>(value, ignoreCase: true);
+        }
+
+        if (convertedValue is not null)
+        {
+            prop.SetValue(cell, convertedValue);
+        }
     }
 
     private static void SetProperty(IWidget widget, string propertyName, string value)
     {
         var prop = widget.GetType().GetProperty(propertyName,
-            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
 
         if (prop is null || !prop.CanWrite)
         {

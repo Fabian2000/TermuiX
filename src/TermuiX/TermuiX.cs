@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Threading;
 
 namespace TermuiX;
 
@@ -11,6 +12,16 @@ public sealed class TermuiX
     private readonly Renderer _renderer = new();
     private IWidget? _focusedWidget = null;
     private readonly List<IWidget> _focusableWidgets = [];
+    private static ConsoleCancelEventHandler? _cancelHandler = null;
+    private static bool _isInitialized = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether Ctrl+C should terminate the application.
+    /// When true, Ctrl+C will call DeInit() and allow the process to exit.
+    /// When false, Ctrl+C will call DeInit() but prevent process termination.
+    /// Default is true.
+    /// </summary>
+    public static bool AllowCancelKeyExit { get; set; } = true;
 
     /// <summary>
     /// Event triggered when a keyboard shortcut (Ctrl+Key combination) is pressed.
@@ -27,7 +38,27 @@ public sealed class TermuiX
     {
         Console.Clear();
         Console.CursorVisible = false;
+
+        // Set up Ctrl+C handler to restore console state on exit
+        _cancelHandler = new ConsoleCancelEventHandler(OnCancelKeyPress);
+        Console.CancelKeyPress += _cancelHandler;
+
+        _isInitialized = true;
+
         return new TermuiX();
+    }
+
+    private static void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+    {
+        // If not allowed to exit, prevent termination and don't deinitialize
+        if (!AllowCancelKeyExit)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        // Restore console state before the process terminates
+        DeInit();
     }
 
     /// <summary>
@@ -35,6 +66,21 @@ public sealed class TermuiX
     /// </summary>
     public static void DeInit()
     {
+        // Mark as not initialized FIRST to stop any further rendering
+        _isInitialized = false;
+
+        // Small delay to ensure any in-flight Render() calls finish
+        Thread.Sleep(50);
+
+        // Remove Ctrl+C handler if it was set
+        if (_cancelHandler != null)
+        {
+            Console.CancelKeyPress -= _cancelHandler;
+            _cancelHandler = null;
+        }
+
+        Console.ResetColor();
+        Console.Clear();
         Console.CursorVisible = true;
     }
 
@@ -572,6 +618,12 @@ public sealed class TermuiX
     /// </summary>
     public void Render()
     {
+        // Don't render if not initialized
+        if (!_isInitialized)
+        {
+            return;
+        }
+
         if (_widget is null)
         {
             throw new InvalidOperationException("No widget added to window. Call AddToWindow(widget) before Render().");

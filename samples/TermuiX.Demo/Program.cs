@@ -1,3 +1,4 @@
+using System.Threading;
 using TermuiX.Widgets;
 
 // XML-based UI definition with named widgets for event binding
@@ -267,7 +268,7 @@ var deliveryOvernight = termui.GetWidget<RadioButton>("deliveryOvernight");
 var submitButton = termui.GetWidget<Button>("submitButton");
 var exitButton = termui.GetWidget<Button>("exitButton");
 var outputText = termui.GetWidget<Text>("outputText");
-var salesChart = termui.GetWidget<TermuiX.Widgets.Chart>("salesChart");
+var salesChart = termui.GetWidget<Chart>("salesChart");
 
 // Modal widgets
 var mainPage = termui.GetWidget<Container>("mainPage");
@@ -295,21 +296,21 @@ if (modalDialog is not null)
 if (salesChart is not null)
 {
     // Sales data series
-    var series1 = new TermuiX.Widgets.ChartDataSeries
+    var series1 = new ChartDataSeries
     {
         Label = "Product A",
         Color = ConsoleColor.Green,
         Data = [10, 15, 13, 17, 22, 28, 35, 42, 38, 45, 52, 58]
     };
 
-    var series2 = new TermuiX.Widgets.ChartDataSeries
+    var series2 = new ChartDataSeries
     {
         Label = "Product B",
         Color = ConsoleColor.Cyan,
         Data = [5, 8, 12, 18, 25, 20, 22, 28, 35, 40, 38, 42]
     };
 
-    var series3 = new TermuiX.Widgets.ChartDataSeries
+    var series3 = new ChartDataSeries
     {
         Label = "Product C",
         Color = ConsoleColor.Yellow,

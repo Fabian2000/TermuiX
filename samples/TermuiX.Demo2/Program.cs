@@ -1,65 +1,69 @@
+using System.Threading;
+using TermuiX.Widgets;
+
 var xml = """
 <Container Width="100%" Height="100%" BackgroundColor="DarkBlue" Scrollable="true">
-    <Button Name="wideButton" PositionX="5ch" PositionY="5ch" Width="20ch" Height="3ch"
-            BorderColor="White" TextColor="Cyan"
-            FocusBorderColor="Green" FocusTextColor="White"
-            BackgroundColor="DarkBlue" RoundedCorners="true">
-        Click Me
-    </Button>
-
-    <Line PositionX="5ch" PositionY="10ch" Width="50ch"
-          Orientation="Horizontal" Type="Solid"
-          ForegroundColor="White" BackgroundColor="DarkBlue" />
-
-    <Line PositionX="5ch" PositionY="12ch" Width="50ch"
-          Orientation="Horizontal" Type="Double"
-          ForegroundColor="Yellow" BackgroundColor="DarkBlue" />
-
-    <Line PositionX="5ch" PositionY="14ch" Width="50ch"
-          Orientation="Horizontal" Type="Thick"
-          ForegroundColor="Cyan" BackgroundColor="DarkBlue" />
-
-    <Line PositionX="5ch" PositionY="16ch" Width="50ch"
-          Orientation="Horizontal" Type="Dotted"
-          ForegroundColor="Green" BackgroundColor="DarkBlue" />
-
-    <Line PositionX="60ch" PositionY="5ch" Height="15ch"
-          Orientation="Vertical" Type="Solid"
-          ForegroundColor="White" BackgroundColor="DarkBlue" />
-
-    <Line PositionX="62ch" PositionY="5ch" Height="15ch"
-          Orientation="Vertical" Type="Double"
-          ForegroundColor="Yellow" BackgroundColor="DarkBlue" />
-
-    <Line PositionX="64ch" PositionY="5ch" Height="15ch"
-          Orientation="Vertical" Type="Thick"
-          ForegroundColor="Cyan" BackgroundColor="DarkBlue" />
-
-    <Line PositionX="66ch" PositionY="5ch" Height="15ch"
-          Orientation="Vertical" Type="Dotted"
-          ForegroundColor="Green" BackgroundColor="DarkBlue" />
+    <Table Name="testTable" PositionX="5ch" PositionY="5ch"
+           BorderStyle="Single" BorderColor="White"
+           BackgroundColor="DarkBlue" ForegroundColor="White"
+           FocusBackgroundColor="Red" FocusForegroundColor="Yellow"
+           RoundedCorners="true">
+        <TableRow>
+            <TableCell Style="Bold">Name</TableCell>
+            <TableCell Style="Bold">Age</TableCell>
+            <TableCell Style="Bold">City</TableCell>
+            <TableCell Style="Bold">Status</TableCell>
+        </TableRow>
+        <TableRow>
+            <TableCell>Alice
+&amp;
+Bob</TableCell>
+            <TableCell>25</TableCell>
+            <TableCell>New York</TableCell>
+            <TableCell>Active</TableCell>
+        </TableRow>
+        <TableRow>
+            <TableCell>Bob
+&amp;
+Doris</TableCell>
+            <TableCell>30</TableCell>
+            <TableCell>London</TableCell>
+            <TableCell>Pending</TableCell>
+        </TableRow>
+        <TableRow>
+            <TableCell>Charlie</TableCell>
+            <TableCell>35</TableCell>
+            <TableCell>Paris</TableCell>
+            <TableCell>Inactive</TableCell>
+        </TableRow>
+    </Table>
 </Container>
 """;
 
 var termui = TermuiX.TermuiX.Init();
 termui.LoadXml(xml);
 
-var wideButton = termui.GetWidget<TermuiX.Widgets.Button>("wideButton");
+var table = termui.GetWidget<Table>("testTable");
 
-if (wideButton is not null)
+if (table is not null)
 {
     bool running = true;
-    wideButton.Click += (sender, e) =>
-    {
-        Console.WriteLine("Wide button clicked!");
-        running = false;
-    };
 
     try
     {
         while (running)
         {
             termui.Render();
+
+            if (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(true);
+                if (key.Key == ConsoleKey.Escape || key.Key == ConsoleKey.Q)
+                {
+                    running = false;
+                }
+            }
+
             Thread.Sleep(16);
         }
     }
@@ -71,5 +75,5 @@ if (wideButton is not null)
 }
 else
 {
-    Console.WriteLine("Error: Could not find wide button");
+    Console.WriteLine("Error: Could not find table");
 }
