@@ -135,7 +135,7 @@ var xml = """
         </Text>
     </Container>
 
-    <Container PositionX="60ch" PositionY="13ch" Width="30ch" Height="6ch"
+    <Container PositionX="60ch" PositionY="13ch" Width="30ch" Height="7ch"
                BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White"
                RoundedCorners="true">
         <Text PositionX="0ch" PositionY="0ch"

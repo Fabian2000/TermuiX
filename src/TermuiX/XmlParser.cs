@@ -26,6 +26,7 @@ internal static class XmlParser
             "progressbar" => new ProgressBar(),
             "chart" => new Chart(),
             "slider" => new Slider(),
+            "line" => new Line(),
             _ => throw new NotSupportedException($"Widget type '{element.Name.LocalName}' is not supported")
         };
 
@@ -143,6 +144,14 @@ internal static class XmlParser
         else if (prop.PropertyType == typeof(ProgressBarMode))
         {
             convertedValue = Enum.Parse<ProgressBarMode>(value, ignoreCase: true);
+        }
+        else if (prop.PropertyType == typeof(LineOrientation))
+        {
+            convertedValue = Enum.Parse<LineOrientation>(value, ignoreCase: true);
+        }
+        else if (prop.PropertyType == typeof(LineType))
+        {
+            convertedValue = Enum.Parse<LineType>(value, ignoreCase: true);
         }
         else if (prop.PropertyType == typeof(double))
         {

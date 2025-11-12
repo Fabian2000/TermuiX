@@ -1,5 +1,4 @@
-﻿using Microsoft.CSharp.RuntimeBinder;
-using System.Text;
+﻿using System.Text;
 
 namespace TermuiX;
 
@@ -26,34 +25,10 @@ public sealed class TermuiX
     /// <returns>A new initialized Termui instance.</returns>
     public static TermuiX Init()
     {
-        // Enable ANSI escape sequences support on Windows
-        if (OperatingSystem.IsWindows())
-        {
-            try
-            {
-                var handle = GetStdHandle(-11); // STD_OUTPUT_HANDLE
-                GetConsoleMode(handle, out uint mode);
-                SetConsoleMode(handle, mode | 0x0004); // ENABLE_VIRTUAL_TERMINAL_PROCESSING
-            }
-            catch
-            {
-                // Ignore if we can't enable ANSI support
-            }
-        }
-
         Console.Clear();
         Console.CursorVisible = false;
         return new TermuiX();
     }
-
-    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr GetStdHandle(int nStdHandle);
-
-    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
-    private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
-
-    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
-    private static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
 
     /// <summary>
     /// De-initializes the Termui instance and restores the console state.
@@ -378,13 +353,8 @@ public sealed class TermuiX
 
     private int CalculateContentWidth(IWidget widget)
     {
-        int parentWidth = 100;
-        if (widget.Parent is null)
-        {
-            parentWidth = Console.WindowWidth;
-        }
-
-        int width = ParseSize(widget.Width, parentWidth);
+        // Calculate the widget's total width
+        int width = CalculateWidgetWidth(widget);
 
         int padLeft = ParseSize(widget.PaddingLeft, width);
         int padRight = ParseSize(widget.PaddingRight, width);
@@ -397,6 +367,34 @@ public sealed class TermuiX
         }
 
         return Math.Max(0, width - padLeft - padRight);
+    }
+
+    private int CalculateWidgetWidth(IWidget widget)
+    {
+        if (widget.Parent is null)
+        {
+            return ParseSize(widget.Width, Console.WindowWidth);
+        }
+
+        // Recursively calculate parent's width first
+        int parentWidth = CalculateWidgetWidth(widget.Parent);
+
+        // Account for parent's padding
+        if (widget.Parent is not null)
+        {
+            int parentPadLeft = ParseSize(widget.Parent.PaddingLeft, parentWidth);
+            int parentPadRight = ParseSize(widget.Parent.PaddingRight, parentWidth);
+
+            if (widget.Parent is Widgets.Container parentContainer && parentContainer.HasBorder)
+            {
+                parentPadLeft += 1;
+                parentPadRight += 1;
+            }
+
+            parentWidth = Math.Max(0, parentWidth - parentPadLeft - parentPadRight);
+        }
+
+        return ParseSize(widget.Width, parentWidth);
     }
 
     private void HandleScroll(bool up)
@@ -442,13 +440,8 @@ public sealed class TermuiX
 
     private int CalculateContentHeight(IWidget widget)
     {
-        int parentHeight = 100;
-        if (widget.Parent is null)
-        {
-            parentHeight = Console.WindowHeight;
-        }
-
-        int height = ParseSize(widget.Height, parentHeight);
+        // Calculate the widget's total height
+        int height = CalculateWidgetHeight(widget);
 
         int padTop = ParseSize(widget.PaddingTop, height);
         int padBottom = ParseSize(widget.PaddingBottom, height);
@@ -461,6 +454,34 @@ public sealed class TermuiX
         }
 
         return Math.Max(0, height - padTop - padBottom);
+    }
+
+    private int CalculateWidgetHeight(IWidget widget)
+    {
+        if (widget.Parent is null)
+        {
+            return ParseSize(widget.Height, Console.WindowHeight);
+        }
+
+        // Recursively calculate parent's height first
+        int parentHeight = CalculateWidgetHeight(widget.Parent);
+
+        // Account for parent's padding
+        if (widget.Parent is not null)
+        {
+            int parentPadTop = ParseSize(widget.Parent.PaddingTop, parentHeight);
+            int parentPadBottom = ParseSize(widget.Parent.PaddingBottom, parentHeight);
+
+            if (widget.Parent is Widgets.Container parentContainer && parentContainer.HasBorder)
+            {
+                parentPadTop += 1;
+                parentPadBottom += 1;
+            }
+
+            parentHeight = Math.Max(0, parentHeight - parentPadTop - parentPadBottom);
+        }
+
+        return ParseSize(widget.Height, parentHeight);
     }
 
     private static int ParseSize(string size, int parentSize)
