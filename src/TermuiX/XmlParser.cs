@@ -1,7 +1,7 @@
 using System.Xml.Linq;
-using Termui.Widgets;
+using TermuiX.Widgets;
 
-namespace Termui;
+namespace TermuiX;
 
 internal static class XmlParser
 {

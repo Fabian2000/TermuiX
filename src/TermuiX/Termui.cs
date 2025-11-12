@@ -1,6 +1,6 @@
 ﻿using Microsoft.CSharp.RuntimeBinder;
 
-namespace Termui;
+namespace TermuiX;
 
 public sealed class Termui
 {
@@ -123,6 +123,9 @@ public sealed class Termui
 
     private static void CollectFocusableWidgets(IWidget widget, List<IWidget> list)
     {
+        // Skip invisible widgets and their children
+        if (!widget.Visible) return;
+
         // Depth-first traversal
         if (widget.CanFocus)
         {
@@ -135,10 +138,23 @@ public sealed class Termui
         }
     }
 
+    private static bool IsWidgetVisible(IWidget widget)
+    {
+        // Check if widget and all its parents are visible
+        IWidget? current = widget;
+        while (current is not null)
+        {
+            if (!current.Visible) return false;
+            current = current.Parent;
+        }
+        return true;
+    }
+
     public void SetFocus(IWidget widget)
     {
-        // Check if widget can be focused
+        // Check if widget can be focused and is visible
         if (!widget.CanFocus) return;
+        if (!IsWidgetVisible(widget)) return;
 
         // Clear current focus
         if (_focusedWidget is not null)
@@ -153,7 +169,14 @@ public sealed class Termui
 
     private void MoveFocus(bool forward)
     {
-        if (_focusableWidgets.Count == 0) return;
+        // Rebuild focus list to include only currently visible widgets
+        var visibleFocusableWidgets = new List<IWidget>();
+        if (_widget is not null)
+        {
+            CollectFocusableWidgets(_widget, visibleFocusableWidgets);
+        }
+
+        if (visibleFocusableWidgets.Count == 0) return;
 
         // Clear current focus
         if (_focusedWidget is not null)
@@ -161,19 +184,19 @@ public sealed class Termui
             _focusedWidget.Focussed = false;
         }
 
-        // Find next focus
-        int currentIndex = _focusedWidget is not null ? _focusableWidgets.IndexOf(_focusedWidget) : -1;
+        // Find next focus in visible widgets only
+        int currentIndex = _focusedWidget is not null ? visibleFocusableWidgets.IndexOf(_focusedWidget) : -1;
 
         if (forward)
         {
-            currentIndex = (currentIndex + 1) % _focusableWidgets.Count;
+            currentIndex = (currentIndex + 1) % visibleFocusableWidgets.Count;
         }
         else
         {
-            currentIndex = currentIndex <= 0 ? _focusableWidgets.Count - 1 : currentIndex - 1;
+            currentIndex = currentIndex <= 0 ? visibleFocusableWidgets.Count - 1 : currentIndex - 1;
         }
 
-        _focusedWidget = _focusableWidgets[currentIndex];
+        _focusedWidget = visibleFocusableWidgets[currentIndex];
         _focusedWidget.Focussed = true;
 
         // Auto-scroll to the focused widget if it's outside the visible area

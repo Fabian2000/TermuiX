@@ -1,4 +1,4 @@
-namespace Termui.Widgets;
+namespace TermuiX.Widgets;
 
 public class Button : IWidget
 {

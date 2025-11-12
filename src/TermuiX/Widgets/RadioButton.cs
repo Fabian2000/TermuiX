@@ -1,18 +1,24 @@
-namespace Termui.Widgets;
+namespace TermuiX.Widgets;
 
-public class Checkbox : IWidget
+public class RadioButton : IWidget
 {
-    private bool _checked = false;
+    private bool _selected = false;
 
-    public bool Checked
+    public bool Selected
     {
-        get => _checked;
+        get => _selected;
         set
         {
-            if (_checked != value)
+            if (_selected != value)
             {
-                _checked = value;
+                _selected = value;
                 OnChanged();
+
+                // If this radio button is selected, unselect all siblings
+                if (_selected)
+                {
+                    UnselectSiblings();
+                }
             }
         }
     }
@@ -20,7 +26,7 @@ public class Checkbox : IWidget
     // IWidget properties
     public string? Name { get; set; }
     public string? Group { get; set; }
-    public string Width { get; set; } = "1ch";  // ☐ or ☑
+    public string Width { get; set; } = "1ch";  // ○ or ◉
     public string Height { get; set; } = "1ch";
     public string PaddingLeft { get; set; } = "0ch";
     public string PaddingTop { get; set; } = "0ch";
@@ -54,23 +60,39 @@ public class Checkbox : IWidget
         var result = new char[1][];
         result[0] = new char[1];
 
-        // Render checkbox: ☑ or ☐
-        result[0][0] = _checked ? '☑' : '☐';
+        // Render radio button: ◉ or ○
+        result[0][0] = _selected ? '◉' : '○';
 
         return result;
     }
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Space or Enter toggles checkbox
+        // Space or Enter selects radio button
         if (keyInfo.Key == ConsoleKey.Spacebar || keyInfo.Key == ConsoleKey.Enter)
         {
-            Checked = !Checked;
+            Selected = true;
         }
     }
 
     protected virtual void OnChanged()
     {
-        Changed?.Invoke(this, _checked);
+        Changed?.Invoke(this, _selected);
+    }
+
+    private void UnselectSiblings()
+    {
+        // Find parent container
+        var parent = ((IWidget)this).Parent;
+        if (parent == null) return;
+
+        // Unselect all other RadioButtons in the same parent container
+        foreach (var child in parent.Children)
+        {
+            if (child is RadioButton radio && radio != this)
+            {
+                radio._selected = false; // Set directly to avoid triggering Changed event
+            }
+        }
     }
 }

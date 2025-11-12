@@ -1,4 +1,4 @@
-namespace Termui
+namespace TermuiX
 {
     public interface IWidget
     {

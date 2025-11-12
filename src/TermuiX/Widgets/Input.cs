@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Termui.Widgets;
+namespace TermuiX.Widgets;
 
 public class Input : IWidget
 {

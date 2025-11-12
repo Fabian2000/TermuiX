@@ -1,23 +1,8 @@
-namespace Termui.Widgets;
+namespace TermuiX.Widgets;
 
-public class Text : IWidget
+public class Container : IWidget
 {
-    private string _text = string.Empty;
-
-    public Text() { }
-
-    public Text(string text)
-    {
-        _text = text;
-    }
-
-    public string Content
-    {
-        get => _text;
-        set => _text = value;
-    }
-
-    public TextAlign TextAlign { get; set; } = TextAlign.Left;
+    private readonly List<IWidget> _children = [];
 
     public string? Name { get; set; }
     public string? Group { get; set; }
@@ -30,22 +15,44 @@ public class Text : IWidget
     public string PositionX { get; set; } = "0ch";
     public string PositionY { get; set; } = "0ch";
     public bool Visible { get; set; } = true;
-    public bool AllowWrapping { get; set; } = true;
+    public bool AllowWrapping { get; set; } = false;
 
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
-    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     public bool CanFocus => false;
-    public bool Scrollable => false;
+    public bool Scrollable { get; set; } = false;
+
+    // Border support
+    public BorderStyle? BorderStyle { get; set; } = null;
+    public bool HasBorder => BorderStyle.HasValue;
 
     // Explicit interface implementation to hide these members
     IWidget? IWidget.Parent { get; set; }
-    List<IWidget> IWidget.Children => [];
+    List<IWidget> IWidget.Children => _children;
     bool IWidget.Focussed { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
+
+    // Public API for adding children
+    public void Add(IWidget widget)
+    {
+        widget.Parent = this;
+        _children.Add(widget);
+    }
+
+    public void Remove(IWidget widget)
+    {
+        widget.Parent = null;
+        _children.Remove(widget);
+    }
+
+    public void Clear()
+    {
+        _children.Clear();
+    }
 
     char[][] IWidget.GetRaw()
     {
@@ -53,13 +60,13 @@ public class Text : IWidget
         int actualWidth = CalculateSize(Width, ((IWidget)this).Parent?.Width, true);
         int actualHeight = CalculateSize(Height, ((IWidget)this).Parent?.Height, false);
 
-        // If we can't determine size or text is empty, return spaces
+        // If we can't determine size, return empty
         if (actualWidth <= 0 || actualHeight <= 0)
         {
             return [];
         }
 
-        // Create result filled with spaces - like a JPEG!
+        // Always create result filled with spaces - like a JPEG, not a PNG!
         var result = new char[actualHeight][];
         for (int i = 0; i < actualHeight; i++)
         {
@@ -67,37 +74,33 @@ public class Text : IWidget
             Array.Fill(result[i], ' ');
         }
 
-        // If no text, just return spaces
-        if (string.IsNullOrEmpty(_text))
+        // Draw border on top of spaces if we have one
+        if (HasBorder)
         {
-            return result;
-        }
+            var (topLeft, topRight, bottomLeft, bottomRight, horizontal, vertical) = GetBorderChars();
 
-        // Split text into lines
-        var lines = _text.Split('\n');
-
-        for (int i = 0; i < lines.Length && i < actualHeight; i++)
-        {
-            string line = lines[i];
-
-            // Truncate line if too long
-            if (line.Length > actualWidth)
+            // Top border
+            result[0][0] = topLeft;
+            result[0][actualWidth - 1] = topRight;
+            for (int x = 1; x < actualWidth - 1; x++)
             {
-                line = line[..actualWidth];
+                result[0][x] = horizontal;
             }
 
-            // Calculate offset based on alignment
-            int offset = TextAlign switch
+            // Bottom border
+            int lastY = actualHeight - 1;
+            result[lastY][0] = bottomLeft;
+            result[lastY][actualWidth - 1] = bottomRight;
+            for (int x = 1; x < actualWidth - 1; x++)
             {
-                TextAlign.Center => Math.Max(0, (actualWidth - line.Length) / 2),
-                TextAlign.Right => Math.Max(0, actualWidth - line.Length),
-                _ => 0 // Left
-            };
+                result[lastY][x] = horizontal;
+            }
 
-            // Copy line into result
-            for (int j = 0; j < line.Length; j++)
+            // Left and right borders
+            for (int y = 1; y < actualHeight - 1; y++)
             {
-                result[i][offset + j] = line[j];
+                result[y][0] = vertical;
+                result[y][actualWidth - 1] = vertical;
             }
         }
 
@@ -172,8 +175,18 @@ public class Text : IWidget
         return 0;
     }
 
+    private (char topLeft, char topRight, char bottomLeft, char bottomRight, char horizontal, char vertical) GetBorderChars()
+    {
+        return BorderStyle switch
+        {
+            Widgets.BorderStyle.Single => ('┌', '┐', '└', '┘', '─', '│'),
+            Widgets.BorderStyle.Double => ('╔', '╗', '╚', '╝', '═', '║'),
+            _ => ('┌', '┐', '└', '┘', '─', '│')
+        };
+    }
+
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Text doesn't handle key presses
+        // Container doesn't handle key presses directly
     }
 }

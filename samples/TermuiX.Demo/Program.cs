@@ -1,11 +1,12 @@
-using Termui.Widgets;
+using TermuiX.Widgets;
 
 // XML-based UI definition with named widgets for event binding
 var xml = """
-<Container Width="100%" Height="100%" BackgroundColor="DarkBlue" Scrollable="true">
+<Container Width="100%" Height="100%" BackgroundColor="DarkBlue">
+    <Container Name="mainPage" Width="100%" Height="100%" BackgroundColor="DarkBlue" Scrollable="true" Visible="true">
     <Text PositionX="2ch" PositionY="1ch"
           ForegroundColor="Yellow" BackgroundColor="DarkBlue">
-        Welcome to Termui!
+        Welcome to TermuiX!
     </Text>
 
     <Input Name="nameInput" PositionX="5ch" PositionY="5ch"
@@ -165,15 +166,53 @@ var xml = """
                  Width="40ch" Mode="Marquee"
                  ForegroundColor="Cyan" BackgroundColor="DarkBlue" />
 
-    <Chart Name="salesChart" PositionX="5ch" PositionY="30ch"
+    <Text PositionX="5ch" PositionY="29ch"
+          ForegroundColor="Yellow" BackgroundColor="DarkBlue">
+        Volume:
+    </Text>
+    <Slider Name="volumeSlider" PositionX="20ch" PositionY="29ch"
+            Width="40ch" Height="1ch"
+            Min="0" Max="100" Value="75" Step="5"
+            ShowValue="true"
+            BackgroundColor="DarkBlue" ForegroundColor="Cyan"
+            FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+
+    <Chart Name="salesChart" PositionX="5ch" PositionY="32ch"
            Width="80ch" Height="12ch"
            ShowLegend="true" ShowAxes="true"
            ForegroundColor="White" BackgroundColor="DarkBlue" />
+    </Container>
+
+    <Container Name="confirmModal" Width="100%" Height="100%" BackgroundColor="DarkGray" Visible="false">
+        <Container Name="modalDialog" PositionX="30ch" PositionY="10ch" Width="60ch" Height="12ch"
+                   BackgroundColor="White" ForegroundColor="Black" BorderStyle="Double">
+            <Text Name="modalTitle" PositionX="2ch" PositionY="1ch"
+                  ForegroundColor="Blue" BackgroundColor="White">
+                Confirmation
+            </Text>
+            <Text Name="modalMessage" PositionX="2ch" PositionY="3ch" Width="54ch" Height="2ch"
+                  ForegroundColor="Black" BackgroundColor="White">
+                Do you really want to submit?
+            </Text>
+            <Button Name="modalYes" PositionX="15ch" PositionY="6ch" Width="12ch"
+                    BorderColor="DarkGreen" TextColor="DarkGreen"
+                    FocusBorderColor="Green" FocusTextColor="White"
+                    BackgroundColor="White" FocusBackgroundColor="DarkGreen">
+                Yes
+            </Button>
+            <Button Name="modalNo" PositionX="35ch" PositionY="6ch" Width="12ch"
+                    BorderColor="DarkRed" TextColor="DarkRed"
+                    FocusBorderColor="Red" FocusTextColor="White"
+                    BackgroundColor="White" FocusBackgroundColor="DarkRed">
+                No
+            </Button>
+        </Container>
+    </Container>
 </Container>
 """;
 
-// Initialize Termui and load XML (parsed once, kept in DOM)
-var termui = Termui.Termui.Init();
+// Initialize TermuiX and load XML (parsed once, kept in DOM)
+var termui = TermuiX.Termui.Init();
 termui.LoadXml(xml);
 
 // Bind events to named widgets
@@ -187,27 +226,49 @@ var deliveryOvernight = termui.GetWidget<RadioButton>("deliveryOvernight");
 var submitButton = termui.GetWidget<Button>("submitButton");
 var exitButton = termui.GetWidget<Button>("exitButton");
 var outputText = termui.GetWidget<Text>("outputText");
-var salesChart = termui.GetWidget<Termui.Widgets.Chart>("salesChart");
+var salesChart = termui.GetWidget<TermuiX.Widgets.Chart>("salesChart");
+
+// Modal widgets
+var mainPage = termui.GetWidget<Container>("mainPage");
+var confirmModal = termui.GetWidget<Container>("confirmModal");
+var modalDialog = termui.GetWidget<Container>("modalDialog");
+var modalYes = termui.GetWidget<Button>("modalYes");
+var modalNo = termui.GetWidget<Button>("modalNo");
+
+// Center modal dialog
+if (modalDialog is not null)
+{
+    int termWidth = Console.WindowWidth;
+    int termHeight = Console.WindowHeight;
+    int dialogWidth = 60; // From XML: Width="60ch"
+    int dialogHeight = 12; // From XML: Height="12ch"
+
+    int centerX = (termWidth - dialogWidth) / 2;
+    int centerY = (termHeight - dialogHeight) / 2;
+
+    modalDialog.PositionX = $"{centerX}ch";
+    modalDialog.PositionY = $"{centerY}ch";
+}
 
 // Setup chart with sample data
 if (salesChart is not null)
 {
     // Sales data series
-    var series1 = new Termui.Widgets.ChartDataSeries
+    var series1 = new TermuiX.Widgets.ChartDataSeries
     {
         Label = "Product A",
         Color = ConsoleColor.Green,
         Data = [10, 15, 13, 17, 22, 28, 35, 42, 38, 45, 52, 58]
     };
 
-    var series2 = new Termui.Widgets.ChartDataSeries
+    var series2 = new TermuiX.Widgets.ChartDataSeries
     {
         Label = "Product B",
         Color = ConsoleColor.Cyan,
         Data = [5, 8, 12, 18, 25, 20, 22, 28, 35, 40, 38, 42]
     };
 
-    var series3 = new Termui.Widgets.ChartDataSeries
+    var series3 = new TermuiX.Widgets.ChartDataSeries
     {
         Label = "Product C",
         Color = ConsoleColor.Yellow,
@@ -238,10 +299,24 @@ if (exitButton is not null && submitButton is not null)
         }
     };
 
-    if (submitButton is not null && nameInput is not null && passwordInput is not null && messageInput is not null && agreeCheckbox is not null && outputText is not null)
+    if (submitButton is not null && nameInput is not null && passwordInput is not null && messageInput is not null && agreeCheckbox is not null && outputText is not null && confirmModal is not null && mainPage is not null && modalYes is not null && modalNo is not null)
     {
         submitButton.Click += (sender, e) =>
         {
+            // Show confirmation modal
+            mainPage.Visible = false;
+            confirmModal.Visible = true;
+            termui.SetFocus(modalYes);
+        };
+
+        // Handle modal Yes button
+        modalYes.Click += (sender, e) =>
+        {
+            // Hide modal
+            confirmModal.Visible = false;
+            mainPage.Visible = true;
+
+            // Submit
             string delivery = "None";
             if (deliveryStandard?.Selected == true) delivery = "Standard";
             else if (deliveryExpress?.Selected == true) delivery = "Express";
@@ -249,11 +324,28 @@ if (exitButton is not null && submitButton is not null)
 
             outputText.Content = $"Submitted!\nName: {nameInput.Value}\nPassword: {passwordInput.Value}\nMessage: {messageInput.Value}\nAgreed: {agreeCheckbox.Checked}\nDelivery: {delivery}";
             messageDisplayedAt = DateTime.Now;
+
+            // Return focus to submit button
+            termui.SetFocus(submitButton);
+        };
+
+        // Handle modal No button
+        modalNo.Click += (sender, e) =>
+        {
+            // Hide modal
+            confirmModal.Visible = false;
+            mainPage.Visible = true;
+
+            // Return focus to submit button
+            termui.SetFocus(submitButton);
         };
     }
 
     try
     {
+        int lastTermWidth = Console.WindowWidth;
+        int lastTermHeight = Console.WindowHeight;
+
         // User-controlled loop (like ImGui)
         while (running)
         {
@@ -262,6 +354,21 @@ if (exitButton is not null && submitButton is not null)
             {
                 outputText!.Content = string.Empty;
                 messageDisplayedAt = null;
+            }
+
+            // Re-center modal if terminal size changed
+            if (modalDialog is not null && (Console.WindowWidth != lastTermWidth || Console.WindowHeight != lastTermHeight))
+            {
+                lastTermWidth = Console.WindowWidth;
+                lastTermHeight = Console.WindowHeight;
+
+                const int dialogWidth = 60;
+                const int dialogHeight = 12;
+                int centerX = (lastTermWidth - dialogWidth) / 2;
+                int centerY = (lastTermHeight - dialogHeight) / 2;
+
+                modalDialog.PositionX = $"{centerX}ch";
+                modalDialog.PositionY = $"{centerY}ch";
             }
 
             // Render frame (input is processed automatically)
@@ -274,7 +381,7 @@ if (exitButton is not null && submitButton is not null)
     finally
     {
         // Clean up
-        Termui.Termui.DeInit();
+        TermuiX.Termui.DeInit();
         Console.WriteLine("\n\nDemo finished!");
     }
 }
