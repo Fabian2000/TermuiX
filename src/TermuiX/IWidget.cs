@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX
 {
     /// <summary>
@@ -123,8 +125,8 @@ namespace TermuiX
         /// <summary>
         /// Gets the raw character array representation of the widget for rendering.
         /// </summary>
-        /// <returns>A 2D array of characters representing the widget content.</returns>
-        char[][] GetRaw();
+        /// <returns>A 2D array of Runes where each Rune represents one Unicode scalar value.</returns>
+        Rune[][] GetRaw();
 
         /// <summary>
         /// Handles keyboard input when the widget is focused.

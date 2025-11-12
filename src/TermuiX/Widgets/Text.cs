@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX.Widgets;
 
 /// <summary>
@@ -34,6 +36,11 @@ public class Text : IWidget
     /// Gets or sets the horizontal alignment of the text.
     /// </summary>
     public TextAlign TextAlign { get; set; } = TextAlign.Left;
+
+    /// <summary>
+    /// Gets or sets the visual style of the text.
+    /// </summary>
+    public TextStyle Style { get; set; } = TextStyle.Normal;
 
     /// <summary>
     /// Gets or sets the unique name of the text widget.
@@ -132,7 +139,7 @@ public class Text : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
         int actualWidth = CalculateSize(Width, ((IWidget)this).Parent?.Width, true);
         int actualHeight = CalculateSize(Height, ((IWidget)this).Parent?.Height, false);
@@ -142,11 +149,11 @@ public class Text : IWidget
             return [];
         }
 
-        var result = new char[actualHeight][];
+        var result = new Rune[actualHeight][];
         for (int i = 0; i < actualHeight; i++)
         {
-            result[i] = new char[actualWidth];
-            Array.Fill(result[i], ' ');
+            result[i] = new Rune[actualWidth];
+            Array.Fill(result[i], new Rune(' '));
         }
 
         if (string.IsNullOrEmpty(_text))
@@ -154,27 +161,37 @@ public class Text : IWidget
             return result;
         }
 
+        // Apply text styling using Unicode transformation
         var lines = _text.Split('\n');
 
         for (int i = 0; i < lines.Length && i < actualHeight; i++)
         {
             string line = lines[i];
 
-            if (line.Length > actualWidth)
+            // Convert line to Runes with styling
+            var displayRunes = new List<Rune>();
+            foreach (char c in line)
             {
-                line = line[..actualWidth];
+                Rune styledRune = ApplyTextStyleToChar(c, Style);
+                displayRunes.Add(styledRune);
+            }
+
+            // Truncate to fit width
+            if (displayRunes.Count > actualWidth)
+            {
+                displayRunes = displayRunes.Take(actualWidth).ToList();
             }
 
             int offset = TextAlign switch
             {
-                TextAlign.Center => Math.Max(0, (actualWidth - line.Length) / 2),
-                TextAlign.Right => Math.Max(0, actualWidth - line.Length),
+                TextAlign.Center => Math.Max(0, (actualWidth - displayRunes.Count) / 2),
+                TextAlign.Right => Math.Max(0, actualWidth - displayRunes.Count),
                 _ => 0
             };
 
-            for (int j = 0; j < line.Length; j++)
+            for (int j = 0; j < displayRunes.Count && offset + j < actualWidth; j++)
             {
-                result[i][offset + j] = line[j];
+                result[i][offset + j] = displayRunes[j];
             }
         }
 
@@ -254,6 +271,95 @@ public class Text : IWidget
         }
 
         return 0;
+    }
+
+    private static Rune ApplyTextStyleToChar(char c, TextStyle style)
+    {
+        if (style == TextStyle.Normal)
+        {
+            return new Rune(c);
+        }
+
+        // Transform based on style
+        if (style == TextStyle.Bold)
+        {
+            return ConvertToBold(c);
+        }
+        else if (style == TextStyle.Italic)
+        {
+            return ConvertToItalic(c);
+        }
+        else if (style == TextStyle.BoldItalic)
+        {
+            return ConvertToBoldItalic(c);
+        }
+        else if (style == TextStyle.Underline || style == TextStyle.Strikethrough)
+        {
+            // For underline and strikethrough, we use the base character
+            // Note: Combining characters are not well-supported in Rune rendering
+            // so we'll just return the base character
+            return new Rune(c);
+        }
+        else
+        {
+            return new Rune(c);
+        }
+    }
+
+    private static Rune ConvertToBold(char c)
+    {
+        // Unicode Mathematical Alphanumeric Symbols - Bold
+        if (c >= 'A' && c <= 'Z')
+        {
+            int codePoint = 0x1D400 + (c - 'A');
+            return new Rune(codePoint);
+        }
+        if (c >= 'a' && c <= 'z')
+        {
+            int codePoint = 0x1D41A + (c - 'a');
+            return new Rune(codePoint);
+        }
+        if (c >= '0' && c <= '9')
+        {
+            int codePoint = 0x1D7CE + (c - '0');
+            return new Rune(codePoint);
+        }
+
+        return new Rune(c);
+    }
+
+    private static Rune ConvertToItalic(char c)
+    {
+        // Unicode Mathematical Alphanumeric Symbols - Italic
+        if (c >= 'A' && c <= 'Z')
+        {
+            int codePoint = 0x1D434 + (c - 'A');
+            return new Rune(codePoint);
+        }
+        if (c >= 'a' && c <= 'z')
+        {
+            int codePoint = 0x1D44E + (c - 'a');
+            return new Rune(codePoint);
+        }
+
+        return new Rune(c);
+    }
+
+    private static Rune ConvertToBoldItalic(char c)
+    {
+        // Unicode Mathematical Alphanumeric Symbols - Bold Italic
+        if (c >= 'A' && c <= 'Z')
+        {
+            int codePoint = 0x1D468 + (c - 'A');
+            return new Rune(codePoint);
+        }
+        if (c >= 'a' && c <= 'z')
+        {
+            int codePoint = 0x1D482 + (c - 'a');
+            return new Rune(codePoint);
+        }
+
+        return new Rune(c);
     }
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)

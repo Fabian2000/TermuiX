@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX.Widgets;
 
 /// <summary>
@@ -103,6 +105,11 @@ public class Container : IWidget
     public BorderStyle? BorderStyle { get; set; } = null;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the border corners should be rounded.
+    /// </summary>
+    public bool RoundedCorners { get; set; } = false;
+
+    /// <summary>
     /// Gets a value indicating whether the container has a border.
     /// </summary>
     public bool HasBorder => BorderStyle.HasValue;
@@ -142,7 +149,7 @@ public class Container : IWidget
         _children.Clear();
     }
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
         int actualWidth = CalculateSize(Width, ((IWidget)this).Parent?.Width, true);
         int actualHeight = CalculateSize(Height, ((IWidget)this).Parent?.Height, false);
@@ -152,36 +159,36 @@ public class Container : IWidget
             return [];
         }
 
-        var result = new char[actualHeight][];
+        var result = new Rune[actualHeight][];
         for (int i = 0; i < actualHeight; i++)
         {
-            result[i] = new char[actualWidth];
-            Array.Fill(result[i], ' ');
+            result[i] = new Rune[actualWidth];
+            Array.Fill(result[i], new Rune(' '));
         }
 
         if (HasBorder)
         {
             var (topLeft, topRight, bottomLeft, bottomRight, horizontal, vertical) = GetBorderChars();
 
-            result[0][0] = topLeft;
-            result[0][actualWidth - 1] = topRight;
+            result[0][0] = new Rune(topLeft);
+            result[0][actualWidth - 1] = new Rune(topRight);
             for (int x = 1; x < actualWidth - 1; x++)
             {
-                result[0][x] = horizontal;
+                result[0][x] = new Rune(horizontal);
             }
 
             int lastY = actualHeight - 1;
-            result[lastY][0] = bottomLeft;
-            result[lastY][actualWidth - 1] = bottomRight;
+            result[lastY][0] = new Rune(bottomLeft);
+            result[lastY][actualWidth - 1] = new Rune(bottomRight);
             for (int x = 1; x < actualWidth - 1; x++)
             {
-                result[lastY][x] = horizontal;
+                result[lastY][x] = new Rune(horizontal);
             }
 
             for (int y = 1; y < actualHeight - 1; y++)
             {
-                result[y][0] = vertical;
-                result[y][actualWidth - 1] = vertical;
+                result[y][0] = new Rune(vertical);
+                result[y][actualWidth - 1] = new Rune(vertical);
             }
         }
 
@@ -265,6 +272,16 @@ public class Container : IWidget
 
     private (char topLeft, char topRight, char bottomLeft, char bottomRight, char horizontal, char vertical) GetBorderChars()
     {
+        if (RoundedCorners)
+        {
+            return BorderStyle switch
+            {
+                Widgets.BorderStyle.Single => ('╭', '╮', '╰', '╯', '─', '│'),
+                Widgets.BorderStyle.Double => ('╭', '╮', '╰', '╯', '═', '║'),
+                _ => ('╭', '╮', '╰', '╯', '─', '│')
+            };
+        }
+
         return BorderStyle switch
         {
             Widgets.BorderStyle.Single => ('┌', '┐', '└', '┘', '─', '│'),

@@ -5,37 +5,74 @@ var xml = """
 <Container Width="100%" Height="100%" BackgroundColor="DarkBlue">
     <Container Name="mainPage" Width="100%" Height="100%" BackgroundColor="DarkBlue" Scrollable="true" Visible="true">
     <Text PositionX="2ch" PositionY="1ch"
-          ForegroundColor="Yellow" BackgroundColor="DarkBlue">
-        Welcome to TermuiX!
+          ForegroundColor="Yellow" BackgroundColor="DarkBlue"
+          Style="Bold">
+        W e l c o m e - t o - T e r m u i X !
     </Text>
 
-    <Input Name="nameInput" PositionX="5ch" PositionY="5ch"
-           Width="30ch" Height="1ch" Placeholder="Enter your name..."
-           BackgroundColor="DarkGray" ForegroundColor="White"
-           FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+    <Text PositionX="2ch" PositionY="3ch"
+          ForegroundColor="Cyan" BackgroundColor="DarkBlue"
+          Style="Italic">
+        Italic Demo
+    </Text>
 
-    <Input Name="passwordInput" PositionX="5ch" PositionY="7ch"
-           Width="30ch" Height="1ch" IsPassword="true" Placeholder="Enter password..."
-           BackgroundColor="DarkGray" ForegroundColor="White"
-           FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+    <Text PositionX="20ch" PositionY="3ch"
+          ForegroundColor="Green" BackgroundColor="DarkBlue"
+          Style="BoldItalic">
+        Bold Italic
+    </Text>
 
-    <Input Name="messageInput" PositionX="5ch" PositionY="10ch"
-           Width="50ch" Height="5ch" Multiline="true" Placeholder="Enter message..."
-           BackgroundColor="DarkGray" ForegroundColor="White"
-           FocusBackgroundColor="Gray" FocusForegroundColor="White" />
+    <Text PositionX="35ch" PositionY="3ch"
+          ForegroundColor="Magenta" BackgroundColor="DarkBlue"
+          Style="Underline">
+        Underlined
+    </Text>
 
-    <Checkbox Name="agreeCheckbox" PositionX="5ch" PositionY="16ch"
+    <Text PositionX="50ch" PositionY="3ch"
+          ForegroundColor="Red" BackgroundColor="DarkBlue"
+          Style="Strikethrough">
+        Strikethrough
+    </Text>
+
+    <Container PositionX="5ch" PositionY="5ch" Width="32ch" Height="3ch"
+               BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White"
+               RoundedCorners="true">
+        <Input Name="nameInput" PositionX="0ch" PositionY="0ch"
+               Width="30ch" Height="1ch" Placeholder="Enter your name..."
+               BackgroundColor="DarkBlue" ForegroundColor="White"
+               FocusBackgroundColor="DarkBlue" FocusForegroundColor="White" />
+    </Container>
+
+    <Container PositionX="5ch" PositionY="9ch" Width="32ch" Height="3ch"
+               BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White"
+               RoundedCorners="true">
+        <Input Name="passwordInput" PositionX="0ch" PositionY="0ch"
+               Width="30ch" Height="1ch" IsPassword="true" Placeholder="Enter password..."
+               BackgroundColor="DarkBlue" ForegroundColor="White"
+               FocusBackgroundColor="DarkBlue" FocusForegroundColor="White" />
+    </Container>
+
+    <Container PositionX="5ch" PositionY="13ch" Width="52ch" Height="7ch"
+               BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White"
+               RoundedCorners="true">
+        <Input Name="messageInput" PositionX="0ch" PositionY="0ch"
+               Width="50ch" Height="5ch" Multiline="true" Placeholder="Enter message..."
+               BackgroundColor="DarkBlue" ForegroundColor="White"
+               FocusBackgroundColor="DarkBlue" FocusForegroundColor="White" />
+    </Container>
+
+    <Checkbox Name="agreeCheckbox" PositionX="5ch" PositionY="21ch"
               BackgroundColor="DarkBlue" ForegroundColor="White"
               FocusBackgroundColor="Gray" FocusForegroundColor="White" />
 
-    <Text PositionX="7ch" PositionY="16ch"
+    <Text PositionX="7ch" PositionY="21ch"
           ForegroundColor="White" BackgroundColor="DarkBlue">
         I agree to the terms
     </Text>
 
     <Container PositionX="60ch" PositionY="5ch" Width="30ch" Height="6ch"
                BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White"
-               Scrollable="true">
+               RoundedCorners="true" Scrollable="true">
         <Text PositionX="0ch" PositionY="0ch"
               ForegroundColor="Yellow" BackgroundColor="DarkBlue">
             Delivery Method:
@@ -99,7 +136,8 @@ var xml = """
     </Container>
 
     <Container PositionX="60ch" PositionY="13ch" Width="30ch" Height="6ch"
-               BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White">
+               BackgroundColor="DarkBlue" BorderStyle="Single" ForegroundColor="White"
+               RoundedCorners="true">
         <Text PositionX="0ch" PositionY="0ch"
               ForegroundColor="Yellow" BackgroundColor="DarkBlue">
             Payment Method:
@@ -130,54 +168,54 @@ var xml = """
         </Text>
     </Container>
 
-    <Button Name="submitButton" PositionX="5ch" PositionY="18ch"
+    <Button Name="submitButton" PositionX="5ch" PositionY="23ch"
             BorderColor="White" TextColor="Cyan"
             FocusBorderColor="Green" FocusTextColor="White"
-            BackgroundColor="DarkBlue">
+            BackgroundColor="DarkBlue" RoundedCorners="true">
         Submit
     </Button>
 
-    <Button Name="exitButton" PositionX="20ch" PositionY="18ch"
+    <Button Name="exitButton" PositionX="20ch" PositionY="23ch"
             BorderColor="White" TextColor="Magenta"
             FocusBorderColor="Green" FocusTextColor="White"
-            BackgroundColor="DarkBlue">
+            BackgroundColor="DarkBlue" RoundedCorners="true">
         Exit
     </Button>
 
-    <Text Name="outputText" PositionX="5ch" PositionY="22ch"
+    <Text Name="outputText" PositionX="5ch" PositionY="27ch"
           Width="100ch" Height="10ch"
           ForegroundColor="Green" BackgroundColor="DarkBlue">
     </Text>
 
-    <Text PositionX="5ch" PositionY="25ch"
+    <Text PositionX="5ch" PositionY="30ch"
           ForegroundColor="Yellow" BackgroundColor="DarkBlue">
         Progress Bar:
     </Text>
-    <ProgressBar Name="progressBar" PositionX="20ch" PositionY="25ch"
+    <ProgressBar Name="progressBar" PositionX="20ch" PositionY="30ch"
                  Width="40ch" Mode="Progress" Value="0.65"
                  ShowPercentage="true"
                  ForegroundColor="Green" BackgroundColor="DarkBlue" />
 
-    <Text PositionX="5ch" PositionY="27ch"
+    <Text PositionX="5ch" PositionY="32ch"
           ForegroundColor="Yellow" BackgroundColor="DarkBlue">
         Marquee:
     </Text>
-    <ProgressBar Name="marqueeBar" PositionX="20ch" PositionY="27ch"
+    <ProgressBar Name="marqueeBar" PositionX="20ch" PositionY="32ch"
                  Width="40ch" Mode="Marquee"
                  ForegroundColor="Cyan" BackgroundColor="DarkBlue" />
 
-    <Text PositionX="5ch" PositionY="29ch"
+    <Text PositionX="5ch" PositionY="34ch"
           ForegroundColor="Yellow" BackgroundColor="DarkBlue">
         Volume:
     </Text>
-    <Slider Name="volumeSlider" PositionX="20ch" PositionY="29ch"
+    <Slider Name="volumeSlider" PositionX="20ch" PositionY="34ch"
             Width="40ch" Height="1ch"
             Min="0" Max="100" Value="75" Step="5"
             ShowValue="true"
             BackgroundColor="DarkBlue" ForegroundColor="Cyan"
             FocusBackgroundColor="Gray" FocusForegroundColor="White" />
 
-    <Chart Name="salesChart" PositionX="5ch" PositionY="32ch"
+    <Chart Name="salesChart" PositionX="5ch" PositionY="37ch"
            Width="80ch" Height="12ch"
            ShowLegend="true" ShowAxes="true"
            ForegroundColor="White" BackgroundColor="DarkBlue" />
@@ -185,7 +223,8 @@ var xml = """
 
     <Container Name="confirmModal" Width="100%" Height="100%" BackgroundColor="DarkGray" Visible="false">
         <Container Name="modalDialog" PositionX="30ch" PositionY="10ch" Width="60ch" Height="12ch"
-                   BackgroundColor="White" ForegroundColor="Black" BorderStyle="Double">
+                   BackgroundColor="White" ForegroundColor="Black" BorderStyle="Double"
+                   RoundedCorners="true">
             <Text Name="modalTitle" PositionX="2ch" PositionY="1ch"
                   ForegroundColor="Blue" BackgroundColor="White">
                 Confirmation
@@ -197,13 +236,15 @@ var xml = """
             <Button Name="modalYes" PositionX="15ch" PositionY="6ch" Width="12ch"
                     BorderColor="DarkGreen" TextColor="DarkGreen"
                     FocusBorderColor="Green" FocusTextColor="White"
-                    BackgroundColor="White" FocusBackgroundColor="DarkGreen">
+                    BackgroundColor="White" FocusBackgroundColor="DarkGreen"
+                    RoundedCorners="true">
                 Yes
             </Button>
             <Button Name="modalNo" PositionX="35ch" PositionY="6ch" Width="12ch"
                     BorderColor="DarkRed" TextColor="DarkRed"
                     FocusBorderColor="Red" FocusTextColor="White"
-                    BackgroundColor="White" FocusBackgroundColor="DarkRed">
+                    BackgroundColor="White" FocusBackgroundColor="DarkRed"
+                    RoundedCorners="true">
                 No
             </Button>
         </Container>
@@ -212,7 +253,7 @@ var xml = """
 """;
 
 // Initialize TermuiX and load XML (parsed once, kept in DOM)
-var termui = TermuiX.Termui.Init();
+var termui = TermuiX.TermuiX.Init();
 termui.LoadXml(xml);
 
 // Bind events to named widgets
@@ -381,7 +422,7 @@ if (exitButton is not null && submitButton is not null)
     finally
     {
         // Clean up
-        TermuiX.Termui.DeInit();
+        TermuiX.TermuiX.DeInit();
         Console.WriteLine("\n\nDemo finished!");
     }
 }

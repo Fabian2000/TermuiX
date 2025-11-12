@@ -136,6 +136,10 @@ internal static class XmlParser
         {
             convertedValue = Enum.Parse<TextAlign>(value, ignoreCase: true);
         }
+        else if (prop.PropertyType == typeof(TextStyle))
+        {
+            convertedValue = Enum.Parse<TextStyle>(value, ignoreCase: true);
+        }
         else if (prop.PropertyType == typeof(ProgressBarMode))
         {
             convertedValue = Enum.Parse<ProgressBarMode>(value, ignoreCase: true);

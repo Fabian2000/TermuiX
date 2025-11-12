@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX.Widgets;
 
 /// <summary>
@@ -177,7 +179,7 @@ public class Chart : IWidget
         _series.Clear();
     }
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
         int width = GetWidthInChars();
         int height = GetHeightInChars();
@@ -204,11 +206,11 @@ public class Chart : IWidget
         }
 
         // Create result array
-        var result = new char[height][];
+        var result = new Rune[height][];
         for (int i = 0; i < height; i++)
         {
-            result[i] = new char[width];
-            Array.Fill(result[i], ' ');
+            result[i] = new Rune[width];
+            Array.Fill(result[i], new Rune(' '));
         }
 
         // Render legend at the TOP
@@ -244,13 +246,13 @@ public class Chart : IWidget
         return result;
     }
 
-    private char[][] CreateEmptyResult(int width, int height)
+    private Rune[][] CreateEmptyResult(int width, int height)
     {
-        var result = new char[height][];
+        var result = new Rune[height][];
         for (int i = 0; i < height; i++)
         {
-            result[i] = new char[width];
-            Array.Fill(result[i], ' ');
+            result[i] = new Rune[width];
+            Array.Fill(result[i], new Rune(' '));
         }
         return result;
     }
@@ -289,7 +291,7 @@ public class Chart : IWidget
         return max == double.MinValue ? 100 : max;
     }
 
-    private void RenderYAxis(char[][] result, double minY, double maxY, int chartHeight, int yAxisWidth, int yOffset)
+    private void RenderYAxis(Rune[][] result, double minY, double maxY, int chartHeight, int yAxisWidth, int yOffset)
     {
         // Draw 4 Y-axis labels evenly distributed
         for (int i = 0; i < 4; i++)
@@ -303,29 +305,29 @@ public class Chart : IWidget
 
             for (int x = 0; x < label.Length && startX + x < yAxisWidth - 1; x++)
             {
-                result[y][startX + x] = label[x];
+                result[y][startX + x] = new Rune(label[x]);
             }
         }
 
         // Draw vertical line
         for (int y = 0; y < chartHeight; y++)
         {
-            result[yOffset + y][yAxisWidth - 1] = '│';
+            result[yOffset + y][yAxisWidth - 1] = new Rune('│');
         }
     }
 
-    private void RenderXAxis(char[][] result, int yPos, int xOffset, int chartWidth)
+    private void RenderXAxis(Rune[][] result, int yPos, int xOffset, int chartWidth)
     {
         // Draw horizontal line
         for (int x = 0; x < chartWidth; x++)
         {
-            result[yPos][xOffset + x] = '─';
+            result[yPos][xOffset + x] = new Rune('─');
         }
 
         // Draw corner
         if (xOffset > 0)
         {
-            result[yPos][xOffset - 1] = '└';
+            result[yPos][xOffset - 1] = new Rune('└');
         }
 
         // X-axis labels on line below (if there's space)
@@ -339,13 +341,13 @@ public class Chart : IWidget
 
                 for (int j = 0; j < label.Length && x + j < xOffset + chartWidth; j++)
                 {
-                    result[yPos + 1][x + j] = label[j];
+                    result[yPos + 1][x + j] = new Rune(label[j]);
                 }
             }
         }
     }
 
-    private void RenderChartData(char[][] result, double minY, double maxY, int chartWidth, int chartHeight, int xOffset, int yOffset)
+    private void RenderChartData(Rune[][] result, double minY, double maxY, int chartWidth, int chartHeight, int xOffset, int yOffset)
     {
         // Draw ONLY data points, no lines
         // Use different symbols for different series
@@ -371,7 +373,7 @@ public class Chart : IWidget
                 if (screenX >= xOffset && screenX < xOffset + chartWidth &&
                     screenY >= yOffset && screenY < yOffset + chartHeight)
                 {
-                    result[screenY][screenX] = symbol;
+                    result[screenY][screenX] = new Rune(symbol);
                 }
             }
         }
@@ -388,7 +390,7 @@ public class Chart : IWidget
         return Math.Clamp(y, 0, chartHeight - 1);
     }
 
-    private void DrawLine(char[][] result, int x1, int y1, int x2, int y2, int xOffset, int chartWidth, int chartHeight)
+    private void DrawLine(Rune[][] result, int x1, int y1, int x2, int y2, int xOffset, int chartWidth, int chartHeight)
     {
         // Simple Bresenham's line algorithm
         int dx = Math.Abs(x2 - x1);
@@ -408,17 +410,17 @@ public class Chart : IWidget
 
             if (screenX >= xOffset && screenX < xOffset + chartWidth &&
                 screenY >= 0 && screenY < chartHeight &&
-                result[screenY][screenX] != '●') // Don't overwrite data points
+                result[screenY][screenX].Value != '●') // Don't overwrite data points
             {
                 // Choose character based on direction
                 if (dx > dy * 2)
-                    result[screenY][screenX] = '─';
+                    result[screenY][screenX] = new Rune('─');
                 else if (dy > dx * 2)
-                    result[screenY][screenX] = '│';
+                    result[screenY][screenX] = new Rune('│');
                 else if ((sx > 0 && sy > 0) || (sx < 0 && sy < 0))
-                    result[screenY][screenX] = '\\';
+                    result[screenY][screenX] = new Rune('\\');
                 else
-                    result[screenY][screenX] = '/';
+                    result[screenY][screenX] = new Rune('/');
             }
 
             if (x == x2 && y == y2) break;
@@ -437,7 +439,7 @@ public class Chart : IWidget
         }
     }
 
-    private void RenderLegend(char[][] result, int y, int width)
+    private void RenderLegend(Rune[][] result, int y, int width)
     {
         if (y >= result.Length) return;
 
@@ -454,19 +456,19 @@ public class Chart : IWidget
             // Add separator if not first
             if (i > 0)
             {
-                if (x < width) result[y][x++] = ' ';
-                if (x < width) result[y][x++] = ' ';
+                if (x < width) result[y][x++] = new Rune(' ');
+                if (x < width) result[y][x++] = new Rune(' ');
             }
 
             // Add marker (matching symbol from chart)
             char symbol = symbols[i % symbols.Length];
-            if (x < width) result[y][x++] = symbol;
-            if (x < width) result[y][x++] = ' ';
+            if (x < width) result[y][x++] = new Rune(symbol);
+            if (x < width) result[y][x++] = new Rune(' ');
 
             // Add label
             for (int j = 0; j < series.Label.Length && x < width; j++, x++)
             {
-                result[y][x] = series.Label[j];
+                result[y][x] = new Rune(series.Label[j]);
             }
         }
     }

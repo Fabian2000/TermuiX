@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX.Widgets;
 
 /// <summary>
@@ -149,7 +151,7 @@ public class Border : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
         return [];
     }

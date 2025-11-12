@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX.Widgets;
 
 /// <summary>
@@ -152,11 +154,11 @@ public class ProgressBar : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
         int width = GetWidthInChars();
-        var result = new char[1][];
-        result[0] = new char[width];
+        var result = new Rune[1][];
+        result[0] = new Rune[width];
 
         if (Mode == ProgressBarMode.Progress)
         {
@@ -170,7 +172,7 @@ public class ProgressBar : IWidget
         return result;
     }
 
-    private void RenderProgress(char[] line, int width)
+    private void RenderProgress(Rune[] line, int width)
     {
         int barWidth = width;
         string percentText = "";
@@ -186,19 +188,19 @@ public class ProgressBar : IWidget
 
         for (int i = 0; i < barWidth; i++)
         {
-            line[i] = i < filledWidth ? FilledChar : EmptyChar;
+            line[i] = i < filledWidth ? new Rune(FilledChar) : new Rune(EmptyChar);
         }
 
         if (ShowPercentage)
         {
             for (int i = 0; i < percentText.Length && barWidth + i < width; i++)
             {
-                line[barWidth + i] = percentText[i];
+                line[barWidth + i] = new Rune(percentText[i]);
             }
         }
     }
 
-    private void RenderMarquee(char[] line, int width)
+    private void RenderMarquee(Rune[] line, int width)
     {
         if ((DateTime.Now - _lastMarqueeUpdate).TotalMilliseconds >= MarqueeUpdateIntervalMs)
         {
@@ -206,7 +208,7 @@ public class ProgressBar : IWidget
             _lastMarqueeUpdate = DateTime.Now;
         }
 
-        Array.Fill(line, EmptyChar);
+        Array.Fill(line, new Rune(EmptyChar));
 
         int startPos = _marqueePosition - MarqueeWidth;
         for (int i = 0; i < MarqueeWidth; i++)
@@ -214,7 +216,7 @@ public class ProgressBar : IWidget
             int pos = startPos + i;
             if (pos >= 0 && pos < width)
             {
-                line[pos] = FilledChar;
+                line[pos] = new Rune(FilledChar);
             }
         }
     }

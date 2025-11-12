@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX.Widgets;
 
 /// <summary>
@@ -169,7 +171,7 @@ public class Slider : IWidget
     /// </summary>
     public event EventHandler<double>? Changed;
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
         int width = GetWidthInChars();
         if (width < 5)
@@ -177,9 +179,9 @@ public class Slider : IWidget
             width = 5;
         }
 
-        var result = new char[1][];
-        result[0] = new char[width];
-        Array.Fill(result[0], ' ');
+        var result = new Rune[1][];
+        result[0] = new Rune[width];
+        Array.Fill(result[0], new Rune(' '));
 
         double range = _max - _min;
         double normalizedValue = range > 0 ? (_value - _min) / range : 0;
@@ -198,8 +200,8 @@ public class Slider : IWidget
             trackWidth = 3;
         }
 
-        result[0][0] = '[';
-        result[0][trackWidth - 1] = ']';
+        result[0][0] = new Rune('[');
+        result[0][trackWidth - 1] = new Rune(']');
 
         int thumbPos = (int)((trackWidth - 2) * normalizedValue);
         thumbPos = Math.Clamp(thumbPos, 0, trackWidth - 2);
@@ -208,15 +210,15 @@ public class Slider : IWidget
         {
             if (i - 1 == thumbPos)
             {
-                result[0][i] = '●';
+                result[0][i] = new Rune('●');
             }
             else if (i - 1 < thumbPos)
             {
-                result[0][i] = '━';
+                result[0][i] = new Rune('━');
             }
             else
             {
-                result[0][i] = '─';
+                result[0][i] = new Rune('─');
             }
         }
 
@@ -224,7 +226,7 @@ public class Slider : IWidget
         {
             for (int i = 0; i < valueText.Length && trackWidth + i < width; i++)
             {
-                result[0][trackWidth + i] = valueText[i];
+                result[0][trackWidth + i] = new Rune(valueText[i]);
             }
         }
 

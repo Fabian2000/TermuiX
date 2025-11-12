@@ -1,11 +1,12 @@
 ﻿using Microsoft.CSharp.RuntimeBinder;
+using System.Text;
 
 namespace TermuiX;
 
 /// <summary>
 /// Main UI engine for TermuiX that manages widget rendering and input processing.
 /// </summary>
-public sealed class Termui
+public sealed class TermuiX
 {
     private IWidget? _widget = null;
     private readonly Renderer _renderer = new();
@@ -17,18 +18,42 @@ public sealed class Termui
     /// </summary>
     public event EventHandler<ConsoleKeyInfo>? Shortcut;
 
-    private Termui() { }
+    private TermuiX() { }
 
     /// <summary>
     /// Initializes a new Termui instance and prepares the console for rendering.
     /// </summary>
     /// <returns>A new initialized Termui instance.</returns>
-    public static Termui Init()
+    public static TermuiX Init()
     {
+        // Enable ANSI escape sequences support on Windows
+        if (OperatingSystem.IsWindows())
+        {
+            try
+            {
+                var handle = GetStdHandle(-11); // STD_OUTPUT_HANDLE
+                GetConsoleMode(handle, out uint mode);
+                SetConsoleMode(handle, mode | 0x0004); // ENABLE_VIRTUAL_TERMINAL_PROCESSING
+            }
+            catch
+            {
+                // Ignore if we can't enable ANSI support
+            }
+        }
+
         Console.Clear();
         Console.CursorVisible = false;
-        return new Termui();
+        return new TermuiX();
     }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GetStdHandle(int nStdHandle);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
 
     /// <summary>
     /// De-initializes the Termui instance and restores the console state.
@@ -557,6 +582,9 @@ public sealed class Termui
         {
         }
 
+        // Pre-allocate buffer outside loop to avoid stack overflow warning
+        Span<char> buffer = stackalloc char[2];
+
         for (int y = 0; y < chars.Length; y++)
         {
             try
@@ -574,7 +602,18 @@ public sealed class Termui
             {
                 Console.BackgroundColor = bgColors[y][x];
                 Console.ForegroundColor = fgColors[y][x];
-                Console.Write(chars[y][x]);
+
+                // Write the Rune by encoding to UTF16
+                int charsWritten = chars[y][x].EncodeToUtf16(buffer);
+                if (charsWritten == 1)
+                {
+                    Console.Write(buffer[0]);
+                }
+                else if (charsWritten == 2)
+                {
+                    Console.Write(buffer[0]);
+                    Console.Write(buffer[1]);
+                }
             }
         }
 

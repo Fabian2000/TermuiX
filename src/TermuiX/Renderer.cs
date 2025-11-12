@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX
 {
     /// <summary>
@@ -14,23 +16,23 @@ namespace TermuiX
             _height = height;
         }
 
-        internal (char[][] chars, ConsoleColor[][] fg, ConsoleColor[][] bg) Render(IWidget widget)
+        internal (Rune[][] chars, ConsoleColor[][] fg, ConsoleColor[][] bg) Render(IWidget widget)
         {
             if (_width == 0 || _height == 0)
             {
                 throw new InvalidOperationException("Renderer size not set. Call Size(width, height) before Render().");
             }
 
-            var output = new char[_height][];
+            var output = new Rune[_height][];
             var fgColors = new ConsoleColor[_height][];
             var bgColors = new ConsoleColor[_height][];
 
             for (int i = 0; i < _height; i++)
             {
-                output[i] = new char[_width];
+                output[i] = new Rune[_width];
                 fgColors[i] = new ConsoleColor[_width];
                 bgColors[i] = new ConsoleColor[_width];
-                Array.Fill(output[i], ' ');
+                Array.Fill(output[i], new Rune(' '));
                 Array.Fill(fgColors[i], ConsoleColor.White);
                 Array.Fill(bgColors[i], ConsoleColor.Black);
             }
@@ -40,7 +42,7 @@ namespace TermuiX
             return (output, fgColors, bgColors);
         }
 
-        private static void RenderWidget(char[][] output, ConsoleColor[][] fgColors, ConsoleColor[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY)
+        private static void RenderWidget(Rune[][] output, ConsoleColor[][] fgColors, ConsoleColor[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY)
         {
             // Skip invisible widgets and their children
             if (!widget.Visible)
@@ -101,7 +103,7 @@ namespace TermuiX
                 {
                     if (absX + x >= 0 && absY + y >= 0 && absX + x >= parentX && absY + y >= parentY && absX + x < parentX + parentWidth && absY + y < parentY + parentHeight)
                     {
-                        output[absY + y][absX + x] = ' ';
+                        output[absY + y][absX + x] = new Rune(' ');
                         bgColors[absY + y][absX + x] = bgColor;
                         fgColors[absY + y][absX + x] = fgColor;
                     }
@@ -172,11 +174,11 @@ namespace TermuiX
                         {
                             if (y >= scrollbarPos && y < scrollbarPos + scrollbarHeight)
                             {
-                                output[targetY][scrollbarX] = '▐';
+                                output[targetY][scrollbarX] = new Rune('▐');
                             }
                             else
                             {
-                                output[targetY][scrollbarX] = '┊';
+                                output[targetY][scrollbarX] = new Rune('┊');
                             }
                         }
                     }
@@ -201,11 +203,11 @@ namespace TermuiX
                         {
                             if (x >= scrollbarPos && x < scrollbarPos + scrollbarWidth)
                             {
-                                output[scrollbarY][targetX] = '▄';
+                                output[scrollbarY][targetX] = new Rune('▄');
                             }
                             else
                             {
-                                output[scrollbarY][targetX] = '┈';
+                                output[scrollbarY][targetX] = new Rune('┈');
                             }
                         }
                     }

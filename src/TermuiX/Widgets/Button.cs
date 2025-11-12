@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX.Widgets;
 
 /// <summary>
@@ -58,6 +60,15 @@ public class Button : IWidget
     }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the border corners should be rounded.
+    /// </summary>
+    public bool RoundedCorners
+    {
+        get => _container.RoundedCorners;
+        set => _container.RoundedCorners = value;
+    }
+
+    /// <summary>
     /// Gets or sets the border color.
     /// </summary>
     public ConsoleColor BorderColor
@@ -95,6 +106,15 @@ public class Button : IWidget
             _textWidget.FocusForegroundColor = value;
             _container.FocusForegroundColor = value;
         }
+    }
+
+    /// <summary>
+    /// Gets or sets the visual style of the button text.
+    /// </summary>
+    public TextStyle TextStyle
+    {
+        get => _textWidget.Style;
+        set => _textWidget.Style = value;
     }
 
     /// <summary>
@@ -277,7 +297,7 @@ public class Button : IWidget
         set => ((IWidget)_container).ScrollOffsetY = value;
     }
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
         return ((IWidget)_container).GetRaw();
     }

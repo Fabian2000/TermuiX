@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TermuiX.Widgets;
 
 /// <summary>
@@ -124,12 +126,12 @@ public class Checkbox : IWidget
     /// </summary>
     public event EventHandler<bool>? Changed;
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
-        var result = new char[1][];
-        result[0] = new char[1];
+        var result = new Rune[1][];
+        result[0] = new Rune[1];
 
-        result[0][0] = _checked ? '☑' : '☐';
+        result[0][0] = _checked ? new Rune('☑') : new Rune('☐');
 
         return result;
     }

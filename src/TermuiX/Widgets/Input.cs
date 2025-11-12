@@ -169,7 +169,7 @@ public class Input : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
-    char[][] IWidget.GetRaw()
+    Rune[][] IWidget.GetRaw()
     {
         // Update cursor blink
         if (((IWidget)this).Focussed)
@@ -193,11 +193,11 @@ public class Input : IWidget
         if (width <= 0 || height <= 0) return [];
 
         // Create output
-        var result = new char[height][];
+        var result = new Rune[height][];
         for (int i = 0; i < height; i++)
         {
-            result[i] = new char[width];
-            Array.Fill(result[i], ' ');
+            result[i] = new Rune[width];
+            Array.Fill(result[i], new Rune(' '));
         }
 
         // Render text or placeholder
@@ -232,7 +232,7 @@ public class Input : IWidget
         else if (_cursorVisible && ((IWidget)this).Focussed)
         {
             // Empty text, show cursor at start
-            result[0][0] = '█';
+            result[0][0] = new Rune('█');
         }
 
         return result;
@@ -452,7 +452,7 @@ public class Input : IWidget
         return 3; // Default
     }
 
-    private void RenderSingleLine(char[][] result, string displayText, int width)
+    private void RenderSingleLine(Rune[][] result, string displayText, int width)
     {
         // Calculate horizontal scroll offset to keep cursor visible
         int scrollOffset = 0;
@@ -468,11 +468,11 @@ public class Input : IWidget
             int textPos = scrollOffset + x;
             if (textPos == _cursorPosition && _cursorVisible && ((IWidget)this).Focussed)
             {
-                result[0][x] = '█'; // Cursor block
+                result[0][x] = new Rune('█'); // Cursor block
             }
             else
             {
-                result[0][x] = displayText[textPos];
+                result[0][x] = new Rune(displayText[textPos]);
             }
         }
 
@@ -480,11 +480,11 @@ public class Input : IWidget
         int cursorDisplayX = _cursorPosition - scrollOffset;
         if (_cursorPosition == displayText.Length && cursorDisplayX >= 0 && cursorDisplayX < width && _cursorVisible && ((IWidget)this).Focussed)
         {
-            result[0][cursorDisplayX] = '█';
+            result[0][cursorDisplayX] = new Rune('█');
         }
     }
 
-    private void RenderMultiline(char[][] result, string displayText, int width, int height)
+    private void RenderMultiline(Rune[][] result, string displayText, int width, int height)
     {
         // Wrap text to fit width
         var wrappedLines = new List<string>();
@@ -552,18 +552,18 @@ public class Input : IWidget
             {
                 if (sourceLineIdx == cursorLine && x == cursorCol && _cursorVisible && ((IWidget)this).Focussed)
                 {
-                    result[displayLineIdx][x] = '█'; // Cursor block
+                    result[displayLineIdx][x] = new Rune('█'); // Cursor block
                 }
                 else
                 {
-                    result[displayLineIdx][x] = line[x];
+                    result[displayLineIdx][x] = new Rune(line[x]);
                 }
             }
 
             // Cursor at end of line
             if (sourceLineIdx == cursorLine && cursorCol == line.Length && cursorCol < width && _cursorVisible && ((IWidget)this).Focussed)
             {
-                result[displayLineIdx][cursorCol] = '█';
+                result[displayLineIdx][cursorCol] = new Rune('█');
             }
         }
     }
