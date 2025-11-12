@@ -2,6 +2,9 @@
 
 namespace TermuiX;
 
+/// <summary>
+/// Main UI engine for TermuiX that manages widget rendering and input processing.
+/// </summary>
 public sealed class Termui
 {
     private IWidget? _widget = null;
@@ -9,11 +12,17 @@ public sealed class Termui
     private IWidget? _focusedWidget = null;
     private readonly List<IWidget> _focusableWidgets = [];
 
-    // Event for keyboard shortcuts (Ctrl+Key combinations)
+    /// <summary>
+    /// Event triggered when a keyboard shortcut (Ctrl+Key combination) is pressed.
+    /// </summary>
     public event EventHandler<ConsoleKeyInfo>? Shortcut;
 
     private Termui() { }
 
+    /// <summary>
+    /// Initializes a new Termui instance and prepares the console for rendering.
+    /// </summary>
+    /// <returns>A new initialized Termui instance.</returns>
     public static Termui Init()
     {
         Console.Clear();
@@ -21,11 +30,18 @@ public sealed class Termui
         return new Termui();
     }
 
+    /// <summary>
+    /// De-initializes the Termui instance and restores the console state.
+    /// </summary>
     public static void DeInit()
     {
         Console.CursorVisible = true;
     }
 
+    /// <summary>
+    /// Adds a widget to the window as the root widget.
+    /// </summary>
+    /// <param name="widget">The widget to add as the root widget.</param>
     public void AddToWindow(IWidget widget)
     {
         _widget = widget;
@@ -33,6 +49,10 @@ public sealed class Termui
         RebuildFocusList();
     }
 
+    /// <summary>
+    /// Loads and parses an XML definition to create the UI widget tree.
+    /// </summary>
+    /// <param name="xml">The XML string containing the widget definition.</param>
     public void LoadXml(string xml)
     {
         _widget = XmlParser.Parse(xml);
@@ -42,7 +62,10 @@ public sealed class Termui
 
     private void ValidateUniqueNames()
     {
-        if (_widget is null) return;
+        if (_widget is null)
+        {
+            return;
+        }
 
         var names = new HashSet<string>();
         CollectNames(_widget, names);
@@ -64,16 +87,36 @@ public sealed class Termui
         }
     }
 
+    /// <summary>
+    /// Finds a widget by name in the widget tree.
+    /// </summary>
+    /// <typeparam name="T">The type of widget to search for.</typeparam>
+    /// <param name="name">The name of the widget to find.</param>
+    /// <returns>The widget if found; otherwise, null.</returns>
     public T? GetWidget<T>(string name) where T : class, IWidget
     {
-        if (_widget is null) return null;
+        if (_widget is null)
+        {
+            return null;
+        }
+
         return FindWidget<T>(_widget, name);
     }
 
+    /// <summary>
+    /// Finds all widgets in a specific group.
+    /// </summary>
+    /// <typeparam name="T">The type of widgets to search for.</typeparam>
+    /// <param name="group">The group name to search for.</param>
+    /// <returns>A list of widgets in the specified group.</returns>
     public List<T> GetWidgetsByGroup<T>(string group) where T : class, IWidget
     {
         var results = new List<T>();
-        if (_widget is null) return results;
+        if (_widget is null)
+        {
+            return results;
+        }
+
         FindWidgetsByGroup(_widget, group, results);
         return results;
     }
@@ -88,7 +131,10 @@ public sealed class Termui
         foreach (var child in widget.Children)
         {
             var found = FindWidget<T>(child, name);
-            if (found is not null) return found;
+            if (found is not null)
+            {
+                return found;
+            }
         }
 
         return null;
@@ -124,7 +170,10 @@ public sealed class Termui
     private static void CollectFocusableWidgets(IWidget widget, List<IWidget> list)
     {
         // Skip invisible widgets and their children
-        if (!widget.Visible) return;
+        if (!widget.Visible)
+        {
+            return;
+        }
 
         // Depth-first traversal
         if (widget.CanFocus)
@@ -140,29 +189,41 @@ public sealed class Termui
 
     private static bool IsWidgetVisible(IWidget widget)
     {
-        // Check if widget and all its parents are visible
         IWidget? current = widget;
         while (current is not null)
         {
-            if (!current.Visible) return false;
+            if (!current.Visible)
+            {
+                return false;
+            }
+
             current = current.Parent;
         }
+
         return true;
     }
 
+    /// <summary>
+    /// Sets focus to the specified widget.
+    /// </summary>
+    /// <param name="widget">The widget to focus.</param>
     public void SetFocus(IWidget widget)
     {
-        // Check if widget can be focused and is visible
-        if (!widget.CanFocus) return;
-        if (!IsWidgetVisible(widget)) return;
+        if (!widget.CanFocus)
+        {
+            return;
+        }
 
-        // Clear current focus
+        if (!IsWidgetVisible(widget))
+        {
+            return;
+        }
+
         if (_focusedWidget is not null)
         {
             _focusedWidget.Focussed = false;
         }
 
-        // Set new focus
         _focusedWidget = widget;
         _focusedWidget.Focussed = true;
     }
@@ -176,15 +237,16 @@ public sealed class Termui
             CollectFocusableWidgets(_widget, visibleFocusableWidgets);
         }
 
-        if (visibleFocusableWidgets.Count == 0) return;
+        if (visibleFocusableWidgets.Count == 0)
+        {
+            return;
+        }
 
-        // Clear current focus
         if (_focusedWidget is not null)
         {
             _focusedWidget.Focussed = false;
         }
 
-        // Find next focus in visible widgets only
         int currentIndex = _focusedWidget is not null ? visibleFocusableWidgets.IndexOf(_focusedWidget) : -1;
 
         if (forward)
@@ -205,7 +267,6 @@ public sealed class Termui
 
     private void ScrollToWidget(IWidget widget)
     {
-        // Find the nearest scrollable parent
         IWidget? scrollTarget = widget.Parent;
 
         while (scrollTarget is not null && !scrollTarget.Scrollable)
@@ -213,42 +274,36 @@ public sealed class Termui
             scrollTarget = scrollTarget.Parent;
         }
 
-        if (scrollTarget is null) return;
+        if (scrollTarget is null)
+        {
+            return;
+        }
 
-        // Get scrollable parent's content dimensions
         int contentHeight = CalculateContentHeight(scrollTarget);
         int contentWidth = CalculateContentWidth(scrollTarget);
 
-        // Widget position and size are relative to the scrollable parent
-        // We need to parse them using the content dimensions
         int widgetPosY = ParseSize(widget.PositionY, contentHeight);
         int widgetHeight = ParseSize(widget.Height, contentHeight);
         int widgetPosX = ParseSize(widget.PositionX, contentWidth);
         int widgetWidth = ParseSize(widget.Width, contentWidth);
 
-        // Vertical scrolling
         long currentScrollY = scrollTarget.ScrollOffsetY;
 
-        // Check if widget is above visible area (need to scroll up)
         if (widgetPosY < currentScrollY)
         {
             scrollTarget.ScrollOffsetY = widgetPosY;
         }
-        // Check if widget is below visible area (need to scroll down)
         else if (widgetPosY + widgetHeight > currentScrollY + contentHeight)
         {
             scrollTarget.ScrollOffsetY = widgetPosY + widgetHeight - contentHeight;
         }
 
-        // Horizontal scrolling
         long currentScrollX = scrollTarget.ScrollOffsetX;
 
-        // Check if widget is left of visible area (need to scroll left)
         if (widgetPosX < currentScrollX)
         {
             scrollTarget.ScrollOffsetX = widgetPosX;
         }
-        // Check if widget is right of visible area (need to scroll right)
         else if (widgetPosX + widgetWidth > currentScrollX + contentWidth)
         {
             scrollTarget.ScrollOffsetX = widgetPosX + widgetWidth - contentWidth;
@@ -257,9 +312,11 @@ public sealed class Termui
 
     private void HandleScrollHorizontal(bool left)
     {
-        if (_focusedWidget is null) return;
+        if (_focusedWidget is null)
+        {
+            return;
+        }
 
-        // Find the nearest scrollable widget (current or parent)
         IWidget? scrollTarget = _focusedWidget;
 
         while (scrollTarget is not null && !scrollTarget.Scrollable)
@@ -267,9 +324,11 @@ public sealed class Termui
             scrollTarget = scrollTarget.Parent;
         }
 
-        if (scrollTarget is null || scrollTarget.Children.Count == 0) return;
+        if (scrollTarget is null || scrollTarget.Children.Count == 0)
+        {
+            return;
+        }
 
-        // Calculate max scroll based on children positions and widths
         int contentWidth = CalculateContentWidth(scrollTarget);
         int maxChildRight = 0;
 
@@ -282,7 +341,6 @@ public sealed class Termui
 
         long maxScroll = Math.Max(0, maxChildRight - contentWidth);
 
-        // Scroll the target widget with bounds checking
         if (left)
         {
             scrollTarget.ScrollOffsetX = Math.Max(0, scrollTarget.ScrollOffsetX - 1);
@@ -295,21 +353,18 @@ public sealed class Termui
 
     private int CalculateContentWidth(IWidget widget)
     {
-        // For root widget (no parent), use actual console width
         int parentWidth = 100;
-        if (widget.Parent == null)
+        if (widget.Parent is null)
         {
             parentWidth = Console.WindowWidth;
         }
 
-        // Parse widget width
         int width = ParseSize(widget.Width, parentWidth);
 
-        // Subtract padding
         int padLeft = ParseSize(widget.PaddingLeft, width);
         int padRight = ParseSize(widget.PaddingRight, width);
 
-        // If Container with border, add 1ch to padding
+        // If widget is a Container with a border, add 1ch to all padding for the border
         if (widget is Widgets.Container container && container.HasBorder)
         {
             padLeft += 1;
@@ -321,9 +376,11 @@ public sealed class Termui
 
     private void HandleScroll(bool up)
     {
-        if (_focusedWidget is null) return;
+        if (_focusedWidget is null)
+        {
+            return;
+        }
 
-        // Find the nearest scrollable widget (current or parent)
         IWidget? scrollTarget = _focusedWidget;
 
         while (scrollTarget is not null && !scrollTarget.Scrollable)
@@ -331,10 +388,11 @@ public sealed class Termui
             scrollTarget = scrollTarget.Parent;
         }
 
-        if (scrollTarget is null || scrollTarget.Children.Count == 0) return;
+        if (scrollTarget is null || scrollTarget.Children.Count == 0)
+        {
+            return;
+        }
 
-        // Calculate max scroll based on children positions and heights
-        // We need to calculate the content height to determine max scroll
         int contentHeight = CalculateContentHeight(scrollTarget);
         int maxChildBottom = 0;
 
@@ -347,7 +405,6 @@ public sealed class Termui
 
         long maxScroll = Math.Max(0, maxChildBottom - contentHeight);
 
-        // Scroll the target widget with bounds checking
         if (up)
         {
             scrollTarget.ScrollOffsetY = Math.Max(0, scrollTarget.ScrollOffsetY - 1);
@@ -360,21 +417,18 @@ public sealed class Termui
 
     private int CalculateContentHeight(IWidget widget)
     {
-        // For root widget (no parent), use actual console height
         int parentHeight = 100;
-        if (widget.Parent == null)
+        if (widget.Parent is null)
         {
             parentHeight = Console.WindowHeight;
         }
 
-        // Parse widget height
         int height = ParseSize(widget.Height, parentHeight);
 
-        // Subtract padding
         int padTop = ParseSize(widget.PaddingTop, height);
         int padBottom = ParseSize(widget.PaddingBottom, height);
 
-        // If Container with border, add 1ch to padding
+        // If widget is a Container with a border, add 1ch to all padding for the border
         if (widget is Widgets.Container container && container.HasBorder)
         {
             padTop += 1;
@@ -386,7 +440,10 @@ public sealed class Termui
 
     private static int ParseSize(string size, int parentSize)
     {
-        if (string.IsNullOrEmpty(size)) return 0;
+        if (string.IsNullOrEmpty(size))
+        {
+            return 0;
+        }
 
         size = size.Trim();
 
@@ -397,6 +454,7 @@ public sealed class Termui
             {
                 return result;
             }
+
             return 0;
         }
         else if (size.EndsWith('%'))
@@ -406,6 +464,7 @@ public sealed class Termui
             {
                 return (int)(parentSize * percent / 100.0f);
             }
+
             return 0;
         }
 
@@ -420,15 +479,12 @@ public sealed class Termui
             {
                 var key = Console.ReadKey(true);
 
-                // Check for Ctrl shortcuts first (except text editing shortcuts)
                 if (key.Modifiers.HasFlag(ConsoleModifiers.Control))
                 {
-                    // Ctrl+A, Ctrl+C, Ctrl+V are allowed to pass through to widgets (select all, copy, paste)
                     if (key.Key == ConsoleKey.A || key.Key == ConsoleKey.C || key.Key == ConsoleKey.V)
                     {
                         _focusedWidget?.KeyPress(key);
                     }
-                    // Ctrl+PageUp/PageDown for horizontal scrolling
                     else if (key.Key == ConsoleKey.PageUp)
                     {
                         HandleScrollHorizontal(true);
@@ -439,11 +495,9 @@ public sealed class Termui
                     }
                     else
                     {
-                        // All other Ctrl combinations are shortcuts
                         Shortcut?.Invoke(this, key);
                     }
                 }
-                // Handle special keys
                 else if (key.Key == ConsoleKey.Tab)
                 {
                     MoveFocus(!key.Modifiers.HasFlag(ConsoleModifiers.Shift));
@@ -458,18 +512,18 @@ public sealed class Termui
                 }
                 else
                 {
-                    // Forward to focused widget
                     _focusedWidget?.KeyPress(key);
                 }
             }
         }
         catch (InvalidOperationException)
         {
-            // Console input not available (redirected or no console)
-            // Silently ignore
         }
     }
 
+    /// <summary>
+    /// Renders the UI to the console and processes input.
+    /// </summary>
     public void Render()
     {
         if (_widget is null)
@@ -477,13 +531,11 @@ public sealed class Termui
             throw new InvalidOperationException("No widget added to window. Call AddToWindow(widget) before Render().");
         }
 
-        // Process input automatically
         ProcessInput();
 
         int width = Console.WindowWidth;
         int height = Console.WindowHeight;
 
-        // Fallback for non-interactive environments (testing)
         if (width == 0 || height == 0)
         {
             width = 80;
@@ -500,14 +552,11 @@ public sealed class Termui
         }
         catch (IOException)
         {
-            // Cursor positioning not supported in this environment
         }
         catch (ArgumentOutOfRangeException)
         {
-            // Console too small for cursor positioning
         }
 
-        // Render with colors
         for (int y = 0; y < chars.Length; y++)
         {
             try
@@ -516,14 +565,11 @@ public sealed class Termui
             }
             catch (IOException)
             {
-                // Cursor positioning not supported
             }
             catch (ArgumentOutOfRangeException)
             {
-                // Position out of range
             }
 
-            // Render each character with its color
             for (int x = 0; x < chars[y].Length; x++)
             {
                 Console.BackgroundColor = bgColors[y][x];
@@ -532,7 +578,6 @@ public sealed class Termui
             }
         }
 
-        // Reset colors
         Console.ResetColor();
     }
 }

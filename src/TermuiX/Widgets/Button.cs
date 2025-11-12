@@ -1,10 +1,17 @@
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// A clickable button widget with customizable appearance and event handling.
+/// </summary>
 public class Button : IWidget
 {
     private readonly Container _container;
     private readonly Text _textWidget;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Button"/> class with optional text.
+    /// </summary>
+    /// <param name="text">The button text.</param>
     public Button(string text = "")
     {
         _container = new Container
@@ -24,7 +31,6 @@ public class Button : IWidget
             TextAlign = TextAlign.Center
         };
 
-        // Sync focus colors between container and text
         _textWidget.FocusBackgroundColor = _container.FocusBackgroundColor;
         _textWidget.FocusForegroundColor = _container.FocusForegroundColor;
         _textWidget.BackgroundColor = _container.BackgroundColor;
@@ -33,36 +39,54 @@ public class Button : IWidget
         _container.Add(_textWidget);
     }
 
+    /// <summary>
+    /// Gets or sets the button text.
+    /// </summary>
     public string Text
     {
         get => _textWidget.Content;
         set => _textWidget.Content = value;
     }
 
+    /// <summary>
+    /// Gets or sets the border style of the button.
+    /// </summary>
     public BorderStyle BorderStyle
     {
         get => _container.BorderStyle ?? Widgets.BorderStyle.Single;
         set => _container.BorderStyle = value;
     }
 
+    /// <summary>
+    /// Gets or sets the border color.
+    /// </summary>
     public ConsoleColor BorderColor
     {
         get => _container.ForegroundColor;
         set => _container.ForegroundColor = value;
     }
 
+    /// <summary>
+    /// Gets or sets the text color.
+    /// </summary>
     public ConsoleColor TextColor
     {
         get => _textWidget.ForegroundColor;
         set => _textWidget.ForegroundColor = value;
     }
 
+    /// <summary>
+    /// Gets or sets the border color when focused.
+    /// </summary>
     public ConsoleColor FocusBorderColor
     {
         get => _container.FocusForegroundColor;
         set => _container.FocusForegroundColor = value;
     }
 
+    /// <summary>
+    /// Gets or sets the text color when focused.
+    /// </summary>
     public ConsoleColor FocusTextColor
     {
         get => _textWidget.FocusForegroundColor;
@@ -73,70 +97,109 @@ public class Button : IWidget
         }
     }
 
-    // IWidget implementation - delegate to container
+    /// <summary>
+    /// Gets or sets the unique name of the button.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the button.
+    /// </summary>
     public string? Group { get; set; }
 
+    /// <summary>
+    /// Gets or sets the width of the button.
+    /// </summary>
     public string Width
     {
         get => _container.Width;
         set => _container.Width = value;
     }
 
+    /// <summary>
+    /// Gets or sets the height of the button.
+    /// </summary>
     public string Height
     {
         get => _container.Height;
         set => _container.Height = value;
     }
 
+    /// <summary>
+    /// Gets or sets the left padding.
+    /// </summary>
     public string PaddingLeft
     {
         get => _container.PaddingLeft;
         set => _container.PaddingLeft = value;
     }
 
+    /// <summary>
+    /// Gets or sets the top padding.
+    /// </summary>
     public string PaddingTop
     {
         get => _container.PaddingTop;
         set => _container.PaddingTop = value;
     }
 
+    /// <summary>
+    /// Gets or sets the right padding.
+    /// </summary>
     public string PaddingRight
     {
         get => _container.PaddingRight;
         set => _container.PaddingRight = value;
     }
 
+    /// <summary>
+    /// Gets or sets the bottom padding.
+    /// </summary>
     public string PaddingBottom
     {
         get => _container.PaddingBottom;
         set => _container.PaddingBottom = value;
     }
 
+    /// <summary>
+    /// Gets or sets the X position.
+    /// </summary>
     public string PositionX
     {
         get => _container.PositionX;
         set => _container.PositionX = value;
     }
 
+    /// <summary>
+    /// Gets or sets the Y position.
+    /// </summary>
     public string PositionY
     {
         get => _container.PositionY;
         set => _container.PositionY = value;
     }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the button is visible.
+    /// </summary>
     public bool Visible
     {
         get => _container.Visible;
         set => _container.Visible = value;
     }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping
     {
         get => _container.AllowWrapping;
         set => _container.AllowWrapping = value;
     }
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public ConsoleColor BackgroundColor
     {
         get => _container.BackgroundColor;
@@ -147,12 +210,18 @@ public class Button : IWidget
         }
     }
 
+    /// <summary>
+    /// Gets or sets the foreground color.
+    /// </summary>
     public ConsoleColor ForegroundColor
     {
         get => _container.ForegroundColor;
         set => _container.ForegroundColor = value;
     }
 
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor
     {
         get => _container.FocusBackgroundColor;
@@ -163,13 +232,23 @@ public class Button : IWidget
         }
     }
 
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor
     {
         get => _container.FocusForegroundColor;
         set => _container.FocusForegroundColor = value;
     }
 
+    /// <summary>
+    /// Gets a value indicating whether the button can receive focus.
+    /// </summary>
     public bool CanFocus => true;
+
+    /// <summary>
+    /// Gets a value indicating whether the button is scrollable.
+    /// </summary>
     public bool Scrollable => false;
 
     // Explicit interface implementation
@@ -205,15 +284,15 @@ public class Button : IWidget
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Button can handle clicks/enter in the future
         if (keyInfo.Key == ConsoleKey.Enter || keyInfo.Key == ConsoleKey.Spacebar)
         {
-            // Trigger button action
             OnClick();
         }
     }
 
-    // Event for button clicks
+    /// <summary>
+    /// Occurs when the button is clicked.
+    /// </summary>
     public event EventHandler? Click;
 
     protected virtual void OnClick()

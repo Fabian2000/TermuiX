@@ -1,11 +1,17 @@
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// A slider widget for selecting numeric values within a range.
+/// </summary>
 public class Slider : IWidget
 {
     private double _value = 0;
     private double _min = 0;
     private double _max = 100;
 
+    /// <summary>
+    /// Gets or sets the current value of the slider.
+    /// </summary>
     public double Value
     {
         get => _value;
@@ -20,75 +26,164 @@ public class Slider : IWidget
         }
     }
 
+    /// <summary>
+    /// Gets or sets the minimum value.
+    /// </summary>
     public double Min
     {
         get => _min;
         set
         {
             _min = value;
-            if (_value < _min) Value = _min;
+            if (_value < _min)
+            {
+                Value = _min;
+            }
         }
     }
 
+    /// <summary>
+    /// Gets or sets the maximum value.
+    /// </summary>
     public double Max
     {
         get => _max;
         set
         {
             _max = value;
-            if (_value > _max) Value = _max;
+            if (_value > _max)
+            {
+                Value = _max;
+            }
         }
     }
 
+    /// <summary>
+    /// Gets or sets the step increment for value changes.
+    /// </summary>
     public double Step { get; set; } = 1.0;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to display the current value.
+    /// </summary>
     public bool ShowValue { get; set; } = true;
 
-    // IWidget properties
+    /// <summary>
+    /// Gets or sets the unique name of the slider.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the slider.
+    /// </summary>
     public string? Group { get; set; }
+
+    /// <summary>
+    /// Gets or sets the width of the slider.
+    /// </summary>
     public string Width { get; set; } = "20ch";
+
+    /// <summary>
+    /// Gets or sets the height of the slider.
+    /// </summary>
     public string Height { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the left padding.
+    /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top padding.
+    /// </summary>
     public string PaddingTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right padding.
+    /// </summary>
     public string PaddingRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom padding.
+    /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the X position.
+    /// </summary>
     public string PositionX { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the Y position.
+    /// </summary>
     public string PositionY { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the slider is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color.
+    /// </summary>
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Gray;
+
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets a value indicating whether the slider can receive focus.
+    /// </summary>
     public bool CanFocus => true;
+
+    /// <summary>
+    /// Gets a value indicating whether the slider is scrollable.
+    /// </summary>
     public bool Scrollable => false;
 
-    // Explicit interface implementation
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => [];
     bool IWidget.Focussed { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
-    // Events
+    /// <summary>
+    /// Occurs when the slider value changes.
+    /// </summary>
     public event EventHandler<double>? Changed;
 
     char[][] IWidget.GetRaw()
     {
         int width = GetWidthInChars();
-        if (width < 5) width = 5; // Minimum width
+        if (width < 5)
+        {
+            width = 5;
+        }
 
         var result = new char[1][];
         result[0] = new char[width];
         Array.Fill(result[0], ' ');
 
-        // Calculate value position
         double range = _max - _min;
         double normalizedValue = range > 0 ? (_value - _min) / range : 0;
 
-        // Reserve space for value display if enabled
         int valueTextLength = 0;
         string valueText = "";
         if (ShowValue)
@@ -98,9 +193,11 @@ public class Slider : IWidget
         }
 
         int trackWidth = width - valueTextLength;
-        if (trackWidth < 3) trackWidth = 3;
+        if (trackWidth < 3)
+        {
+            trackWidth = 3;
+        }
 
-        // Draw track: [────●────]
         result[0][0] = '[';
         result[0][trackWidth - 1] = ']';
 
@@ -123,7 +220,6 @@ public class Slider : IWidget
             }
         }
 
-        // Draw value text
         if (ShowValue && valueTextLength > 0)
         {
             for (int i = 0; i < valueText.Length && trackWidth + i < width; i++)
@@ -139,7 +235,6 @@ public class Slider : IWidget
     {
         double step = Step;
 
-        // Shift increases step size by 10x
         if (keyInfo.Modifiers.HasFlag(ConsoleModifiers.Shift))
         {
             step *= 10;
@@ -174,7 +269,9 @@ public class Slider : IWidget
         {
             var value = Width[..^2].Trim();
             if (int.TryParse(value, out int result))
+            {
                 return result;
+            }
         }
         return 20;
     }

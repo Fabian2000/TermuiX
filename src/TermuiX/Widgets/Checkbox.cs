@@ -1,9 +1,15 @@
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// A checkbox widget that can be toggled on or off.
+/// </summary>
 public class Checkbox : IWidget
 {
     private bool _checked = false;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the checkbox is checked.
+    /// </summary>
     public bool Checked
     {
         get => _checked;
@@ -17,36 +23,105 @@ public class Checkbox : IWidget
         }
     }
 
-    // IWidget properties
+    /// <summary>
+    /// Gets or sets the unique name of the checkbox.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the checkbox.
+    /// </summary>
     public string? Group { get; set; }
-    public string Width { get; set; } = "1ch";  // ☐ or ☑
+
+    /// <summary>
+    /// Gets or sets the width of the checkbox.
+    /// </summary>
+    public string Width { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the height of the checkbox.
+    /// </summary>
     public string Height { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the left padding.
+    /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top padding.
+    /// </summary>
     public string PaddingTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right padding.
+    /// </summary>
     public string PaddingRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom padding.
+    /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the X position.
+    /// </summary>
     public string PositionX { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the Y position.
+    /// </summary>
     public string PositionY { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the checkbox is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color.
+    /// </summary>
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets a value indicating whether the checkbox can receive focus.
+    /// </summary>
     public bool CanFocus => true;
+
+    /// <summary>
+    /// Gets a value indicating whether the checkbox is scrollable.
+    /// </summary>
     public bool Scrollable => false;
 
-    // Explicit interface implementation
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => [];
     bool IWidget.Focussed { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
-    // Events
+    /// <summary>
+    /// Occurs when the checked state changes.
+    /// </summary>
     public event EventHandler<bool>? Changed;
 
     char[][] IWidget.GetRaw()
@@ -54,7 +129,6 @@ public class Checkbox : IWidget
         var result = new char[1][];
         result[0] = new char[1];
 
-        // Render checkbox: ☑ or ☐
         result[0][0] = _checked ? '☑' : '☐';
 
         return result;
@@ -62,7 +136,6 @@ public class Checkbox : IWidget
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Space or Enter toggles checkbox
         if (keyInfo.Key == ConsoleKey.Spacebar || keyInfo.Key == ConsoleKey.Enter)
         {
             Checked = !Checked;

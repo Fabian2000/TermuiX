@@ -1,9 +1,15 @@
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// A radio button widget that allows single selection within a group.
+/// </summary>
 public class RadioButton : IWidget
 {
     private bool _selected = false;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the radio button is selected.
+    /// </summary>
     public bool Selected
     {
         get => _selected;
@@ -14,7 +20,6 @@ public class RadioButton : IWidget
                 _selected = value;
                 OnChanged();
 
-                // If this radio button is selected, unselect all siblings
                 if (_selected)
                 {
                     UnselectSiblings();
@@ -23,36 +28,105 @@ public class RadioButton : IWidget
         }
     }
 
-    // IWidget properties
+    /// <summary>
+    /// Gets or sets the unique name of the radio button.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the radio button.
+    /// </summary>
     public string? Group { get; set; }
-    public string Width { get; set; } = "1ch";  // ○ or ◉
+
+    /// <summary>
+    /// Gets or sets the width of the radio button.
+    /// </summary>
+    public string Width { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the height of the radio button.
+    /// </summary>
     public string Height { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the left padding.
+    /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top padding.
+    /// </summary>
     public string PaddingTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right padding.
+    /// </summary>
     public string PaddingRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom padding.
+    /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the X position.
+    /// </summary>
     public string PositionX { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the Y position.
+    /// </summary>
     public string PositionY { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the radio button is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color.
+    /// </summary>
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets a value indicating whether the radio button can receive focus.
+    /// </summary>
     public bool CanFocus => true;
+
+    /// <summary>
+    /// Gets a value indicating whether the radio button is scrollable.
+    /// </summary>
     public bool Scrollable => false;
 
-    // Explicit interface implementation
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => [];
     bool IWidget.Focussed { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
-    // Events
+    /// <summary>
+    /// Occurs when the selected state changes.
+    /// </summary>
     public event EventHandler<bool>? Changed;
 
     char[][] IWidget.GetRaw()
@@ -60,7 +134,6 @@ public class RadioButton : IWidget
         var result = new char[1][];
         result[0] = new char[1];
 
-        // Render radio button: ◉ or ○
         result[0][0] = _selected ? '◉' : '○';
 
         return result;
@@ -68,7 +141,6 @@ public class RadioButton : IWidget
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Space or Enter selects radio button
         if (keyInfo.Key == ConsoleKey.Spacebar || keyInfo.Key == ConsoleKey.Enter)
         {
             Selected = true;
@@ -82,16 +154,17 @@ public class RadioButton : IWidget
 
     private void UnselectSiblings()
     {
-        // Find parent container
         var parent = ((IWidget)this).Parent;
-        if (parent == null) return;
+        if (parent is null)
+        {
+            return;
+        }
 
-        // Unselect all other RadioButtons in the same parent container
         foreach (var child in parent.Children)
         {
             if (child is RadioButton radio && radio != this)
             {
-                radio._selected = false; // Set directly to avoid triggering Changed event
+                radio._selected = false;
             }
         }
     }

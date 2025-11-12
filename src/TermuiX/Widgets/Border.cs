@@ -1,54 +1,148 @@
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// Specifies the style of border to draw around a widget.
+/// </summary>
 public enum BorderStyle
 {
+    /// <summary>
+    /// Single-line border characters.
+    /// </summary>
     Single,
+
+    /// <summary>
+    /// Double-line border characters.
+    /// </summary>
     Double
 }
 
+/// <summary>
+/// A border widget that wraps a single child widget with a border.
+/// </summary>
 public class Border : IWidget
 {
     private IWidget? _child;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Border"/> class.
+    /// </summary>
     public Border()
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Border"/> class with a child widget.
+    /// </summary>
+    /// <param name="child">The child widget to wrap.</param>
     public Border(IWidget child)
     {
         _child = child;
     }
 
+    /// <summary>
+    /// Gets or sets the border style.
+    /// </summary>
     public BorderStyle Style { get; set; } = BorderStyle.Single;
 
+    /// <summary>
+    /// Gets or sets the child widget.
+    /// </summary>
     public IWidget? Child
     {
         get => _child;
         set => _child = value;
     }
 
+    /// <summary>
+    /// Gets or sets the unique name of the border.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the border.
+    /// </summary>
     public string? Group { get; set; }
+
+    /// <summary>
+    /// Gets or sets the width of the border.
+    /// </summary>
     public string Width { get; set; } = "100%";
+
+    /// <summary>
+    /// Gets or sets the height of the border.
+    /// </summary>
     public string Height { get; set; } = "100%";
+
+    /// <summary>
+    /// Gets or sets the left padding.
+    /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top padding.
+    /// </summary>
     public string PaddingTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right padding.
+    /// </summary>
     public string PaddingRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom padding.
+    /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the X position.
+    /// </summary>
     public string PositionX { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the Y position.
+    /// </summary>
     public string PositionY { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the border is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color.
+    /// </summary>
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets a value indicating whether the border can receive focus.
+    /// </summary>
     public bool CanFocus => false;
+
+    /// <summary>
+    /// Gets a value indicating whether the border is scrollable.
+    /// </summary>
     public bool Scrollable => false;
 
-    // Explicit interface implementation
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => _child is not null ? [_child] : [];
     bool IWidget.Focussed { get; set; }
@@ -57,22 +151,17 @@ public class Border : IWidget
 
     char[][] IWidget.GetRaw()
     {
-        // Border renders nothing itself - children render inside
-        // The border should be drawn by having padding of 1ch on all sides
-        // and the container itself draws the border characters
-        // But we need to know the size... this is tricky
-
-        // Actually, borders should be drawn by Container with a border property
-        // Let's just return empty for now
         return [];
     }
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Border doesn't handle key presses
     }
 
-    // Helper to get border characters
+    /// <summary>
+    /// Gets the border characters for the current style.
+    /// </summary>
+    /// <returns>A tuple containing the border characters.</returns>
     public (char topLeft, char topRight, char bottomLeft, char bottomRight, char horizontal, char vertical) GetBorderChars()
     {
         return Style switch

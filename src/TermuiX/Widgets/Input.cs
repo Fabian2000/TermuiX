@@ -2,6 +2,9 @@ using System.Text;
 
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// A text input widget that supports single-line and multi-line text entry.
+/// </summary>
 public class Input : IWidget
 {
     private string _text = string.Empty;
@@ -9,8 +12,11 @@ public class Input : IWidget
     private bool _cursorVisible = false;
     private DateTime _lastCursorBlink = DateTime.Now;
     private const int CursorBlinkIntervalMs = 500;
-    private int _scrollOffsetY = 0; // Vertical scroll for multiline
+    private int _scrollOffsetY = 0;
 
+    /// <summary>
+    /// Gets or sets the text value of the input.
+    /// </summary>
     public string Value
     {
         get => _text;
@@ -21,39 +27,139 @@ public class Input : IWidget
         }
     }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether multi-line input is enabled.
+    /// </summary>
     public bool Multiline { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the input displays as a password (masked with asterisks).
+    /// </summary>
     public bool IsPassword { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the placeholder text shown when the input is empty.
+    /// </summary>
     public string Placeholder { get; set; } = string.Empty;
 
-    // IWidget properties
+    /// <summary>
+    /// Gets or sets the unique name of the input.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the input.
+    /// </summary>
     public string? Group { get; set; }
+
+    /// <summary>
+    /// Gets or sets the width of the input.
+    /// </summary>
     public string Width { get; set; } = "30ch";
+
+    /// <summary>
+    /// Gets or sets the height of the input.
+    /// </summary>
     public string Height { get; set; } = "3ch";
+
+    /// <summary>
+    /// Gets or sets the left padding.
+    /// </summary>
     public string PaddingLeft { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the top padding.
+    /// </summary>
     public string PaddingTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right padding.
+    /// </summary>
     public string PaddingRight { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the bottom padding.
+    /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the X position.
+    /// </summary>
     public string PositionX { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the Y position.
+    /// </summary>
     public string PositionY { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the input is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.DarkGray;
+
+    /// <summary>
+    /// Gets or sets the foreground color.
+    /// </summary>
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Gray;
+
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets or sets the border color.
+    /// </summary>
     public ConsoleColor BorderColor { get; set; } = ConsoleColor.DarkGray;
+
+    /// <summary>
+    /// Gets or sets the border color when focused.
+    /// </summary>
     public ConsoleColor FocusBorderColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the placeholder text color.
+    /// </summary>
     public ConsoleColor PlaceholderColor { get; set; } = ConsoleColor.DarkGray;
+
+    /// <summary>
+    /// Gets or sets the cursor color.
+    /// </summary>
     public ConsoleColor CursorColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets a value indicating whether the input can receive focus.
+    /// </summary>
     public bool CanFocus => true;
+
+    /// <summary>
+    /// Gets a value indicating whether the input is scrollable.
+    /// </summary>
     public bool Scrollable => false;
 
-    // Events
+    /// <summary>
+    /// Occurs when the user submits the input (presses Enter in single-line mode).
+    /// </summary>
     public event EventHandler<string>? Submit;
+
+    /// <summary>
+    /// Occurs when the text value changes.
+    /// </summary>
     public event EventHandler<string>? Changed;
 
     // Explicit interface implementation

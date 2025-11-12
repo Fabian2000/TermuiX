@@ -1,32 +1,110 @@
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// A container widget that can hold and organize child widgets.
+/// </summary>
 public class Container : IWidget
 {
     private readonly List<IWidget> _children = [];
 
+    /// <summary>
+    /// Gets or sets the unique name of the container.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the container.
+    /// </summary>
     public string? Group { get; set; }
+
+    /// <summary>
+    /// Gets or sets the width of the container.
+    /// </summary>
     public string Width { get; set; } = "100%";
+
+    /// <summary>
+    /// Gets or sets the height of the container.
+    /// </summary>
     public string Height { get; set; } = "100%";
+
+    /// <summary>
+    /// Gets or sets the left padding of the container.
+    /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top padding of the container.
+    /// </summary>
     public string PaddingTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right padding of the container.
+    /// </summary>
     public string PaddingRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom padding of the container.
+    /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the X position of the container.
+    /// </summary>
     public string PositionX { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the Y position of the container.
+    /// </summary>
     public string PositionY { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the container is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets the background color of the container.
+    /// </summary>
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color of the container.
+    /// </summary>
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets a value indicating whether the container can receive focus.
+    /// </summary>
     public bool CanFocus => false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the container is scrollable.
+    /// </summary>
     public bool Scrollable { get; set; } = false;
 
-    // Border support
+    /// <summary>
+    /// Gets or sets the border style for the container.
+    /// </summary>
     public BorderStyle? BorderStyle { get; set; } = null;
+
+    /// <summary>
+    /// Gets a value indicating whether the container has a border.
+    /// </summary>
     public bool HasBorder => BorderStyle.HasValue;
 
     // Explicit interface implementation to hide these members
@@ -36,19 +114,29 @@ public class Container : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
-    // Public API for adding children
+    /// <summary>
+    /// Adds a child widget to the container.
+    /// </summary>
+    /// <param name="widget">The widget to add.</param>
     public void Add(IWidget widget)
     {
         widget.Parent = this;
         _children.Add(widget);
     }
 
+    /// <summary>
+    /// Removes a child widget from the container.
+    /// </summary>
+    /// <param name="widget">The widget to remove.</param>
     public void Remove(IWidget widget)
     {
         widget.Parent = null;
         _children.Remove(widget);
     }
 
+    /// <summary>
+    /// Removes all child widgets from the container.
+    /// </summary>
     public void Clear()
     {
         _children.Clear();
@@ -56,17 +144,14 @@ public class Container : IWidget
 
     char[][] IWidget.GetRaw()
     {
-        // Calculate actual widget size based on parent
         int actualWidth = CalculateSize(Width, ((IWidget)this).Parent?.Width, true);
         int actualHeight = CalculateSize(Height, ((IWidget)this).Parent?.Height, false);
 
-        // If we can't determine size, return empty
         if (actualWidth <= 0 || actualHeight <= 0)
         {
             return [];
         }
 
-        // Always create result filled with spaces - like a JPEG, not a PNG!
         var result = new char[actualHeight][];
         for (int i = 0; i < actualHeight; i++)
         {
@@ -74,12 +159,10 @@ public class Container : IWidget
             Array.Fill(result[i], ' ');
         }
 
-        // Draw border on top of spaces if we have one
         if (HasBorder)
         {
             var (topLeft, topRight, bottomLeft, bottomRight, horizontal, vertical) = GetBorderChars();
 
-            // Top border
             result[0][0] = topLeft;
             result[0][actualWidth - 1] = topRight;
             for (int x = 1; x < actualWidth - 1; x++)
@@ -87,7 +170,6 @@ public class Container : IWidget
                 result[0][x] = horizontal;
             }
 
-            // Bottom border
             int lastY = actualHeight - 1;
             result[lastY][0] = bottomLeft;
             result[lastY][actualWidth - 1] = bottomRight;
@@ -96,7 +178,6 @@ public class Container : IWidget
                 result[lastY][x] = horizontal;
             }
 
-            // Left and right borders
             for (int y = 1; y < actualHeight - 1; y++)
             {
                 result[y][0] = vertical;
@@ -109,7 +190,10 @@ public class Container : IWidget
 
     private int CalculateSize(string size, string? parentSize, bool isWidth)
     {
-        if (string.IsNullOrEmpty(size)) return 0;
+        if (string.IsNullOrEmpty(size))
+        {
+            return 0;
+        }
 
         size = size.Trim();
 
@@ -124,13 +208,14 @@ public class Container : IWidget
         }
         else if (size.EndsWith('%'))
         {
-            // Need to resolve parent size first
-            if (string.IsNullOrEmpty(parentSize)) return 0;
+            if (string.IsNullOrEmpty(parentSize))
+            {
+                return 0;
+            }
 
             var parent = ((IWidget)this).Parent;
             int parentSizeValue = CalculateSize(parentSize, parent?.Parent?.Width, isWidth);
 
-            // Subtract parent's padding since children render in content area
             if (parent is not null)
             {
                 if (isWidth)
@@ -160,7 +245,10 @@ public class Container : IWidget
 
     private static int ParsePadding(string padding)
     {
-        if (string.IsNullOrEmpty(padding)) return 0;
+        if (string.IsNullOrEmpty(padding))
+        {
+            return 0;
+        }
 
         padding = padding.Trim();
         if (padding.EndsWith("ch"))
@@ -187,6 +275,5 @@ public class Container : IWidget
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Container doesn't handle key presses directly
     }
 }

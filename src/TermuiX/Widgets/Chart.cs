@@ -1,45 +1,156 @@
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// Represents a data series for display in a chart.
+/// </summary>
 public class ChartDataSeries
 {
+    /// <summary>
+    /// Gets or sets the label for this data series.
+    /// </summary>
     public string Label { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the data points for this series.
+    /// </summary>
     public List<double> Data { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the color for rendering this series.
+    /// </summary>
     public ConsoleColor Color { get; set; } = ConsoleColor.White;
 }
 
+/// <summary>
+/// A chart widget for visualizing data series with axes and legends.
+/// </summary>
 public class Chart : IWidget
 {
     private readonly List<ChartDataSeries> _series = [];
 
+    /// <summary>
+    /// Gets the collection of data series to display in the chart.
+    /// </summary>
     public List<ChartDataSeries> Series => _series;
 
-    public double? MinY { get; set; } = null; // Auto-scale if null
-    public double? MaxY { get; set; } = null; // Auto-scale if null
-    public List<string> XLabels { get; set; } = []; // Optional X-axis labels
-    public bool ShowLegend { get; set; } = true;
-    public bool ShowAxes { get; set; } = true;
-    public int YAxisWidth { get; set; } = 6; // Width for Y-axis labels
+    /// <summary>
+    /// Gets or sets the minimum Y-axis value (null for auto-scaling).
+    /// </summary>
+    public double? MinY { get; set; } = null;
 
-    // IWidget properties
+    /// <summary>
+    /// Gets or sets the maximum Y-axis value (null for auto-scaling).
+    /// </summary>
+    public double? MaxY { get; set; } = null;
+
+    /// <summary>
+    /// Gets or sets the X-axis labels.
+    /// </summary>
+    public List<string> XLabels { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to show the legend.
+    /// </summary>
+    public bool ShowLegend { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to show axes.
+    /// </summary>
+    public bool ShowAxes { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the width reserved for Y-axis labels.
+    /// </summary>
+    public int YAxisWidth { get; set; } = 6;
+
+    /// <summary>
+    /// Gets or sets the unique name of the chart.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the chart.
+    /// </summary>
     public string? Group { get; set; }
+
+    /// <summary>
+    /// Gets or sets the width of the chart.
+    /// </summary>
     public string Width { get; set; } = "60ch";
+
+    /// <summary>
+    /// Gets or sets the height of the chart.
+    /// </summary>
     public string Height { get; set; } = "15ch";
+
+    /// <summary>
+    /// Gets or sets the left padding.
+    /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top padding.
+    /// </summary>
     public string PaddingTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right padding.
+    /// </summary>
     public string PaddingRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom padding.
+    /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the X position.
+    /// </summary>
     public string PositionX { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the Y position.
+    /// </summary>
     public string PositionY { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the chart is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping { get; set; } = false;
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color.
+    /// </summary>
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets a value indicating whether the chart can receive focus.
+    /// </summary>
     public bool CanFocus => false;
+
+    /// <summary>
+    /// Gets a value indicating whether the chart is scrollable.
+    /// </summary>
     public bool Scrollable => false;
 
     // Explicit interface implementation
@@ -49,11 +160,18 @@ public class Chart : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
+    /// <summary>
+    /// Adds a data series to the chart.
+    /// </summary>
+    /// <param name="series">The series to add.</param>
     public void AddSeries(ChartDataSeries series)
     {
         _series.Add(series);
     }
 
+    /// <summary>
+    /// Removes all data series from the chart.
+    /// </summary>
     public void ClearSeries()
     {
         _series.Clear();
@@ -65,7 +183,9 @@ public class Chart : IWidget
         int height = GetHeightInChars();
 
         if (width <= 0 || height <= 0 || _series.Count == 0)
+        {
             return CreateEmptyResult(width, height);
+        }
 
         // Calculate dimensions
         // Layout: [Legend                  ]
@@ -79,7 +199,9 @@ public class Chart : IWidget
         int chartWidth = width - yAxisWidth;
 
         if (chartHeight < 3 || chartWidth < 10)
+        {
             return CreateEmptyResult(width, height);
+        }
 
         // Create result array
         var result = new char[height][];
@@ -385,6 +507,5 @@ public class Chart : IWidget
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Chart doesn't handle key presses
     }
 }

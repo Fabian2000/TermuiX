@@ -1,5 +1,8 @@
 namespace TermuiX
 {
+    /// <summary>
+    /// Internal renderer that converts widget trees into character arrays for console display.
+    /// </summary>
     internal class Renderer
     {
         private int _width;
@@ -18,7 +21,6 @@ namespace TermuiX
                 throw new InvalidOperationException("Renderer size not set. Call Size(width, height) before Render().");
             }
 
-            // Create output buffers
             var output = new char[_height][];
             var fgColors = new ConsoleColor[_height][];
             var bgColors = new ConsoleColor[_height][];
@@ -33,7 +35,6 @@ namespace TermuiX
                 Array.Fill(bgColors[i], ConsoleColor.Black);
             }
 
-            // Render the root widget
             RenderWidget(output, fgColors, bgColors, widget, 0, 0, _width, _height, 0, 0);
 
             return (output, fgColors, bgColors);
@@ -41,19 +42,20 @@ namespace TermuiX
 
         private static void RenderWidget(char[][] output, ConsoleColor[][] fgColors, ConsoleColor[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY)
         {
-            if (!widget.Visible) return;
+            // Skip invisible widgets and their children
+            if (!widget.Visible)
+            {
+                return;
+            }
 
-            // Parse dimensions with validation
             int width = ParseSize(widget.Width, parentWidth);
             int height = ParseSize(widget.Height, parentHeight);
             int posX = ParseSize(widget.PositionX, parentWidth);
             int posY = ParseSize(widget.PositionY, parentHeight);
 
-            // Apply parent scroll offset to position
             posX -= parentScrollX;
             posY -= parentScrollY;
 
-            // Parse padding with validation
             int padLeft = ParseSize(widget.PaddingLeft, width);
             int padTop = ParseSize(widget.PaddingTop, height);
             int padRight = ParseSize(widget.PaddingRight, width);
@@ -68,32 +70,31 @@ namespace TermuiX
                 padBottom += 1;
             }
 
-            // Calculate absolute position
             int absX = parentX + posX;
             int absY = parentY + posY;
 
-            // Clip to parent bounds
-            if (absX >= parentX + parentWidth || absY >= parentY + parentHeight) return;
-            if (absX + width < parentX || absY + height < parentY) return;
+            if (absX >= parentX + parentWidth || absY >= parentY + parentHeight)
+            {
+                return;
+            }
 
-            // Get widget content
+            if (absX + width < parentX || absY + height < parentY)
+            {
+                return;
+            }
+
             var raw = widget.GetRaw();
 
-            // Calculate content area (after padding, this is where content and children go)
             int contentWidth = Math.Max(0, width - padLeft - padRight);
             int contentHeight = Math.Max(0, height - padTop - padBottom);
             int contentX = absX + padLeft;
             int contentY = absY + padTop;
 
-            // Get scroll offsets for this widget
             int scrollX = widget.Scrollable ? (int)widget.ScrollOffsetX : 0;
             int scrollY = widget.Scrollable ? (int)widget.ScrollOffsetY : 0;
 
-            // Determine colors based on focus state
             var bgColor = widget.Focussed ? widget.FocusBackgroundColor : widget.BackgroundColor;
             var fgColor = widget.Focussed ? widget.FocusForegroundColor : widget.ForegroundColor;
-
-            // Render background (entire widget area including padding)
             for (int y = 0; y < height && absY + y < output.Length; y++)
             {
                 for (int x = 0; x < width && absX + x < output[0].Length; x++)
@@ -107,12 +108,9 @@ namespace TermuiX
                 }
             }
 
-            // Render content - widgets render in FULL widget area (for borders)
-            // But scrolling only affects content INSIDE padding area
             if (raw?.Length > 0)
             {
                 // First render the raw content WITHOUT scroll (for borders, static content)
-                // This is rendered in the full widget area
                 for (int y = 0; y < raw.Length && y < height; y++)
                 {
                     for (int x = 0; x < raw[y].Length && x < width; x++)
@@ -120,7 +118,6 @@ namespace TermuiX
                         int targetX = absX + x;
                         int targetY = absY + y;
 
-                        // Clip to widget area and parent bounds
                         if (targetY >= absY && targetY < absY + height &&
                             targetX >= absX && targetX < absX + width &&
                             targetY >= 0 && targetY < output.Length &&
@@ -129,13 +126,11 @@ namespace TermuiX
                             targetX < parentX + parentWidth && targetY < parentY + parentHeight)
                         {
                             output[targetY][targetX] = raw[y][x];
-                            // Colors are already set by background rendering
                         }
                     }
                 }
             }
 
-            // Render children (later children on top)
             // Children are positioned relative to content area and affected by scroll
             foreach (var child in widget.Children)
             {
@@ -145,7 +140,6 @@ namespace TermuiX
             // Render scrollbars AFTER children so they're always on top
             if (widget.Scrollable && widget.Children.Count > 0)
             {
-                // Calculate total content dimensions by finding max child positions
                 int maxChildBottom = 0;
                 int maxChildRight = 0;
                 foreach (var child in widget.Children)
@@ -159,14 +153,12 @@ namespace TermuiX
                     maxChildRight = Math.Max(maxChildRight, childPosX + childWidth);
                 }
 
-                // Vertical scrollbar
                 if (contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0))
                 {
                     int scrollbarHeight = Math.Max(1, (contentHeight * contentHeight) / maxChildBottom);
                     int scrollbarPos = maxChildBottom > contentHeight ? (int)((float)scrollY / (maxChildBottom - contentHeight) * (contentHeight - scrollbarHeight)) : 0;
                     scrollbarPos = Math.Max(0, Math.Min(scrollbarPos, contentHeight - scrollbarHeight));
 
-                    // Position scrollbar inside content area, 1 char from right edge
                     int scrollbarX = contentX + contentWidth - 1;
 
                     for (int y = 0; y < contentHeight; y++)
@@ -190,14 +182,12 @@ namespace TermuiX
                     }
                 }
 
-                // Horizontal scrollbar
                 if (contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0))
                 {
                     int scrollbarWidth = Math.Max(1, (contentWidth * contentWidth) / maxChildRight);
                     int scrollbarPos = maxChildRight > contentWidth ? (int)((float)scrollX / (maxChildRight - contentWidth) * (contentWidth - scrollbarWidth)) : 0;
                     scrollbarPos = Math.Max(0, Math.Min(scrollbarPos, contentWidth - scrollbarWidth));
 
-                    // Position scrollbar inside content area, 1 line from bottom edge
                     int scrollbarY = contentY + contentHeight - 1;
 
                     for (int x = 0; x < contentWidth; x++)
@@ -225,7 +215,10 @@ namespace TermuiX
 
         private static int ParseSize(string size, int parentSize)
         {
-            if (string.IsNullOrEmpty(size)) return 0;
+            if (string.IsNullOrEmpty(size))
+            {
+                return 0;
+            }
 
             size = size.Trim();
 
@@ -236,6 +229,7 @@ namespace TermuiX
                 {
                     return result;
                 }
+
                 throw new FormatException($"Invalid size value: '{size}'. Expected format: '{{number}}ch' (e.g., '10ch')");
             }
             else if (size.EndsWith('%'))
@@ -245,10 +239,10 @@ namespace TermuiX
                 {
                     return (int)(parentSize * percent / 100.0f);
                 }
+
                 throw new FormatException($"Invalid size value: '{size}'. Expected format: '{{number}}%' (e.g., '50%')");
             }
 
-            // If we reach here, the size string doesn't end with 'ch' or '%'
             throw new FormatException($"Invalid size value: '{size}'. Size must end with 'ch' or '%' (e.g., '10ch' or '50%')");
         }
     }

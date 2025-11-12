@@ -1,43 +1,128 @@
 namespace TermuiX.Widgets;
 
+/// <summary>
+/// A text display widget that renders static or dynamic text content.
+/// </summary>
 public class Text : IWidget
 {
     private string _text = string.Empty;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Text"/> class.
+    /// </summary>
     public Text() { }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Text"/> class with the specified text.
+    /// </summary>
+    /// <param name="text">The initial text content.</param>
     public Text(string text)
     {
         _text = text;
     }
 
+    /// <summary>
+    /// Gets or sets the text content to display.
+    /// </summary>
     public string Content
     {
         get => _text;
         set => _text = value;
     }
 
+    /// <summary>
+    /// Gets or sets the horizontal alignment of the text.
+    /// </summary>
     public TextAlign TextAlign { get; set; } = TextAlign.Left;
 
+    /// <summary>
+    /// Gets or sets the unique name of the text widget.
+    /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the group name of the text widget.
+    /// </summary>
     public string? Group { get; set; }
+
+    /// <summary>
+    /// Gets or sets the width of the text widget.
+    /// </summary>
     public string Width { get; set; } = "100%";
+
+    /// <summary>
+    /// Gets or sets the height of the text widget.
+    /// </summary>
     public string Height { get; set; } = "100%";
+
+    /// <summary>
+    /// Gets or sets the left padding.
+    /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top padding.
+    /// </summary>
     public string PaddingTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right padding.
+    /// </summary>
     public string PaddingRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom padding.
+    /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the X position.
+    /// </summary>
     public string PositionX { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the Y position.
+    /// </summary>
     public string PositionY { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the widget is visible.
+    /// </summary>
     public bool Visible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether text wrapping is allowed.
+    /// </summary>
     public bool AllowWrapping { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets the background color.
+    /// </summary>
     public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color.
+    /// </summary>
     public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets the background color when focused.
+    /// </summary>
     public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+
+    /// <summary>
+    /// Gets or sets the foreground color when focused.
+    /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
+    /// <summary>
+    /// Gets a value indicating whether the text widget can receive focus.
+    /// </summary>
     public bool CanFocus => false;
+
+    /// <summary>
+    /// Gets a value indicating whether the text widget is scrollable.
+    /// </summary>
     public bool Scrollable => false;
 
     // Explicit interface implementation to hide these members
@@ -49,17 +134,14 @@ public class Text : IWidget
 
     char[][] IWidget.GetRaw()
     {
-        // Calculate actual widget size based on parent
         int actualWidth = CalculateSize(Width, ((IWidget)this).Parent?.Width, true);
         int actualHeight = CalculateSize(Height, ((IWidget)this).Parent?.Height, false);
 
-        // If we can't determine size or text is empty, return spaces
         if (actualWidth <= 0 || actualHeight <= 0)
         {
             return [];
         }
 
-        // Create result filled with spaces - like a JPEG!
         var result = new char[actualHeight][];
         for (int i = 0; i < actualHeight; i++)
         {
@@ -67,34 +149,29 @@ public class Text : IWidget
             Array.Fill(result[i], ' ');
         }
 
-        // If no text, just return spaces
         if (string.IsNullOrEmpty(_text))
         {
             return result;
         }
 
-        // Split text into lines
         var lines = _text.Split('\n');
 
         for (int i = 0; i < lines.Length && i < actualHeight; i++)
         {
             string line = lines[i];
 
-            // Truncate line if too long
             if (line.Length > actualWidth)
             {
                 line = line[..actualWidth];
             }
 
-            // Calculate offset based on alignment
             int offset = TextAlign switch
             {
                 TextAlign.Center => Math.Max(0, (actualWidth - line.Length) / 2),
                 TextAlign.Right => Math.Max(0, actualWidth - line.Length),
-                _ => 0 // Left
+                _ => 0
             };
 
-            // Copy line into result
             for (int j = 0; j < line.Length; j++)
             {
                 result[i][offset + j] = line[j];
@@ -106,7 +183,10 @@ public class Text : IWidget
 
     private int CalculateSize(string size, string? parentSize, bool isWidth)
     {
-        if (string.IsNullOrEmpty(size)) return 0;
+        if (string.IsNullOrEmpty(size))
+        {
+            return 0;
+        }
 
         size = size.Trim();
 
@@ -121,13 +201,14 @@ public class Text : IWidget
         }
         else if (size.EndsWith('%'))
         {
-            // Need to resolve parent size first
-            if (string.IsNullOrEmpty(parentSize)) return 0;
+            if (string.IsNullOrEmpty(parentSize))
+            {
+                return 0;
+            }
 
             var parent = ((IWidget)this).Parent;
             int parentSizeValue = CalculateSize(parentSize, parent?.Parent?.Width, isWidth);
 
-            // Subtract parent's padding since children render in content area
             if (parent is not null)
             {
                 if (isWidth)
@@ -157,7 +238,10 @@ public class Text : IWidget
 
     private static int ParsePadding(string padding)
     {
-        if (string.IsNullOrEmpty(padding)) return 0;
+        if (string.IsNullOrEmpty(padding))
+        {
+            return 0;
+        }
 
         padding = padding.Trim();
         if (padding.EndsWith("ch"))
@@ -174,6 +258,5 @@ public class Text : IWidget
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        // Text doesn't handle key presses
     }
 }
