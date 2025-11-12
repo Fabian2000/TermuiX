@@ -322,4 +322,41 @@ public class Button : IWidget
     {
         Click?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>
+    /// Creates a copy of this button.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (clone child widgets).</param>
+    /// <returns>A new Button instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Button(Text)
+        {
+            Name = Name,
+            Group = Group,
+            Width = Width,
+            Height = Height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            AllowWrapping = AllowWrapping,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor,
+            BorderStyle = BorderStyle,
+            RoundedCorners = RoundedCorners,
+            BorderColor = BorderColor,
+            TextColor = TextColor,
+            FocusBorderColor = FocusBorderColor,
+            FocusTextColor = FocusTextColor,
+            TextStyle = TextStyle
+        };
+
+        return clone;
+    }
 }

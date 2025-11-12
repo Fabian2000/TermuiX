@@ -510,4 +510,57 @@ public class Chart : IWidget
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
     }
+
+    /// <summary>
+    /// Creates a copy of this chart.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (clone series data).</param>
+    /// <returns>A new Chart instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Chart
+        {
+            MinY = MinY,
+            MaxY = MaxY,
+            ShowLegend = ShowLegend,
+            ShowAxes = ShowAxes,
+            YAxisWidth = YAxisWidth,
+            Name = Name,
+            Group = Group,
+            Width = Width,
+            Height = Height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            AllowWrapping = AllowWrapping,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor
+        };
+
+        // Clone XLabels
+        clone.XLabels = new List<string>(XLabels);
+
+        // Deep clone series if requested
+        if (deep)
+        {
+            foreach (var series in _series)
+            {
+                var clonedSeries = new ChartDataSeries
+                {
+                    Label = series.Label,
+                    Color = series.Color,
+                    Data = new List<double>(series.Data)
+                };
+                clone.Series.Add(clonedSeries);
+            }
+        }
+
+        return clone;
+    }
 }

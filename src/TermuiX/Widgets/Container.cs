@@ -132,6 +132,28 @@ public class Container : IWidget
     }
 
     /// <summary>
+    /// Adds child widgets from an XML string to the container.
+    /// The XML can contain multiple root-level widgets which will all be added.
+    /// Each widget is cloned to ensure no shared references.
+    /// </summary>
+    /// <param name="xml">The XML string containing widget definitions.</param>
+    public void Add(string xml)
+    {
+        // Wrap in a temporary container to allow multiple root elements
+        var wrappedXml = $"<Container>{xml}</Container>";
+        var tempContainer = XmlParser.Parse(wrappedXml) as Container;
+
+        if (tempContainer != null)
+        {
+            foreach (var child in ((IWidget)tempContainer).Children)
+            {
+                // Clone to avoid shared references
+                Add(child.Clone(true));
+            }
+        }
+    }
+
+    /// <summary>
     /// Removes a child widget from the container.
     /// </summary>
     /// <param name="widget">The widget to remove.</param>
@@ -292,5 +314,47 @@ public class Container : IWidget
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
+    }
+
+    /// <summary>
+    /// Creates a deep or shallow copy of the container.
+    /// </summary>
+    /// <param name="deep">If true, recursively clones all children. If false, children are not cloned.</param>
+    /// <returns>A new container instance with copied properties and no parent reference.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Container
+        {
+            Name = Name,
+            Group = Group,
+            Width = Width,
+            Height = Height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            AllowWrapping = AllowWrapping,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor,
+            BorderStyle = BorderStyle,
+            RoundedCorners = RoundedCorners,
+            Scrollable = Scrollable
+        };
+
+        // Deep clone: recursively clone all children
+        if (deep)
+        {
+            foreach (var child in _children)
+            {
+                clone.Add(child.Clone(true));
+            }
+        }
+
+        return clone;
     }
 }

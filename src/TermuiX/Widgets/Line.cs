@@ -280,4 +280,35 @@ public class Line : IWidget
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
     }
+
+    /// <summary>
+    /// Creates a copy of this line widget.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (not applicable for Line).</param>
+    /// <returns>A new Line instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Line
+        {
+            Orientation = Orientation,
+            Type = Type,
+            Name = Name,
+            Group = Group,
+            _width = _width,
+            _height = _height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor
+        };
+
+        return clone;
+    }
 }

@@ -133,5 +133,12 @@ namespace TermuiX
         /// </summary>
         /// <param name="keyInfo">The key press information.</param>
         void KeyPress(ConsoleKeyInfo keyInfo);
+
+        /// <summary>
+        /// Creates a deep or shallow copy of the widget.
+        /// </summary>
+        /// <param name="deep">If true, recursively clones all children. If false, children are not cloned.</param>
+        /// <returns>A new widget instance with copied properties and no parent reference.</returns>
+        IWidget Clone(bool deep = true);
     }
 }

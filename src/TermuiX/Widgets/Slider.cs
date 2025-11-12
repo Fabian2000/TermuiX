@@ -280,4 +280,39 @@ public class Slider : IWidget
         }
         return 20;
     }
+
+    /// <summary>
+    /// Creates a copy of this slider.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (not applicable for Slider).</param>
+    /// <returns>A new Slider instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Slider
+        {
+            _value = _value,
+            _min = _min,
+            _max = _max,
+            Step = Step,
+            ShowValue = ShowValue,
+            Name = Name,
+            Group = Group,
+            Width = Width,
+            Height = Height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            AllowWrapping = AllowWrapping,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor
+        };
+
+        return clone;
+    }
 }

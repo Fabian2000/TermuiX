@@ -173,4 +173,36 @@ public class Border : IWidget
             _ => ('┌', '┐', '└', '┘', '─', '│')
         };
     }
+
+    /// <summary>
+    /// Creates a copy of this border widget.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (clone child widget).</param>
+    /// <returns>A new Border instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Border
+        {
+            Style = Style,
+            Child = deep && _child != null ? null : _child, // Note: Child widget is not cloned in deep mode, just referenced
+            Name = Name,
+            Group = Group,
+            Width = Width,
+            Height = Height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            AllowWrapping = AllowWrapping,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor
+        };
+
+        return clone;
+    }
 }

@@ -173,4 +173,35 @@ public class RadioButton : IWidget
             }
         }
     }
+
+    /// <summary>
+    /// Creates a copy of this radio button.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (not applicable for RadioButton).</param>
+    /// <returns>A new RadioButton instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new RadioButton
+        {
+            _selected = _selected,
+            Name = Name,
+            Group = Group,
+            Width = Width,
+            Height = Height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            AllowWrapping = AllowWrapping,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor
+        };
+
+        return clone;
+    }
 }

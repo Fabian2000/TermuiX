@@ -151,4 +151,35 @@ public class Checkbox : IWidget
     {
         CheckedChanged?.Invoke(this, _checked);
     }
+
+    /// <summary>
+    /// Creates a copy of this checkbox.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (not applicable for Checkbox).</param>
+    /// <returns>A new Checkbox instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Checkbox
+        {
+            _checked = _checked,
+            Name = Name,
+            Group = Group,
+            Width = Width,
+            Height = Height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            AllowWrapping = AllowWrapping,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor
+        };
+
+        return clone;
+    }
 }

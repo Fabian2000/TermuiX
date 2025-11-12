@@ -512,4 +512,60 @@ public class Table : IWidget
     {
         // Table does not handle key presses
     }
+
+    /// <summary>
+    /// Creates a copy of this table.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (clone rows and cells).</param>
+    /// <returns>A new Table instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Table
+        {
+            BorderStyle = BorderStyle,
+            HasBorder = HasBorder,
+            RoundedCorners = RoundedCorners,
+            Name = Name,
+            Group = Group,
+            _width = _width,
+            _height = _height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            BorderColor = BorderColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor,
+            CanFocus = CanFocus
+        };
+
+        // Deep clone rows if requested
+        if (deep)
+        {
+            foreach (var row in _rows)
+            {
+                var clonedRow = new TableRow();
+                foreach (var cell in row.Cells)
+                {
+                    var clonedCell = new TableCell
+                    {
+                        Text = cell.Text,
+                        Style = cell.Style,
+                        ForegroundColor = cell.ForegroundColor,
+                        BackgroundColor = cell.BackgroundColor,
+                        Widget = cell.Widget // Note: Widget is not cloned, just referenced
+                    };
+                    clonedRow.Cells.Add(clonedCell);
+                }
+                clone.Rows.Add(clonedRow);
+            }
+        }
+
+        return clone;
+    }
 }

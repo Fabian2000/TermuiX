@@ -574,4 +574,44 @@ public class Input : IWidget
             }
         }
     }
+
+    /// <summary>
+    /// Creates a copy of this input widget.
+    /// </summary>
+    /// <param name="deep">Whether to perform a deep clone (not applicable for Input).</param>
+    /// <returns>A new Input instance with copied properties.</returns>
+    public IWidget Clone(bool deep = true)
+    {
+        var clone = new Input
+        {
+            _text = _text,
+            _cursorPosition = _cursorPosition,
+            Value = Value,
+            Multiline = Multiline,
+            IsPassword = IsPassword,
+            Placeholder = Placeholder,
+            Name = Name,
+            Group = Group,
+            Width = Width,
+            Height = Height,
+            PaddingLeft = PaddingLeft,
+            PaddingTop = PaddingTop,
+            PaddingRight = PaddingRight,
+            PaddingBottom = PaddingBottom,
+            PositionX = PositionX,
+            PositionY = PositionY,
+            Visible = Visible,
+            AllowWrapping = AllowWrapping,
+            BackgroundColor = BackgroundColor,
+            ForegroundColor = ForegroundColor,
+            FocusBackgroundColor = FocusBackgroundColor,
+            FocusForegroundColor = FocusForegroundColor,
+            BorderColor = BorderColor,
+            FocusBorderColor = FocusBorderColor,
+            PlaceholderColor = PlaceholderColor,
+            CursorColor = CursorColor
+        };
+
+        return clone;
+    }
 }
