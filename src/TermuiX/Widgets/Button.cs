@@ -315,6 +315,9 @@ public class Button : IWidget
     /// </summary>
     public event EventHandler? Click;
 
+    /// <summary>
+    /// Raises the Click event.
+    /// </summary>
     protected virtual void OnClick()
     {
         Click?.Invoke(this, EventArgs.Empty);

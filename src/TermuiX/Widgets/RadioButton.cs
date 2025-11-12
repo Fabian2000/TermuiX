@@ -129,7 +129,7 @@ public class RadioButton : IWidget
     /// <summary>
     /// Occurs when the selected state changes.
     /// </summary>
-    public event EventHandler<bool>? Changed;
+    public event EventHandler<bool>? SelectionChanged;
 
     Rune[][] IWidget.GetRaw()
     {
@@ -149,9 +149,12 @@ public class RadioButton : IWidget
         }
     }
 
+    /// <summary>
+    /// Raises the SelectionChanged event.
+    /// </summary>
     protected virtual void OnChanged()
     {
-        Changed?.Invoke(this, _selected);
+        SelectionChanged?.Invoke(this, _selected);
     }
 
     private void UnselectSiblings()

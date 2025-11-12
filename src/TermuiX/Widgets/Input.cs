@@ -156,12 +156,12 @@ public class Input : IWidget
     /// <summary>
     /// Occurs when the user submits the input (presses Enter in single-line mode).
     /// </summary>
-    public event EventHandler<string>? Submit;
+    public event EventHandler<string>? EnterPressed;
 
     /// <summary>
     /// Occurs when the text value changes.
     /// </summary>
-    public event EventHandler<string>? Changed;
+    public event EventHandler<string>? TextChanged;
 
     // Explicit interface implementation
     IWidget? IWidget.Parent { get; set; }
@@ -421,14 +421,20 @@ public class Input : IWidget
         }
     }
 
+    /// <summary>
+    /// Raises the EnterPressed event.
+    /// </summary>
     protected virtual void OnSubmit()
     {
-        Submit?.Invoke(this, _text);
+        EnterPressed?.Invoke(this, _text);
     }
 
+    /// <summary>
+    /// Raises the TextChanged event.
+    /// </summary>
     protected virtual void OnChanged()
     {
-        Changed?.Invoke(this, _text);
+        TextChanged?.Invoke(this, _text);
     }
 
     private int CalculateWidth()

@@ -124,7 +124,7 @@ public class Checkbox : IWidget
     /// <summary>
     /// Occurs when the checked state changes.
     /// </summary>
-    public event EventHandler<bool>? Changed;
+    public event EventHandler<bool>? CheckedChanged;
 
     Rune[][] IWidget.GetRaw()
     {
@@ -144,8 +144,11 @@ public class Checkbox : IWidget
         }
     }
 
+    /// <summary>
+    /// Raises the CheckedChanged event.
+    /// </summary>
     protected virtual void OnChanged()
     {
-        Changed?.Invoke(this, _checked);
+        CheckedChanged?.Invoke(this, _checked);
     }
 }

@@ -222,6 +222,24 @@ checkbox.CheckedChanged += (sender, e) =>
 };
 ```
 
+### RadioButton Events
+
+```csharp
+radioButton.SelectionChanged += (sender, e) =>
+{
+    Console.WriteLine($"Selected: {radioButton.Selected}");
+};
+```
+
+### Slider Events
+
+```csharp
+slider.ValueChanged += (sender, newValue) =>
+{
+    Console.WriteLine($"Value: {newValue}");
+};
+```
+
 ### Keyboard Shortcuts
 
 ```csharp
@@ -317,15 +335,6 @@ TermuiX supports multiple border styles:
 - Terminal with Unicode support
 - Terminal with ANSI color support
 
-## Performance
-
-TermuiX is designed for efficient rendering:
-
-- Renders at 60 FPS (16ms frame time)
-- Uses double-buffering to prevent flicker
-- Efficient dirty checking for widget updates
-- Minimal memory allocations per frame
-
 ## Samples
 
 Check out the included samples:
@@ -350,18 +359,3 @@ MIT License - see LICENSE file for details
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
-
-## Roadmap
-
-- [ ] Additional chart types (bar, pie)
-- [ ] Grid layout system
-- [ ] Theme support
-- [ ] Widget templates
-- [ ] More text styles
-- [ ] Dropdown/ComboBox widget
-- [ ] TreeView widget
-- [ ] Menu widget
-
-## Acknowledgments
-
-Built with .NET 9.0 and inspired by modern UI frameworks.

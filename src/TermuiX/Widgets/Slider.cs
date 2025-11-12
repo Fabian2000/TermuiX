@@ -169,7 +169,7 @@ public class Slider : IWidget
     /// <summary>
     /// Occurs when the slider value changes.
     /// </summary>
-    public event EventHandler<double>? Changed;
+    public event EventHandler<double>? ValueChanged;
 
     Rune[][] IWidget.GetRaw()
     {
@@ -260,9 +260,12 @@ public class Slider : IWidget
         }
     }
 
+    /// <summary>
+    /// Raises the ValueChanged event.
+    /// </summary>
     protected virtual void OnChanged()
     {
-        Changed?.Invoke(this, _value);
+        ValueChanged?.Invoke(this, _value);
     }
 
     private int GetWidthInChars()
