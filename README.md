@@ -4,6 +4,18 @@ A modern, declarative terminal UI framework for .NET 9.0 that brings XML-based U
 
 ![TermuiX Demo](https://github.com/Fabian2000/Termui/blob/main/Preview.png?raw=true)
 
+## Why TermuiX?
+
+TermuiX offers a unique approach to terminal UI development:
+
+- **Zero Dependencies** - Pure .NET implementation with no external dependencies or native bindings
+- **Declarative UI** - Define your interface in XML, similar to web development or XAML
+- **Simple Rendering Model** - Straightforward render loop - call `Render()` when ready, no complex state management
+- **Pure C#** - No need to learn platform-specific APIs or deal with interop complexities
+- **Cross-Platform** - Works on any platform that supports .NET 9.0 and ANSI terminals
+
+Perfect for building dashboards, TUI tools, interactive CLIs, and terminal-based applications.
+
 ## Features
 
 - **Declarative XML-based UI** - Define your terminal UI using familiar XML syntax
@@ -335,12 +347,57 @@ TermuiX supports multiple border styles:
 - Terminal with Unicode support
 - Terminal with ANSI color support
 
+## Additional Features
+
+### Reusable Components
+
+Create reusable UI components by adding XML strings dynamically to containers:
+
+```csharp
+var container = termui.GetWidget<Container>("myContainer");
+
+string cardComponent = """
+    <Container Width="30ch" Height="5ch" BorderStyle="Single" BorderColor="White">
+        <Text PositionX="1ch" PositionY="1ch">Card Title</Text>
+    </Container>
+    """;
+
+container.Add(cardComponent);  // Components are automatically cloned
+```
+
+### Negative Positioning
+
+Use negative positions to place widgets off-screen or create animated transitions:
+
+```xml
+<Container PositionX="-50ch" PositionY="0ch" Width="40ch" Height="100%">
+    <!-- Sidebar that can slide in from the left -->
+</Container>
+```
+
+```csharp
+// Animate position changes
+sidebar.PositionX = $"{currentPosition}ch";
+```
+
+### Widget Cloning
+
+All widgets support deep and shallow cloning:
+
+```csharp
+var originalButton = termui.GetWidget<Button>("myButton");
+var clonedButton = originalButton.Clone(deep: true);  // Deep clone with children
+```
+
 ## Samples
 
 Check out the included samples:
 
 - **TermuiX.Demo** - Comprehensive demo with forms, charts, modals, and more
 - **TermuiX.Demo2** - Table widget demonstration with multi-line text
+- **TermuiX.Demo3** - Animated sidebar with burger menu using negative positioning
+- **TermuiX.Demo4** - Component model demonstration with dynamic widget addition
+- **TermuiX.Demo5** - Auto-scroll messenger with programmatic scroll control
 
 Run samples:
 
@@ -349,6 +406,15 @@ cd samples/TermuiX.Demo
 dotnet run
 
 cd samples/TermuiX.Demo2
+dotnet run
+
+cd samples/TermuiX.Demo3
+dotnet run
+
+cd samples/TermuiX.Demo4
+dotnet run
+
+cd samples/TermuiX.Demo5
 dotnet run
 ```
 

@@ -7,31 +7,31 @@ var xml = """
 <Container Width="100%" Height="100%" BackgroundColor="DarkBlue">
     <Text PositionX="2ch" PositionY="1ch"
           ForegroundColor="Yellow" Style="Bold">
-        Demo 4: Component Model - Press 'Add' to add components dynamically
+        Demo 4: Component Model - Add reusable components dynamically
     </Text>
 
     <!-- Container for dynamically added components -->
     <Container Name="componentContainer" PositionX="2ch" PositionY="4ch"
-               Width="70ch" Height="15ch"
+               Width="60ch" Height="15ch"
                BorderStyle="Single" BorderColor="Cyan" RoundedCorners="true"
-               BackgroundColor="Black" Scrollable="true">
+               BackgroundColor="Black" Scrollable="true" CanFocus="true">
     </Container>
 
     <Button Name="addBtn" PositionX="2ch" PositionY="20ch"
             BorderColor="Green" RoundedCorners="true"
-            BackgroundColor="DarkBlue">
+            BackgroundColor="DarkBlue" TextColor="White">
         Add Component
     </Button>
 
     <Button Name="clearBtn" PositionX="20ch" PositionY="20ch"
             BorderColor="Red" RoundedCorners="true"
-            BackgroundColor="DarkBlue">
+            BackgroundColor="DarkBlue" TextColor="White">
         Clear All
     </Button>
 
     <Button Name="exitBtn" PositionX="35ch" PositionY="20ch"
             BorderColor="White" RoundedCorners="true"
-            BackgroundColor="DarkBlue">
+            BackgroundColor="DarkBlue" TextColor="White">
         Exit
     </Button>
 </Container>
@@ -48,69 +48,23 @@ var exitBtn = termui.GetWidget<Button>("exitBtn");
 bool running = true;
 int componentCount = 0;
 
-// Define reusable component templates
-string GetCardComponent(int index, string title, string content)
+// Simple component template
+string GetSimpleCard(int index)
 {
-    int yPos = index * 5;
-    return $"""
-        <Container PositionX="2ch" PositionY="{yPos}ch"
-                   Width="30ch" Height="4ch"
-                   BorderStyle="Single" BorderColor="White" RoundedCorners="true"
-                   BackgroundColor="DarkGray">
-            <Text PositionX="1ch" PositionY="1ch"
-                  ForegroundColor="Yellow" Style="Bold">
-                {title}
-            </Text>
-            <Text PositionX="1ch" PositionY="2ch"
-                  ForegroundColor="White">
-                {content}
-            </Text>
-        </Container>
-        """;
-}
+    int yPos = index * 4;
+    string[] colors = { "White", "Cyan", "Green", "Yellow", "Magenta" };
+    string color = colors[index % colors.Length];
 
-string GetButtonGroupComponent(int yPos)
-{
     return $"""
-        <Container PositionX="35ch" PositionY="{yPos}ch"
-                   Width="30ch" Height="4ch"
-                   BorderStyle="Single" BorderColor="Cyan" RoundedCorners="true"
+        <Container PositionX="1ch" PositionY="{yPos}ch"
+                   Width="56ch" Height="3ch"
+                   BorderStyle="Single" BorderColor="{color}"
                    BackgroundColor="DarkGray">
-            <Button PositionX="1ch" PositionY="1ch"
-                    BorderColor="Cyan" RoundedCorners="true"
-                    BackgroundColor="Black">
-                Option A
-            </Button>
-            <Button PositionX="12ch" PositionY="1ch"
-                    BorderColor="Cyan" RoundedCorners="true"
-                    BackgroundColor="Black">
-                Option B
-            </Button>
-        </Container>
-        """;
-}
-
-string GetFormComponent(int yPos)
-{
-    return $"""
-        <Container PositionX="2ch" PositionY="{yPos}ch"
-                   Width="63ch" Height="5ch"
-                   BorderStyle="Single" BorderColor="Green" RoundedCorners="true"
-                   BackgroundColor="DarkGray">
-            <Text PositionX="1ch" PositionY="1ch"
-                  ForegroundColor="Green" Style="Bold">
-                User Form Component
+            <Text PositionX="1ch" PositionY="0ch"
+                  ForegroundColor="{color}" Style="Bold"
+                  Width="52ch">
+                Component #{index + 1} - This is a reusable component
             </Text>
-            <Checkbox PositionX="1ch" PositionY="3ch" />
-            <Text PositionX="3ch" PositionY="3ch"
-                  ForegroundColor="White">
-                Accept Terms
-            </Text>
-            <Button PositionX="20ch" PositionY="3ch"
-                    BorderColor="Green" RoundedCorners="true"
-                    BackgroundColor="Black">
-                Submit
-            </Button>
         </Container>
         """;
 }
@@ -119,28 +73,9 @@ if (componentContainer != null && addBtn != null && clearBtn != null && exitBtn 
 {
     addBtn.Click += (s, e) =>
     {
+        string cardXml = GetSimpleCard(componentCount);
+        componentContainer.Add(cardXml);
         componentCount++;
-        int yPos = (componentCount - 1) * 6;
-
-        // Add different components based on count
-        if (componentCount % 3 == 1)
-        {
-            // Add a card component
-            string cardXml = GetCardComponent(componentCount - 1, $"Card #{componentCount}", "Reusable card component");
-            componentContainer.Add(cardXml);
-        }
-        else if (componentCount % 3 == 2)
-        {
-            // Add a button group
-            string buttonGroupXml = GetButtonGroupComponent(yPos);
-            componentContainer.Add(buttonGroupXml);
-        }
-        else
-        {
-            // Add a form component
-            string formXml = GetFormComponent(yPos);
-            componentContainer.Add(formXml);
-        }
     };
 
     clearBtn.Click += (s, e) =>

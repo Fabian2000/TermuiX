@@ -90,9 +90,9 @@ public class Container : IWidget
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
-    /// Gets a value indicating whether the container can receive focus.
+    /// Gets or sets a value indicating whether the container can receive focus.
     /// </summary>
-    public bool CanFocus => false;
+    public bool CanFocus { get; set; } = false;
 
     /// <summary>
     /// Gets or sets a value indicating whether the container is scrollable.

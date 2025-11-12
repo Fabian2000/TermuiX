@@ -134,9 +134,17 @@ namespace TermuiX
             }
 
             // Children are positioned relative to content area and affected by scroll
+            // Clipping region for children is the intersection of current parent bounds and content area
+            int childClipX = Math.Max(parentX, contentX);
+            int childClipY = Math.Max(parentY, contentY);
+            int childClipRight = Math.Min(parentX + parentWidth, contentX + contentWidth);
+            int childClipBottom = Math.Min(parentY + parentHeight, contentY + contentHeight);
+            int childClipWidth = Math.Max(0, childClipRight - childClipX);
+            int childClipHeight = Math.Max(0, childClipBottom - childClipY);
+
             foreach (var child in widget.Children)
             {
-                RenderWidget(output, fgColors, bgColors, child, contentX, contentY, contentWidth, contentHeight, scrollX, scrollY);
+                RenderWidget(output, fgColors, bgColors, child, childClipX, childClipY, childClipWidth, childClipHeight, scrollX, scrollY);
             }
 
             // Render scrollbars AFTER children so they're always on top

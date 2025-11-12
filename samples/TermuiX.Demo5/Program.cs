@@ -6,7 +6,7 @@ using TermuiX.Widgets;
 
 var xml = """
 <Container Width="100%" Height="100%" BackgroundColor="DarkBlue">
-    <Text PositionX="2ch" PositionY="1ch"
+    <Text PositionX="2ch" PositionY="1ch" BackgroundColor="DarkBlue"
           ForegroundColor="Yellow" Style="Bold">
         Demo 5: Auto-Scroll Messenger - Press 'Send' to add messages
     </Text>
@@ -78,7 +78,7 @@ string GetMessageComponent(int index, string sender, string message, ConsoleColo
 
 void ScrollToBottom()
 {
-    if (messageContainer != null && messageCount > 0)
+    if (messageContainer is not null && messageCount > 0)
     {
         // Calculate total height of all messages
         int totalHeight = messageCount * 5;
