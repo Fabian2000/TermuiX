@@ -143,7 +143,8 @@ public class Sidebar
     BackgroundColor='Black'
     ForegroundColor='White'
     BorderStyle='Single'
-    RoundedCorners='true'>
+    RoundedCorners='true'
+    Visible='false'>
 
     <Button
         Name='btnCloseSidebar'
@@ -240,6 +241,7 @@ public class Sidebar
 
         UpdateLayout();
         RefreshDriveButtons();
+        UpdateFocusability();
     }
 
     public async Task OpenAsync()

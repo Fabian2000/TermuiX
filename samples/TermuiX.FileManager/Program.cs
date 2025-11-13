@@ -37,6 +37,17 @@ try
     }
 
     sidebar.Initialize();
+
+    var filterButton = topBar.GetFilterButton();
+    var filterPopup = new FilterPopup(termui, filterButton);
+
+    if (root is not null)
+    {
+        root.Add(filterPopup.BuildXml());
+    }
+
+    filterPopup.Initialize();
+
     if (burgerButton is not null)
     {
         burgerButton.Click += async (sender, e) =>
@@ -45,11 +56,24 @@ try
         };
     }
 
+    if (filterButton is not null)
+    {
+        filterButton.Click += (sender, e) =>
+        {
+            filterPopup.Open();
+        };
+    }
+
     termui.FocusChanged += async (sender, widget) =>
     {
         if (sidebar.IsOpen && !sidebar.ContainsWidget(widget))
         {
             await sidebar.CloseAsync();
+        }
+
+        if (filterPopup.IsOpen && !filterPopup.ContainsWidget(widget))
+        {
+            filterPopup.Close();
         }
     };
 
@@ -111,6 +135,7 @@ try
         {
             topBar.UpdateLayout();
             sidebar.UpdateLayout();
+            filterPopup.UpdateLayout();
             lastWidth = currentWidth;
         }
 
