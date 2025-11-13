@@ -2,9 +2,11 @@ using TermuiX.FileManager.Components;
 using TermuiX.Widgets;
 using TermuiXLib = TermuiX.TermuiX;
 
-var termui = TermuiXLib.Init();
+try
+{
+    var termui = TermuiXLib.Init();
 
-var xml = @"
+    var xml = @"
 <Container
     Name='root'
     Width='100%'
@@ -13,71 +15,93 @@ var xml = @"
     ForegroundColor='White'>
 </Container>";
 
-termui.LoadXml(xml);
+    termui.LoadXml(xml);
 
-var root = termui.GetWidget<Container>("root");
+    var root = termui.GetWidget<Container>("root");
 
-var sidebar = new Sidebar(termui);
-var topBar = new TopBar(termui);
+    var topBar = new TopBar(termui);
 
-if (root is not null)
-{
-    root.Add(topBar.BuildXml());
-    root.Add(sidebar.BuildXml());
-}
-
-topBar.Initialize();
-sidebar.Initialize();
-
-var burgerButton = topBar.GetBurgerButton();
-if (burgerButton is not null)
-{
-    burgerButton.Click += async (sender, e) =>
+    if (root is not null)
     {
-        await sidebar.OpenAsync();
+        root.Add(topBar.BuildXml());
+    }
+
+    topBar.Initialize();
+
+    var burgerButton = topBar.GetBurgerButton();
+    var sidebar = new Sidebar(termui, burgerButton);
+
+    if (root is not null)
+    {
+        root.Add(sidebar.BuildXml());
+    }
+
+    sidebar.Initialize();
+    if (burgerButton is not null)
+    {
+        burgerButton.Click += async (sender, e) =>
+        {
+            await sidebar.OpenAsync();
+        };
+    }
+
+    termui.FocusChanged += async (sender, widget) =>
+    {
+        if (sidebar.IsOpen && !sidebar.ContainsWidget(widget))
+        {
+            await sidebar.CloseAsync();
+        }
     };
-}
 
-termui.Shortcut += (sender, key) =>
-{
-    if (key.Key == ConsoleKey.B)
+    termui.Shortcut += async (sender, key) =>
     {
-        if (sidebar.IsOpen)
+        if (key.Key == ConsoleKey.B)
         {
-            var closeButton = sidebar.GetCloseButton();
-            if (closeButton is not null)
+            if (sidebar.IsOpen)
             {
-                termui.SetFocus(closeButton);
+                var closeButton = sidebar.GetCloseButton();
+                if (closeButton is not null)
+                {
+                    termui.SetFocus(closeButton);
+                }
+            }
+            else
+            {
+                if (burgerButton is not null)
+                {
+                    termui.SetFocus(burgerButton);
+                }
             }
         }
-        else
+        else if (key.Key == ConsoleKey.F)
         {
-            if (burgerButton is not null)
+            if (sidebar.IsOpen)
             {
-                termui.SetFocus(burgerButton);
+                var searchDriveInput = sidebar.GetSearchDriveInput();
+                if (searchDriveInput is not null)
+                {
+                    termui.SetFocus(searchDriveInput);
+                }
+            }
+            else
+            {
+                var searchInput = topBar.GetSearchInput();
+                if (searchInput is not null)
+                {
+                    termui.SetFocus(searchInput);
+                }
             }
         }
-    }
-    else if (key.Key == ConsoleKey.F)
-    {
-        var searchInput = topBar.GetSearchInput();
-        if (searchInput is not null)
+        else if (key.Key == ConsoleKey.E)
         {
-            termui.SetFocus(searchInput);
+            var filterButton = topBar.GetFilterButton();
+            if (filterButton is not null)
+            {
+                termui.SetFocus(filterButton);
+            }
         }
-    }
-    else if (key.Key == ConsoleKey.E)
-    {
-        var filterButton = topBar.GetFilterButton();
-        if (filterButton is not null)
-        {
-            termui.SetFocus(filterButton);
-        }
-    }
-};
+    };
 
-try
-{
     int lastWidth = Console.WindowWidth;
 
     while (true)
@@ -93,6 +117,11 @@ try
         termui.Render();
         await Task.Delay(16);
     }
+}
+catch (Exception ex)
+{
+    TermuiXLib.DeInit();
+    throw;
 }
 finally
 {

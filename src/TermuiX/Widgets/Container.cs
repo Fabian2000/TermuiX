@@ -112,7 +112,7 @@ public class Container : IWidget
     /// <summary>
     /// Gets a value indicating whether the container has a border.
     /// </summary>
-    public bool HasBorder => BorderStyle.HasValue;
+    public bool HasBorder => BorderStyle.HasValue && BorderStyle.Value != Widgets.BorderStyle.None;
 
     // Explicit interface implementation to hide these members
     IWidget? IWidget.Parent { get; set; }
@@ -302,6 +302,7 @@ public class Container : IWidget
         {
             return BorderStyle switch
             {
+                Widgets.BorderStyle.None => (' ', ' ', ' ', ' ', ' ', ' '),
                 Widgets.BorderStyle.Single => ('╭', '╮', '╰', '╯', '─', '│'),
                 Widgets.BorderStyle.Double => ('╭', '╮', '╰', '╯', '═', '║'),
                 _ => ('╭', '╮', '╰', '╯', '─', '│')
@@ -310,6 +311,7 @@ public class Container : IWidget
 
         return BorderStyle switch
         {
+            Widgets.BorderStyle.None => (' ', ' ', ' ', ' ', ' ', ' '),
             Widgets.BorderStyle.Single => ('┌', '┐', '└', '┘', '─', '│'),
             Widgets.BorderStyle.Double => ('╔', '╗', '╚', '╝', '═', '║'),
             _ => ('┌', '┐', '└', '┘', '─', '│')

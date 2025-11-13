@@ -8,6 +8,11 @@ namespace TermuiX.Widgets;
 public enum BorderStyle
 {
     /// <summary>
+    /// No border.
+    /// </summary>
+    None,
+
+    /// <summary>
     /// Single-line border characters.
     /// </summary>
     Single,
@@ -168,6 +173,7 @@ public class Border : IWidget
     {
         return Style switch
         {
+            BorderStyle.None => (' ', ' ', ' ', ' ', ' ', ' '),
             BorderStyle.Single => ('┌', '┐', '└', '┘', '─', '│'),
             BorderStyle.Double => ('╔', '╗', '╚', '╝', '═', '║'),
             _ => ('┌', '┐', '└', '┘', '─', '│')

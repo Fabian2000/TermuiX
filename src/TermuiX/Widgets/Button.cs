@@ -53,9 +53,9 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the border style of the button.
     /// </summary>
-    public BorderStyle BorderStyle
+    public BorderStyle? BorderStyle
     {
-        get => _container.BorderStyle ?? Widgets.BorderStyle.Single;
+        get => _container.BorderStyle;
         set => _container.BorderStyle = value;
     }
 
@@ -115,6 +115,15 @@ public class Button : IWidget
     {
         get => _textWidget.Style;
         set => _textWidget.Style = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the text alignment of the button.
+    /// </summary>
+    public TextAlign TextAlign
+    {
+        get => _textWidget.TextAlign;
+        set => _textWidget.TextAlign = value;
     }
 
     /// <summary>
@@ -354,7 +363,8 @@ public class Button : IWidget
             TextColor = TextColor,
             FocusBorderColor = FocusBorderColor,
             FocusTextColor = FocusTextColor,
-            TextStyle = TextStyle
+            TextStyle = TextStyle,
+            TextAlign = TextAlign
         };
 
         return clone;

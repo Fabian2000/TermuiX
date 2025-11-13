@@ -28,6 +28,11 @@ public sealed class TermuiX
     /// </summary>
     public event EventHandler<ConsoleKeyInfo>? Shortcut;
 
+    /// <summary>
+    /// Event triggered when the focused widget changes.
+    /// </summary>
+    public event EventHandler<IWidget>? FocusChanged;
+
     private TermuiX() { }
 
     /// <summary>
@@ -272,6 +277,8 @@ public sealed class TermuiX
 
         _focusedWidget = widget;
         _focusedWidget.Focussed = true;
+
+        FocusChanged?.Invoke(this, widget);
     }
 
     private void MoveFocus(bool forward)
@@ -306,6 +313,8 @@ public sealed class TermuiX
 
         _focusedWidget = visibleFocusableWidgets[currentIndex];
         _focusedWidget.Focussed = true;
+
+        FocusChanged?.Invoke(this, _focusedWidget);
 
         // Auto-scroll to the focused widget if it's outside the visible area
         ScrollToWidget(_focusedWidget);
