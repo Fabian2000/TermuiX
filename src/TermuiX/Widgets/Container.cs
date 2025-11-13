@@ -237,13 +237,17 @@ public class Container : IWidget
         }
         else if (size.EndsWith('%'))
         {
+            var parent = ((IWidget)this).Parent;
+            int parentSizeValue;
+
             if (string.IsNullOrEmpty(parentSize))
             {
-                return 0;
+                parentSizeValue = isWidth ? Console.WindowWidth : Console.WindowHeight;
             }
-
-            var parent = ((IWidget)this).Parent;
-            int parentSizeValue = CalculateSize(parentSize, parent?.Parent?.Width, isWidth);
+            else
+            {
+                parentSizeValue = CalculateSize(parentSize, parent?.Parent?.Width, isWidth);
+            }
 
             if (parent is not null)
             {

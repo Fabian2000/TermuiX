@@ -11,7 +11,7 @@ var xml = """
 
     <!-- Burger Menu Button -->
     <Button Name="burgerBtn" PositionX="2ch" PositionY="1ch"
-            BorderColor="White" RoundedCorners="true"
+            RoundedCorners="true"
             BackgroundColor="DarkBlue" TextColor="White">
         ≡
     </Button>
@@ -20,7 +20,7 @@ var xml = """
     <Container Name="sidebar" PositionX="-50ch" PositionY="0ch"
                Width="40ch" Height="100%"
                BackgroundColor="Black"
-               BorderStyle="Single" BorderColor="White">
+               BorderStyle="Single">
 
         <Text PositionX="2ch" PositionY="2ch"
               ForegroundColor="Yellow" Style="Bold">
@@ -28,22 +28,22 @@ var xml = """
         </Text>
 
         <Button Name="menuBtn1" PositionX="2ch" PositionY="5ch"
-                Width="35ch" BorderColor="White" RoundedCorners="true">
+                Width="35ch" RoundedCorners="true">
             Dashboard
         </Button>
 
         <Button Name="menuBtn2" PositionX="2ch" PositionY="8ch"
-                Width="35ch" BorderColor="White" RoundedCorners="true">
+                Width="35ch" RoundedCorners="true">
             Settings
         </Button>
 
         <Button Name="menuBtn3" PositionX="2ch" PositionY="11ch"
-                Width="35ch" BorderColor="White" RoundedCorners="true">
+                Width="35ch" RoundedCorners="true">
             Profile
         </Button>
 
         <Button Name="closeBtn" PositionX="2ch" PositionY="14ch"
-                Width="35ch" BorderColor="Red" RoundedCorners="true">
+                Width="35ch" RoundedCorners="true">
             ✕ Close
         </Button>
     </Container>
