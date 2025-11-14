@@ -38,6 +38,30 @@ namespace TermuiX
         string Height { get; set; }
 
         /// <summary>
+        /// Gets the computed width of the widget in characters after percentage calculations.
+        /// This is automatically calculated during rendering and should not be set manually.
+        /// </summary>
+        int ComputedWidth { get; internal set; }
+
+        /// <summary>
+        /// Gets the computed height of the widget in characters after percentage calculations.
+        /// This is automatically calculated during rendering and should not be set manually.
+        /// </summary>
+        int ComputedHeight { get; internal set; }
+
+        /// <summary>
+        /// Gets a value indicating whether this widget had a vertical scrollbar in the previous frame.
+        /// Used for immediate-mode UI scrollbar space reservation.
+        /// </summary>
+        bool HasVerticalScrollbar { get; internal set; }
+
+        /// <summary>
+        /// Gets a value indicating whether this widget had a horizontal scrollbar in the previous frame.
+        /// Used for immediate-mode UI scrollbar space reservation.
+        /// </summary>
+        bool HasHorizontalScrollbar { get; internal set; }
+
+        /// <summary>
         /// Gets or sets the left padding of the widget.
         /// </summary>
         string PaddingLeft { get; set; }

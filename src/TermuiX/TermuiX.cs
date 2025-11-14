@@ -385,12 +385,22 @@ public sealed class TermuiX
         }
 
         int contentWidth = CalculateContentWidth(scrollTarget);
+
+        // Subtract scrollbar space when calculating child sizes
+        // This matches the logic in widget CalculateSize methods
+        int availableWidth = contentWidth;
+        if (scrollTarget.HasVerticalScrollbar)
+        {
+            availableWidth = Math.Max(0, availableWidth - 1);
+        }
+
         int maxChildRight = 0;
 
         foreach (var child in scrollTarget.Children)
         {
-            int childPosX = ParseSize(child.PositionX, contentWidth);
-            int childWidth = ParseSize(child.Width, contentWidth);
+            int childPosX = ParseSize(child.PositionX, availableWidth);
+            // Use computed size if available (set during rendering), otherwise calculate
+            int childWidth = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, availableWidth);
             maxChildRight = Math.Max(maxChildRight, childPosX + childWidth);
         }
 
@@ -472,12 +482,22 @@ public sealed class TermuiX
         }
 
         int contentHeight = CalculateContentHeight(scrollTarget);
+
+        // Subtract scrollbar space when calculating child sizes
+        // This matches the logic in widget CalculateSize methods
+        int availableHeight = contentHeight;
+        if (scrollTarget.HasHorizontalScrollbar)
+        {
+            availableHeight = Math.Max(0, availableHeight - 1);
+        }
+
         int maxChildBottom = 0;
 
         foreach (var child in scrollTarget.Children)
         {
-            int childPosY = ParseSize(child.PositionY, contentHeight);
-            int childHeight = ParseSize(child.Height, contentHeight);
+            int childPosY = ParseSize(child.PositionY, availableHeight);
+            // Use computed size if available (set during rendering), otherwise calculate
+            int childHeight = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, availableHeight);
             maxChildBottom = Math.Max(maxChildBottom, childPosY + childHeight);
         }
 

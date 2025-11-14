@@ -161,6 +161,10 @@ public class Table : IWidget
     List<IWidget> IWidget.Children => [];
     bool IWidget.Focussed { get; set; }
     bool IWidget.AllowWrapping { get; set; } = false;
+    int IWidget.ComputedWidth { get; set; }
+    int IWidget.ComputedHeight { get; set; }
+    bool IWidget.HasVerticalScrollbar { get; set; }
+    bool IWidget.HasHorizontalScrollbar { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 

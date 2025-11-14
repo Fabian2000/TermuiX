@@ -28,6 +28,15 @@ try
 
     topBar.Initialize();
 
+    var fileExplorer = new FileExplorer(termui);
+
+    if (root is not null)
+    {
+        root.Add(fileExplorer.BuildXml());
+    }
+
+    fileExplorer.Initialize();
+
     var burgerButton = topBar.GetBurgerButton();
     var sidebar = new Sidebar(termui, burgerButton);
 
@@ -124,19 +133,33 @@ try
                 termui.SetFocus(filterButton);
             }
         }
+        else if (key.Key == ConsoleKey.P)
+        {
+            var copyButton = fileExplorer.GetCopyButton();
+            if (copyButton is not null)
+            {
+                termui.SetFocus(copyButton);
+            }
+        }
     };
 
     int lastWidth = Console.WindowWidth;
+    int lastHeight = Console.WindowHeight;
 
     while (true)
     {
         int currentWidth = Console.WindowWidth;
-        if (currentWidth != lastWidth)
+        int currentHeight = Console.WindowHeight;
+
+        if (currentWidth != lastWidth || currentHeight != lastHeight)
         {
             topBar.UpdateLayout();
             sidebar.UpdateLayout();
             filterPopup.UpdateLayout();
+            fileExplorer.UpdateLayout();
+
             lastWidth = currentWidth;
+            lastHeight = currentHeight;
         }
 
         termui.Render();

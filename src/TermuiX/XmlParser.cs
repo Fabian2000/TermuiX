@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Xml.Linq;
 using TermuiX.Widgets;
 
@@ -53,7 +52,7 @@ internal static class XmlParser
 
         foreach (var attr in element.Attributes())
         {
-            SetProperty(widget, attr.Name.LocalName, attr.Value);
+            SetWidgetProperty(widget, attr.Name.LocalName, attr.Value);
         }
 
         if (widget is Button button && textContent is not null)
@@ -71,19 +70,35 @@ internal static class XmlParser
             }
         }
 
-        if (widget is Text text && textContent is not null)
+        if (widget is Text text)
         {
-            if (!element.Attributes().Any(a => a.Name.LocalName.Equals("Width", StringComparison.OrdinalIgnoreCase)))
+            if (textContent is not null)
             {
-                var lines = textContent.Split('\n');
-                int maxWidth = lines.Max(line => line.Length);
-                text.Width = $"{maxWidth}ch";
-            }
+                if (!element.Attributes().Any(a => a.Name.LocalName.Equals("Width", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var lines = textContent.Split('\n');
+                    int maxWidth = lines.Max(line => line.Length);
+                    text.Width = $"{maxWidth}ch";
+                }
 
-            if (!element.Attributes().Any(a => a.Name.LocalName.Equals("Height", StringComparison.OrdinalIgnoreCase)))
+                if (!element.Attributes().Any(a => a.Name.LocalName.Equals("Height", StringComparison.OrdinalIgnoreCase)))
+                {
+                    int lineCount = textContent.Split('\n').Length;
+                    text.Height = $"{lineCount}ch";
+                }
+            }
+            else
             {
-                int lineCount = textContent.Split('\n').Length;
-                text.Height = $"{lineCount}ch";
+                // If text is empty/whitespace and no explicit size is set, use 0ch to avoid contributing to scrollbar calculations
+                if (!element.Attributes().Any(a => a.Name.LocalName.Equals("Width", StringComparison.OrdinalIgnoreCase)))
+                {
+                    text.Width = "0ch";
+                }
+
+                if (!element.Attributes().Any(a => a.Name.LocalName.Equals("Height", StringComparison.OrdinalIgnoreCase)))
+                {
+                    text.Height = "0ch";
+                }
             }
         }
 
@@ -151,103 +166,314 @@ internal static class XmlParser
 
     private static void SetTableCellProperty(TableCell cell, string propertyName, string value)
     {
-        var prop = cell.GetType().GetProperty(propertyName,
-            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-
-        if (prop is null || !prop.CanWrite)
+        switch (propertyName.ToLowerInvariant())
         {
-            return;
-        }
-
-        object? convertedValue = null;
-
-        if (prop.PropertyType == typeof(string))
-        {
-            convertedValue = value;
-        }
-        else if (prop.PropertyType == typeof(ConsoleColor) || prop.PropertyType == typeof(ConsoleColor?))
-        {
-            convertedValue = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(TextStyle))
-        {
-            convertedValue = Enum.Parse<TextStyle>(value, ignoreCase: true);
-        }
-
-        if (convertedValue is not null)
-        {
-            prop.SetValue(cell, convertedValue);
+            case "text":
+                cell.Text = value;
+                break;
+            case "backgroundcolor":
+                cell.BackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "foregroundcolor":
+                cell.ForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "style":
+                cell.Style = Enum.Parse<TextStyle>(value, ignoreCase: true);
+                break;
         }
     }
 
-    private static void SetProperty(IWidget widget, string propertyName, string value)
+    private static void SetWidgetProperty(IWidget widget, string propertyName, string value)
     {
-        var prop = widget.GetType().GetProperty(propertyName,
-            BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+        string propLower = propertyName.ToLowerInvariant();
 
-        if (prop is null || !prop.CanWrite)
+        // Common properties for all widgets
+        switch (propLower)
         {
-            return;
-        }
-
-        object? convertedValue = null;
-
-        if (prop.PropertyType == typeof(string))
-        {
-            convertedValue = value;
-        }
-        else if (prop.PropertyType == typeof(bool))
-        {
-            convertedValue = bool.Parse(value);
-        }
-        else if (prop.PropertyType == typeof(int))
-        {
-            convertedValue = int.Parse(value);
-        }
-        else if (prop.PropertyType == typeof(ConsoleColor))
-        {
-            convertedValue = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(BorderStyle))
-        {
-            convertedValue = Enum.Parse<BorderStyle>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(BorderStyle?))
-        {
-            convertedValue = Enum.Parse<BorderStyle>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(TextAlign))
-        {
-            convertedValue = Enum.Parse<TextAlign>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(TextStyle))
-        {
-            convertedValue = Enum.Parse<TextStyle>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(ProgressBarMode))
-        {
-            convertedValue = Enum.Parse<ProgressBarMode>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(LineOrientation))
-        {
-            convertedValue = Enum.Parse<LineOrientation>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(LineType))
-        {
-            convertedValue = Enum.Parse<LineType>(value, ignoreCase: true);
-        }
-        else if (prop.PropertyType == typeof(double))
-        {
-            convertedValue = double.Parse(value);
-        }
-        else if (prop.PropertyType == typeof(char))
-        {
-            convertedValue = value.Length > 0 ? value[0] : ' ';
+            case "name":
+                widget.Name = value;
+                break;
+            case "group":
+                widget.Group = value;
+                break;
+            case "width":
+                widget.Width = value;
+                break;
+            case "height":
+                widget.Height = value;
+                break;
+            case "positionx":
+                widget.PositionX = value;
+                break;
+            case "positiony":
+                widget.PositionY = value;
+                break;
+            case "visible":
+                widget.Visible = bool.Parse(value);
+                break;
+            case "allowwrapping":
+                widget.AllowWrapping = bool.Parse(value);
+                break;
+            case "backgroundcolor":
+                widget.BackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "foregroundcolor":
+                widget.ForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "focusbackgroundcolor":
+                widget.FocusBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "focusforegroundcolor":
+                widget.FocusForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "paddingleft":
+                widget.PaddingLeft = value;
+                break;
+            case "paddingtop":
+                widget.PaddingTop = value;
+                break;
+            case "paddingright":
+                widget.PaddingRight = value;
+                break;
+            case "paddingbottom":
+                widget.PaddingBottom = value;
+                break;
         }
 
-        if (convertedValue is not null)
+        // Widget-specific properties
+        if (widget is Container container)
         {
-            prop.SetValue(widget, convertedValue);
+            SetContainerProperty(container, propLower, value);
         }
+        else if (widget is Text text)
+        {
+            SetTextProperty(text, propLower, value);
+        }
+        else if (widget is Button button)
+        {
+            SetButtonProperty(button, propLower, value);
+        }
+        else if (widget is Input input)
+        {
+            SetInputProperty(input, propLower, value);
+        }
+        else if (widget is Checkbox checkbox)
+        {
+            SetCheckboxProperty(checkbox, propLower, value);
+        }
+        else if (widget is RadioButton radioButton)
+        {
+            SetRadioButtonProperty(radioButton, propLower, value);
+        }
+        else if (widget is ProgressBar progressBar)
+        {
+            SetProgressBarProperty(progressBar, propLower, value);
+        }
+        else if (widget is Chart chart)
+        {
+            SetChartProperty(chart, propLower, value);
+        }
+        else if (widget is Slider slider)
+        {
+            SetSliderProperty(slider, propLower, value);
+        }
+        else if (widget is Line line)
+        {
+            SetLineProperty(line, propLower, value);
+        }
+        else if (widget is Table table)
+        {
+            SetTableProperty(table, propLower, value);
+        }
+    }
+
+    private static void SetContainerProperty(Container container, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "scrollable":
+                container.Scrollable = bool.Parse(value);
+                break;
+            case "borderstyle":
+                container.BorderStyle = Enum.Parse<BorderStyle>(value, ignoreCase: true);
+                break;
+            case "roundedcorners":
+                container.RoundedCorners = bool.Parse(value);
+                break;
+        }
+    }
+
+    private static void SetTextProperty(Text text, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "content":
+                text.Content = value;
+                break;
+            case "textalign":
+                text.TextAlign = Enum.Parse<TextAlign>(value, ignoreCase: true);
+                break;
+            case "style":
+                text.Style = Enum.Parse<TextStyle>(value, ignoreCase: true);
+                break;
+        }
+    }
+
+    private static void SetButtonProperty(Button button, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "text":
+                button.Text = value;
+                break;
+            case "borderstyle":
+                button.BorderStyle = Enum.Parse<BorderStyle>(value, ignoreCase: true);
+                break;
+            case "roundedcorners":
+                button.RoundedCorners = bool.Parse(value);
+                break;
+            case "bordercolor":
+                button.BorderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "textcolor":
+                button.TextColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "focusbordercolor":
+                button.FocusBorderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "focustextcolor":
+                button.FocusTextColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "textstyle":
+                button.TextStyle = Enum.Parse<TextStyle>(value, ignoreCase: true);
+                break;
+            case "textalign":
+                button.TextAlign = Enum.Parse<TextAlign>(value, ignoreCase: true);
+                break;
+            case "disabled":
+                button.Disabled = bool.Parse(value);
+                break;
+            case "disabledbackgroundcolor":
+                button.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "disabledforegroundcolor":
+                button.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+        }
+    }
+
+    private static void SetInputProperty(Input input, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "value":
+                input.Value = value;
+                break;
+            case "multiline":
+                input.Multiline = bool.Parse(value);
+                break;
+            case "ispassword":
+                input.IsPassword = bool.Parse(value);
+                break;
+            case "placeholder":
+                input.Placeholder = value;
+                break;
+            case "bordercolor":
+                input.BorderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "focusbordercolor":
+                input.FocusBorderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "placeholdercolor":
+                input.PlaceholderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "cursorcolor":
+                input.CursorColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "disabled":
+                input.Disabled = bool.Parse(value);
+                break;
+            case "disabledbackgroundcolor":
+                input.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "disabledforegroundcolor":
+                input.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+        }
+    }
+
+    private static void SetCheckboxProperty(Checkbox checkbox, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "checked":
+                checkbox.Checked = bool.Parse(value);
+                break;
+        }
+    }
+
+    private static void SetRadioButtonProperty(RadioButton radioButton, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "checked":
+                radioButton.Selected = bool.Parse(value);
+                break;
+        }
+    }
+
+    private static void SetProgressBarProperty(ProgressBar progressBar, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "value":
+                progressBar.Value = double.Parse(value);
+                break;
+            case "mode":
+                progressBar.Mode = Enum.Parse<ProgressBarMode>(value, ignoreCase: true);
+                break;
+        }
+    }
+
+    private static void SetChartProperty(Chart chart, string propertyName, string value)
+    {
+        // Chart has no additional properties beyond IWidget
+    }
+
+    private static void SetSliderProperty(Slider slider, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "value":
+                slider.Value = double.Parse(value);
+                break;
+            case "min":
+                slider.Min = double.Parse(value);
+                break;
+            case "max":
+                slider.Max = double.Parse(value);
+                break;
+            case "step":
+                slider.Step = double.Parse(value);
+                break;
+        }
+    }
+
+    private static void SetLineProperty(Line line, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "orientation":
+                line.Orientation = Enum.Parse<LineOrientation>(value, ignoreCase: true);
+                break;
+            case "type":
+                line.Type = Enum.Parse<LineType>(value, ignoreCase: true);
+                break;
+        }
+    }
+
+    private static void SetTableProperty(Table table, string propertyName, string value)
+    {
+        // Table has no additional properties beyond IWidget
     }
 }

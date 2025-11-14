@@ -136,13 +136,29 @@ public class Text : IWidget
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => [];
     bool IWidget.Focussed { get; set; }
+    int IWidget.ComputedWidth { get; set; }
+    int IWidget.ComputedHeight { get; set; }
+    bool IWidget.HasVerticalScrollbar { get; set; }
+    bool IWidget.HasHorizontalScrollbar { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
     Rune[][] IWidget.GetRaw()
     {
-        int actualWidth = CalculateSize(Width, ((IWidget)this).Parent?.Width, true);
-        int actualHeight = CalculateSize(Height, ((IWidget)this).Parent?.Height, false);
+        // If text is empty and using default width/height (100%), set computed size to 0
+        if (string.IsNullOrEmpty(_text) && Width == "100%" && Height == "100%")
+        {
+            ((IWidget)this).ComputedWidth = 0;
+            ((IWidget)this).ComputedHeight = 0;
+            return [];
+        }
+
+        int actualWidth = CalculateSize(Width, ((IWidget)this).Parent, true);
+        int actualHeight = CalculateSize(Height, ((IWidget)this).Parent, false);
+
+        // Store computed values
+        ((IWidget)this).ComputedWidth = actualWidth;
+        ((IWidget)this).ComputedHeight = actualHeight;
 
         if (actualWidth <= 0 || actualHeight <= 0)
         {
@@ -198,7 +214,7 @@ public class Text : IWidget
         return result;
     }
 
-    private int CalculateSize(string size, string? parentSize, bool isWidth)
+    private int CalculateSize(string size, IWidget? parent, bool isWidth)
     {
         if (string.IsNullOrEmpty(size))
         {
@@ -218,27 +234,44 @@ public class Text : IWidget
         }
         else if (size.EndsWith('%'))
         {
-            if (string.IsNullOrEmpty(parentSize))
+            int parentSizeValue;
+
+            if (parent == null)
             {
-                return 0;
+                // No parent - use console dimensions
+                parentSizeValue = isWidth ? Console.WindowWidth : Console.WindowHeight;
             }
-
-            var parent = ((IWidget)this).Parent;
-            int parentSizeValue = CalculateSize(parentSize, parent?.Parent?.Width, isWidth);
-
-            if (parent is not null)
+            else
             {
+                // Use parent's computed size if available, otherwise fall back to console dimensions
+                parentSizeValue = isWidth ?
+                    (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
+                    (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
+
+                // Subtract padding from parent's available space
                 if (isWidth)
                 {
                     int padLeft = ParsePadding(parent.PaddingLeft);
                     int padRight = ParsePadding(parent.PaddingRight);
                     parentSizeValue = Math.Max(0, parentSizeValue - padLeft - padRight);
+
+                    // Subtract 1ch for vertical scrollbar if it was rendered in the previous frame
+                    if (parent.HasVerticalScrollbar)
+                    {
+                        parentSizeValue = Math.Max(0, parentSizeValue - 1);
+                    }
                 }
                 else
                 {
                     int padTop = ParsePadding(parent.PaddingTop);
                     int padBottom = ParsePadding(parent.PaddingBottom);
                     parentSizeValue = Math.Max(0, parentSizeValue - padTop - padBottom);
+
+                    // Subtract 1ch for horizontal scrollbar if it was rendered in the previous frame
+                    if (parent.HasHorizontalScrollbar)
+                    {
+                        parentSizeValue = Math.Max(0, parentSizeValue - 1);
+                    }
                 }
             }
 

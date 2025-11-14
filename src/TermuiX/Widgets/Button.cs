@@ -271,9 +271,24 @@ public class Button : IWidget
     }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the button is disabled.
+    /// </summary>
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the background color when disabled.
+    /// </summary>
+    public ConsoleColor? DisabledBackgroundColor { get; set; }
+
+    /// <summary>
+    /// Gets or sets the foreground color when disabled.
+    /// </summary>
+    public ConsoleColor DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+
+    /// <summary>
     /// Gets a value indicating whether the button can receive focus.
     /// </summary>
-    public bool CanFocus => true;
+    public bool CanFocus => !Disabled;
 
     /// <summary>
     /// Gets a value indicating whether the button is scrollable.
@@ -283,6 +298,10 @@ public class Button : IWidget
     // Explicit interface implementation
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => ((IWidget)_container).Children;
+    int IWidget.ComputedWidth { get; set; }
+    int IWidget.ComputedHeight { get; set; }
+    bool IWidget.HasVerticalScrollbar { get; set; }
+    bool IWidget.HasHorizontalScrollbar { get; set; }
 
     bool IWidget.Focussed
     {
@@ -308,12 +327,33 @@ public class Button : IWidget
 
     Rune[][] IWidget.GetRaw()
     {
-        return ((IWidget)_container).GetRaw();
+        // Set container's parent to this widget's parent for proper size calculation
+        ((IWidget)_container).Parent = ((IWidget)this).Parent;
+
+        // Apply disabled colors if disabled
+        if (Disabled)
+        {
+            if (DisabledBackgroundColor.HasValue)
+            {
+                _container.BackgroundColor = DisabledBackgroundColor.Value;
+                _textWidget.BackgroundColor = DisabledBackgroundColor.Value;
+            }
+            _container.ForegroundColor = DisabledForegroundColor;
+            _textWidget.ForegroundColor = DisabledForegroundColor;
+        }
+
+        var result = ((IWidget)_container).GetRaw();
+
+        // Store computed values from container
+        ((IWidget)this).ComputedWidth = ((IWidget)_container).ComputedWidth;
+        ((IWidget)this).ComputedHeight = ((IWidget)_container).ComputedHeight;
+
+        return result;
     }
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        if (keyInfo.Key == ConsoleKey.Enter || keyInfo.Key == ConsoleKey.Spacebar)
+        if (!Disabled && (keyInfo.Key == ConsoleKey.Enter || keyInfo.Key == ConsoleKey.Spacebar))
         {
             OnClick();
         }
@@ -364,7 +404,10 @@ public class Button : IWidget
             FocusBorderColor = FocusBorderColor,
             FocusTextColor = FocusTextColor,
             TextStyle = TextStyle,
-            TextAlign = TextAlign
+            TextAlign = TextAlign,
+            Disabled = Disabled,
+            DisabledBackgroundColor = DisabledBackgroundColor,
+            DisabledForegroundColor = DisabledForegroundColor
         };
 
         return clone;

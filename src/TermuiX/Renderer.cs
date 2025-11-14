@@ -142,6 +142,41 @@ namespace TermuiX
             int childClipWidth = Math.Max(0, childClipRight - childClipX);
             int childClipHeight = Math.Max(0, childClipBottom - childClipY);
 
+            // Check if scrollbars will be rendered (need to check before rendering children)
+            bool willRenderVerticalScrollbar = false;
+            bool willRenderHorizontalScrollbar = false;
+
+            if (widget.Scrollable && widget.Children.Count > 0)
+            {
+                int maxChildBottom = 0;
+                int maxChildRight = 0;
+                foreach (var child in widget.Children)
+                {
+                    int childPosY = ParseSize(child.PositionY, contentHeight);
+                    int childPosX = ParseSize(child.PositionX, contentWidth);
+
+                    // Use already computed sizes if available, otherwise calculate
+                    int childHeight = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, contentHeight);
+                    int childWidth = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, contentWidth);
+
+                    maxChildBottom = Math.Max(maxChildBottom, childPosY + childHeight);
+                    maxChildRight = Math.Max(maxChildRight, childPosX + childWidth);
+                }
+
+                willRenderVerticalScrollbar = contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0);
+                willRenderHorizontalScrollbar = contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0);
+            }
+
+            // Reduce clip region if scrollbars will be rendered
+            if (willRenderVerticalScrollbar)
+            {
+                childClipWidth = Math.Max(0, childClipWidth - 1);
+            }
+            if (willRenderHorizontalScrollbar)
+            {
+                childClipHeight = Math.Max(0, childClipHeight - 1);
+            }
+
             // Adjust scroll to account for content offset relative to clip region
             int childScrollX = scrollX + (childClipX - contentX);
             int childScrollY = scrollY + (childClipY - contentY);
@@ -159,16 +194,25 @@ namespace TermuiX
                 foreach (var child in widget.Children)
                 {
                     int childPosY = ParseSize(child.PositionY, contentHeight);
-                    int childHeight = ParseSize(child.Height, contentHeight);
-                    maxChildBottom = Math.Max(maxChildBottom, childPosY + childHeight);
-
                     int childPosX = ParseSize(child.PositionX, contentWidth);
-                    int childWidth = ParseSize(child.Width, contentWidth);
+
+                    // Use already computed sizes if available, otherwise calculate
+                    int childHeight = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, contentHeight);
+                    int childWidth = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, contentWidth);
+
+                    maxChildBottom = Math.Max(maxChildBottom, childPosY + childHeight);
                     maxChildRight = Math.Max(maxChildRight, childPosX + childWidth);
                 }
 
+                // Reset scrollbar flags before checking
+                widget.HasVerticalScrollbar = false;
+                widget.HasHorizontalScrollbar = false;
+
                 if (contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0))
                 {
+                    // Set flag indicating vertical scrollbar is rendered in this frame
+                    widget.HasVerticalScrollbar = true;
+
                     int scrollbarHeight = Math.Max(1, (contentHeight * contentHeight) / maxChildBottom);
                     int scrollbarPos = maxChildBottom > contentHeight ? (int)((float)scrollY / (maxChildBottom - contentHeight) * (contentHeight - scrollbarHeight)) : 0;
                     scrollbarPos = Math.Max(0, Math.Min(scrollbarPos, contentHeight - scrollbarHeight));
@@ -198,6 +242,9 @@ namespace TermuiX
 
                 if (contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0))
                 {
+                    // Set flag indicating horizontal scrollbar is rendered in this frame
+                    widget.HasHorizontalScrollbar = true;
+
                     int scrollbarWidth = Math.Max(1, (contentWidth * contentWidth) / maxChildRight);
                     int scrollbarPos = maxChildRight > contentWidth ? (int)((float)scrollX / (maxChildRight - contentWidth) * (contentWidth - scrollbarWidth)) : 0;
                     scrollbarPos = Math.Max(0, Math.Min(scrollbarPos, contentWidth - scrollbarWidth));

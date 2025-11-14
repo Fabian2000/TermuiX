@@ -103,25 +103,46 @@ public class Input : IWidget
     /// </summary>
     public bool AllowWrapping { get; set; } = true;
 
+    private ConsoleColor _backgroundColor = ConsoleColor.DarkGray;
+    private ConsoleColor _foregroundColor = ConsoleColor.White;
+    private ConsoleColor _focusBackgroundColor = ConsoleColor.Gray;
+    private ConsoleColor _focusForegroundColor = ConsoleColor.White;
+
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.DarkGray;
+    public ConsoleColor BackgroundColor
+    {
+        get => _backgroundColor;
+        set => _backgroundColor = value;
+    }
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+    public ConsoleColor ForegroundColor
+    {
+        get => _foregroundColor;
+        set => _foregroundColor = value;
+    }
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Gray;
+    public ConsoleColor FocusBackgroundColor
+    {
+        get => _focusBackgroundColor;
+        set => _focusBackgroundColor = value;
+    }
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public ConsoleColor FocusForegroundColor
+    {
+        get => _focusForegroundColor;
+        set => _focusForegroundColor = value;
+    }
 
     /// <summary>
     /// Gets or sets the border color.
@@ -144,9 +165,24 @@ public class Input : IWidget
     public ConsoleColor CursorColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the input is disabled.
+    /// </summary>
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the background color when disabled.
+    /// </summary>
+    public ConsoleColor? DisabledBackgroundColor { get; set; }
+
+    /// <summary>
+    /// Gets or sets the foreground color when disabled.
+    /// </summary>
+    public ConsoleColor DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+
+    /// <summary>
     /// Gets a value indicating whether the input can receive focus.
     /// </summary>
-    public bool CanFocus => true;
+    public bool CanFocus => !Disabled;
 
     /// <summary>
     /// Gets a value indicating whether the input is scrollable.
@@ -167,13 +203,17 @@ public class Input : IWidget
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => [];
     bool IWidget.Focussed { get; set; }
+    int IWidget.ComputedWidth { get; set; }
+    int IWidget.ComputedHeight { get; set; }
+    bool IWidget.HasVerticalScrollbar { get; set; }
+    bool IWidget.HasHorizontalScrollbar { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
 
     Rune[][] IWidget.GetRaw()
     {
         // Update cursor blink
-        if (((IWidget)this).Focussed)
+        if (((IWidget)this).Focussed && !Disabled)
         {
             var elapsed = (DateTime.Now - _lastCursorBlink).TotalMilliseconds;
             if (elapsed >= CursorBlinkIntervalMs)
@@ -188,10 +228,31 @@ public class Input : IWidget
         }
 
         // Calculate size
-        int width = CalculateWidth();
-        int height = Multiline ? CalculateHeight() : 1;
+        int width = CalculateSize(Width, ((IWidget)this).Parent, true);
+        int height = Multiline ? CalculateSize(Height, ((IWidget)this).Parent, false) : 1;
+
+        // Store computed values
+        ((IWidget)this).ComputedWidth = width;
+        ((IWidget)this).ComputedHeight = height;
 
         if (width <= 0 || height <= 0) return [];
+
+        // Temporarily override colors if disabled
+        ConsoleColor originalBg = _backgroundColor;
+        ConsoleColor originalFg = _foregroundColor;
+        ConsoleColor originalFocusBg = _focusBackgroundColor;
+        ConsoleColor originalFocusFg = _focusForegroundColor;
+
+        if (Disabled)
+        {
+            if (DisabledBackgroundColor.HasValue)
+            {
+                _backgroundColor = DisabledBackgroundColor.Value;
+                _focusBackgroundColor = DisabledBackgroundColor.Value;
+            }
+            _foregroundColor = DisabledForegroundColor;
+            _focusForegroundColor = DisabledForegroundColor;
+        }
 
         // Create output
         var result = new Rune[height][];
@@ -236,11 +297,23 @@ public class Input : IWidget
             result[0][0] = new Rune('█');
         }
 
+        // Restore original colors
+        _backgroundColor = originalBg;
+        _foregroundColor = originalFg;
+        _focusBackgroundColor = originalFocusBg;
+        _focusForegroundColor = originalFocusFg;
+
         return result;
     }
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
+        // Ignore input if disabled
+        if (Disabled)
+        {
+            return;
+        }
+
         // Handle special keys
         if (keyInfo.Key == ConsoleKey.Enter)
         {
@@ -437,26 +510,96 @@ public class Input : IWidget
         TextChanged?.Invoke(this, _text);
     }
 
-    private int CalculateWidth()
+    private int CalculateSize(string size, IWidget? parent, bool isWidth)
     {
-        if (Width.EndsWith("ch"))
+        if (string.IsNullOrEmpty(size))
         {
-            var value = Width[..^2].Trim();
-            if (int.TryParse(value, out int result))
-                return result;
+            return 0;
         }
-        return 30; // Default
+
+        size = size.Trim();
+
+        if (size.EndsWith("ch"))
+        {
+            var value = size[..^2].Trim();
+            if (int.TryParse(value, out int result))
+            {
+                return result;
+            }
+            return 0;
+        }
+        else if (size.EndsWith('%'))
+        {
+            int parentSizeValue;
+
+            if (parent == null)
+            {
+                // No parent - use console dimensions
+                parentSizeValue = isWidth ? Console.WindowWidth : Console.WindowHeight;
+            }
+            else
+            {
+                // Use parent's computed size if available, otherwise fall back to console dimensions
+                parentSizeValue = isWidth ?
+                    (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
+                    (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
+
+                // Subtract padding from parent's available space
+                if (isWidth)
+                {
+                    int padLeft = ParsePadding(parent.PaddingLeft);
+                    int padRight = ParsePadding(parent.PaddingRight);
+                    parentSizeValue = Math.Max(0, parentSizeValue - padLeft - padRight);
+
+                    // Subtract 1ch for vertical scrollbar if it was rendered in the previous frame
+                    if (parent.HasVerticalScrollbar)
+                    {
+                        parentSizeValue = Math.Max(0, parentSizeValue - 1);
+                    }
+                }
+                else
+                {
+                    int padTop = ParsePadding(parent.PaddingTop);
+                    int padBottom = ParsePadding(parent.PaddingBottom);
+                    parentSizeValue = Math.Max(0, parentSizeValue - padTop - padBottom);
+
+                    // Subtract 1ch for horizontal scrollbar if it was rendered in the previous frame
+                    if (parent.HasHorizontalScrollbar)
+                    {
+                        parentSizeValue = Math.Max(0, parentSizeValue - 1);
+                    }
+                }
+            }
+
+            var value = size[..^1].Trim();
+            if (float.TryParse(value, out float percent))
+            {
+                return (int)(parentSizeValue * percent / 100.0f);
+            }
+            return 0;
+        }
+
+        return 0;
     }
 
-    private int CalculateHeight()
+    private static int ParsePadding(string padding)
     {
-        if (Height.EndsWith("ch"))
+        if (string.IsNullOrEmpty(padding))
         {
-            var value = Height[..^2].Trim();
-            if (int.TryParse(value, out int result))
-                return result;
+            return 0;
         }
-        return 3; // Default
+
+        padding = padding.Trim();
+        if (padding.EndsWith("ch"))
+        {
+            var value = padding[..^2].Trim();
+            if (int.TryParse(value, out int result))
+            {
+                return result;
+            }
+        }
+
+        return 0;
     }
 
     private void RenderSingleLine(Rune[][] result, string displayText, int width)
@@ -609,7 +752,10 @@ public class Input : IWidget
             BorderColor = BorderColor,
             FocusBorderColor = FocusBorderColor,
             PlaceholderColor = PlaceholderColor,
-            CursorColor = CursorColor
+            CursorColor = CursorColor,
+            Disabled = Disabled,
+            DisabledBackgroundColor = DisabledBackgroundColor,
+            DisabledForegroundColor = DisabledForegroundColor
         };
 
         return clone;
