@@ -8,6 +8,8 @@ namespace TermuiX.Widgets;
 public class Checkbox : IWidget
 {
     private bool _checked = false;
+    private ConsoleColor _backgroundColor = ConsoleColor.Black;
+    private ConsoleColor _foregroundColor = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets a value indicating whether the checkbox is checked.
@@ -88,12 +90,20 @@ public class Checkbox : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+    public ConsoleColor BackgroundColor
+    {
+        get => Disabled && DisabledBackgroundColor.HasValue ? DisabledBackgroundColor.Value : _backgroundColor;
+        set => _backgroundColor = value;
+    }
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+    public ConsoleColor ForegroundColor
+    {
+        get => Disabled ? DisabledForegroundColor : _foregroundColor;
+        set => _foregroundColor = value;
+    }
 
     /// <summary>
     /// Gets or sets the background color when focused.
@@ -104,6 +114,21 @@ public class Checkbox : IWidget
     /// Gets or sets the foreground color when focused.
     /// </summary>
     public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the checkbox is disabled.
+    /// </summary>
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the background color when disabled.
+    /// </summary>
+    public ConsoleColor? DisabledBackgroundColor { get; set; }
+
+    /// <summary>
+    /// Gets or sets the foreground color when disabled.
+    /// </summary>
+    public ConsoleColor DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets a value indicating whether the checkbox can receive focus.
@@ -142,7 +167,7 @@ public class Checkbox : IWidget
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
-        if (keyInfo.Key == ConsoleKey.Spacebar || keyInfo.Key == ConsoleKey.Enter)
+        if (!Disabled && (keyInfo.Key == ConsoleKey.Spacebar || keyInfo.Key == ConsoleKey.Enter))
         {
             Checked = !Checked;
         }
@@ -166,6 +191,8 @@ public class Checkbox : IWidget
         var clone = new Checkbox
         {
             _checked = _checked,
+            _backgroundColor = _backgroundColor,
+            _foregroundColor = _foregroundColor,
             Name = Name,
             Group = Group,
             Width = Width,
@@ -178,10 +205,11 @@ public class Checkbox : IWidget
             PositionY = PositionY,
             Visible = Visible,
             AllowWrapping = AllowWrapping,
-            BackgroundColor = BackgroundColor,
-            ForegroundColor = ForegroundColor,
             FocusBackgroundColor = FocusBackgroundColor,
-            FocusForegroundColor = FocusForegroundColor
+            FocusForegroundColor = FocusForegroundColor,
+            Disabled = Disabled,
+            DisabledBackgroundColor = DisabledBackgroundColor,
+            DisabledForegroundColor = DisabledForegroundColor
         };
 
         return clone;

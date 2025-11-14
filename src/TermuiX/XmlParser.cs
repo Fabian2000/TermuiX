@@ -409,6 +409,15 @@ internal static class XmlParser
             case "checked":
                 checkbox.Checked = bool.Parse(value);
                 break;
+            case "disabled":
+                checkbox.Disabled = bool.Parse(value);
+                break;
+            case "disabledbackgroundcolor":
+                checkbox.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "disabledforegroundcolor":
+                checkbox.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
         }
     }
 
@@ -418,6 +427,15 @@ internal static class XmlParser
         {
             case "checked":
                 radioButton.Selected = bool.Parse(value);
+                break;
+            case "disabled":
+                radioButton.Disabled = bool.Parse(value);
+                break;
+            case "disabledbackgroundcolor":
+                radioButton.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "disabledforegroundcolor":
+                radioButton.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
                 break;
         }
     }
@@ -455,6 +473,15 @@ internal static class XmlParser
                 break;
             case "step":
                 slider.Step = double.Parse(value);
+                break;
+            case "disabled":
+                slider.Disabled = bool.Parse(value);
+                break;
+            case "disabledbackgroundcolor":
+                slider.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                break;
+            case "disabledforegroundcolor":
+                slider.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
                 break;
         }
     }
