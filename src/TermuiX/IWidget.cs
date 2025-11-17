@@ -132,6 +132,23 @@ namespace TermuiX
         bool CanFocus { get; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the widget is disabled.
+        /// </summary>
+        bool Disabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the background color when the widget is disabled.
+        /// If null, the normal background color is used.
+        /// </summary>
+        ConsoleColor? DisabledBackgroundColor { get; set; }
+
+        /// <summary>
+        /// Gets or sets the foreground color when the widget is disabled.
+        /// Defaults to DarkGray for better visual distinction.
+        /// </summary>
+        ConsoleColor DisabledForegroundColor { get; set; }
+
+        /// <summary>
         /// Gets a value indicating whether the widget is scrollable.
         /// </summary>
         bool Scrollable { get; }

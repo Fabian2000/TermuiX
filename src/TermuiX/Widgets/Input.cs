@@ -172,6 +172,7 @@ public class Input : IWidget
 
     /// <summary>
     /// Gets or sets the background color when disabled.
+    /// If null, the normal background color is used.
     /// </summary>
     public ConsoleColor? DisabledBackgroundColor { get; set; }
 
@@ -246,11 +247,6 @@ public class Input : IWidget
 
         if (Disabled)
         {
-            if (DisabledBackgroundColor.HasValue)
-            {
-                _backgroundColor = DisabledBackgroundColor.Value;
-                _focusBackgroundColor = DisabledBackgroundColor.Value;
-            }
             _foregroundColor = DisabledForegroundColor;
             _focusForegroundColor = DisabledForegroundColor;
         }

@@ -167,6 +167,9 @@ public class Table : IWidget
     bool IWidget.HasHorizontalScrollbar { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
+    bool IWidget.Disabled { get; set; }
+    ConsoleColor? IWidget.DisabledBackgroundColor { get; set; }
+    ConsoleColor IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Adds a row to the table.

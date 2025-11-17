@@ -95,8 +95,10 @@ namespace TermuiX
             int scrollX = widget.Scrollable ? (int)widget.ScrollOffsetX : 0;
             int scrollY = widget.Scrollable ? (int)widget.ScrollOffsetY : 0;
 
-            var bgColor = widget.Focussed ? widget.FocusBackgroundColor : widget.BackgroundColor;
-            var fgColor = widget.Focussed ? widget.FocusForegroundColor : widget.ForegroundColor;
+            var bgColor = widget.Disabled && widget.DisabledBackgroundColor.HasValue ? widget.DisabledBackgroundColor.Value :
+                          (widget.Focussed ? widget.FocusBackgroundColor : widget.BackgroundColor);
+            var fgColor = widget.Disabled ? widget.DisabledForegroundColor :
+                          (widget.Focussed ? widget.FocusForegroundColor : widget.ForegroundColor);
             for (int y = 0; y < height && absY + y < output.Length; y++)
             {
                 for (int x = 0; x < width && absX + x < output[0].Length; x++)

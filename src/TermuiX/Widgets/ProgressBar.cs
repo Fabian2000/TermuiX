@@ -157,6 +157,9 @@ public class ProgressBar : IWidget
     bool IWidget.HasHorizontalScrollbar { get; set; }
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
+    bool IWidget.Disabled { get; set; }
+    ConsoleColor? IWidget.DisabledBackgroundColor { get; set; }
+    ConsoleColor IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     Rune[][] IWidget.GetRaw()
     {

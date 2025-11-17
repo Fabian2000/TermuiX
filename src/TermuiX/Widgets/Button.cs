@@ -277,6 +277,7 @@ public class Button : IWidget
 
     /// <summary>
     /// Gets or sets the background color when disabled.
+    /// If null, the normal background color is used.
     /// </summary>
     public ConsoleColor? DisabledBackgroundColor { get; set; }
 
@@ -330,17 +331,14 @@ public class Button : IWidget
         // Set container's parent to this widget's parent for proper size calculation
         ((IWidget)_container).Parent = ((IWidget)this).Parent;
 
-        // Apply disabled colors if disabled
-        if (Disabled)
-        {
-            if (DisabledBackgroundColor.HasValue)
-            {
-                _container.BackgroundColor = DisabledBackgroundColor.Value;
-                _textWidget.BackgroundColor = DisabledBackgroundColor.Value;
-            }
-            _container.ForegroundColor = DisabledForegroundColor;
-            _textWidget.ForegroundColor = DisabledForegroundColor;
-        }
+        // Propagate disabled state to inner widgets so they render with disabled colors
+        ((IWidget)_container).Disabled = Disabled;
+        ((IWidget)_container).DisabledForegroundColor = DisabledForegroundColor;
+        ((IWidget)_container).DisabledBackgroundColor = DisabledBackgroundColor;
+
+        ((IWidget)_textWidget).Disabled = Disabled;
+        ((IWidget)_textWidget).DisabledForegroundColor = DisabledForegroundColor;
+        ((IWidget)_textWidget).DisabledBackgroundColor = DisabledBackgroundColor;
 
         var result = ((IWidget)_container).GetRaw();
 
