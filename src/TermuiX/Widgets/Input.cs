@@ -14,6 +14,7 @@ public class Input : IWidget
     private DateTime _lastCursorBlink = DateTime.Now;
     private const int CursorBlinkIntervalMs = 500;
     private int _scrollOffsetY = 0;
+    private char? _pendingSurrogate = null;
 
     /// <summary>
     /// Gets or sets the text value of the input.
@@ -332,16 +333,25 @@ public class Input : IWidget
         {
             if (_cursorPosition > 0)
             {
-                _text = _text.Remove(_cursorPosition - 1, 1);
-                _cursorPosition--;
-                OnChanged();
+                // Convert to rune index to remove correctly
+                var runes = _text.EnumerateRunes().ToArray();
+                if (_cursorPosition - 1 < runes.Length)
+                {
+                    var newRunes = runes.Take(_cursorPosition - 1).Concat(runes.Skip(_cursorPosition)).ToArray();
+                    _text = string.Concat(newRunes.Select(r => r.ToString()));
+                    _cursorPosition--;
+                    OnChanged();
+                }
             }
         }
         else if (keyInfo.Key == ConsoleKey.Delete)
         {
-            if (_cursorPosition < _text.Length)
+            var runeCount = _text.EnumerateRunes().Count();
+            if (_cursorPosition < runeCount)
             {
-                _text = _text.Remove(_cursorPosition, 1);
+                var runes = _text.EnumerateRunes().ToArray();
+                var newRunes = runes.Take(_cursorPosition).Concat(runes.Skip(_cursorPosition + 1)).ToArray();
+                _text = string.Concat(newRunes.Select(r => r.ToString()));
                 OnChanged();
             }
         }
@@ -351,7 +361,8 @@ public class Input : IWidget
         }
         else if (keyInfo.Key == ConsoleKey.RightArrow)
         {
-            _cursorPosition = Math.Min(_text.Length, _cursorPosition + 1);
+            var runeCount = _text.EnumerateRunes().Count();
+            _cursorPosition = Math.Min(runeCount, _cursorPosition + 1);
         }
         else if (keyInfo.Key == ConsoleKey.Home)
         {
@@ -359,7 +370,7 @@ public class Input : IWidget
         }
         else if (keyInfo.Key == ConsoleKey.End)
         {
-            _cursorPosition = _text.Length;
+            _cursorPosition = _text.EnumerateRunes().Count();
         }
         else if (keyInfo.Key == ConsoleKey.UpArrow)
         {
@@ -397,8 +408,25 @@ public class Input : IWidget
         }
         else if (!char.IsControl(keyInfo.KeyChar))
         {
-            // Regular character input
-            InsertChar(keyInfo.KeyChar);
+            // Handle surrogate pairs (emojis, etc.)
+            if (char.IsHighSurrogate(keyInfo.KeyChar))
+            {
+                // Store the high surrogate and wait for the low surrogate
+                _pendingSurrogate = keyInfo.KeyChar;
+            }
+            else if (char.IsLowSurrogate(keyInfo.KeyChar) && _pendingSurrogate.HasValue)
+            {
+                // Combine with pending high surrogate
+                string surrogatePair = new string(new[] { _pendingSurrogate.Value, keyInfo.KeyChar });
+                InsertText(surrogatePair);
+                _pendingSurrogate = null;
+            }
+            else
+            {
+                // Regular character input
+                _pendingSurrogate = null;
+                InsertChar(keyInfo.KeyChar);
+            }
         }
 
         // Reset cursor blink on any key press
@@ -412,15 +440,18 @@ public class Input : IWidget
         if (!Multiline && (c == '\n' || c == '\r'))
             return;
 
-        _text = _text.Insert(_cursorPosition, c.ToString());
-        _cursorPosition++;
-        OnChanged();
+        // Insert character as string (handles surrogate pairs correctly)
+        InsertText(c.ToString());
     }
 
     private void InsertText(string text)
     {
-        _text = _text.Insert(_cursorPosition, text);
-        _cursorPosition += text.Length;
+        // Convert to runes to insert at correct position
+        var runes = _text.EnumerateRunes().ToList();
+        var insertRunes = text.EnumerateRunes().ToList();
+        runes.InsertRange(_cursorPosition, insertRunes);
+        _text = string.Concat(runes.Select(r => r.ToString()));
+        _cursorPosition += insertRunes.Count;
         OnChanged();
     }
 
@@ -429,21 +460,40 @@ public class Input : IWidget
         if (string.IsNullOrEmpty(_text)) return;
 
         var lines = _text.Split('\n');
+        if (lines.Length == 1) return; // Only one line, can't move vertically
 
-        // Find current line and column
+        // Build an array of line rune counts
+        int[] lineRuneCounts = new int[lines.Length];
+        for (int i = 0; i < lines.Length; i++)
+        {
+            lineRuneCounts[i] = lines[i].EnumerateRunes().Count();
+        }
+
+        // Find current line and column (using Rune counts)
         int currentLine = 0;
         int currentCol = 0;
-        int charsSoFar = 0;
+        int runePos = 0;
 
         for (int i = 0; i < lines.Length; i++)
         {
-            if (charsSoFar + lines[i].Length >= _cursorPosition)
+            // Check if cursor is on this line
+            if (i < lines.Length - 1)
             {
-                currentLine = i;
-                currentCol = _cursorPosition - charsSoFar;
-                break;
+                // Not the last line - check including the newline position
+                if (_cursorPosition <= runePos + lineRuneCounts[i])
+                {
+                    currentLine = i;
+                    currentCol = _cursorPosition - runePos;
+                    break;
+                }
+                runePos += lineRuneCounts[i] + 1; // +1 for \n
             }
-            charsSoFar += lines[i].Length + 1; // +1 for newline
+            else
+            {
+                // Last line - cursor must be here
+                currentLine = i;
+                currentCol = _cursorPosition - runePos;
+            }
         }
 
         // Calculate target line
@@ -455,14 +505,14 @@ public class Input : IWidget
         int newPosition = 0;
         for (int i = 0; i < targetLine; i++)
         {
-            newPosition += lines[i].Length + 1; // +1 for newline
+            newPosition += lineRuneCounts[i] + 1; // +1 for \n
         }
 
-        // Keep same column, or end of line if shorter
-        int targetCol = Math.Min(currentCol, lines[targetLine].Length);
+        // Add column offset (clamp to target line length)
+        int targetCol = Math.Min(currentCol, lineRuneCounts[targetLine]);
         newPosition += targetCol;
 
-        _cursorPosition = Math.Min(newPosition, _text.Length);
+        _cursorPosition = newPosition;
     }
 
     private string? GetClipboardText()
@@ -604,90 +654,195 @@ public class Input : IWidget
 
     private void RenderSingleLine(Rune[][] result, string displayText, int width)
     {
-        // Calculate horizontal scroll offset to keep cursor visible
-        int scrollOffset = 0;
-        if (_cursorPosition >= width)
+        // Convert string to Rune array first
+        var runes = new List<Rune>();
+        foreach (var rune in displayText.EnumerateRunes())
         {
-            // Cursor is beyond visible area, scroll left
-            scrollOffset = _cursorPosition - width + 1;
+            runes.Add(rune);
+        }
+
+        // Calculate display width up to cursor position
+        int cursorDisplayPos = 0;
+        for (int i = 0; i < _cursorPosition && i < runes.Count; i++)
+        {
+            cursorDisplayPos += GetRuneDisplayWidth(runes[i]);
+        }
+
+        // Calculate horizontal scroll offset (in runes) to keep cursor visible
+        int scrollOffsetRunes = 0;
+        if (cursorDisplayPos >= width)
+        {
+            // Need to scroll - find the rune index where display starts
+            int displayOffset = cursorDisplayPos - width + 1;
+            int accumulatedWidth = 0;
+            for (int i = 0; i < runes.Count; i++)
+            {
+                if (accumulatedWidth >= displayOffset)
+                {
+                    scrollOffsetRunes = i;
+                    break;
+                }
+                accumulatedWidth += GetRuneDisplayWidth(runes[i]);
+            }
         }
 
         // Render visible portion of text
-        for (int x = 0; x < width && scrollOffset + x < displayText.Length; x++)
+        int displayX = 0;
+        int runeIdx = scrollOffsetRunes;
+
+        while (runeIdx < runes.Count && displayX < width)
         {
-            int textPos = scrollOffset + x;
-            if (textPos == _cursorPosition && _cursorVisible && ((IWidget)this).Focussed)
+            Rune rune = runes[runeIdx];
+            int runeWidth = GetRuneDisplayWidth(rune);
+
+            // Check if this would exceed width
+            if (displayX + runeWidth > width)
             {
-                result[0][x] = new Rune('█'); // Cursor block
+                break;
             }
-            else
+
+            // Check if cursor should be shown at this rune position (replaces the character)
+            if (runeIdx == _cursorPosition && _cursorVisible && ((IWidget)this).Focussed)
             {
-                result[0][x] = new Rune(displayText[textPos]);
+                // Show cursor - it replaces the character at cursor position
+                result[0][displayX] = new Rune('█');
+                displayX++;
+
+                // Fill additional cells if the replaced character was wide
+                for (int k = 1; k < runeWidth && displayX < width; k++)
+                {
+                    result[0][displayX] = new Rune(' ');
+                    displayX++;
+                }
+
+                runeIdx++;
+                continue;
             }
+
+            result[0][displayX] = rune;
+            displayX++;
+
+            // Fill additional cells for wide characters
+            for (int k = 1; k < runeWidth && displayX < width; k++)
+            {
+                result[0][displayX] = new Rune(' ');
+                displayX++;
+            }
+
+            runeIdx++;
         }
 
-        // Cursor at end of text (within visible area)
-        int cursorDisplayX = _cursorPosition - scrollOffset;
-        if (_cursorPosition == displayText.Length && cursorDisplayX >= 0 && cursorDisplayX < width && _cursorVisible && ((IWidget)this).Focussed)
+        // Cursor at end of text
+        if (_cursorPosition == runes.Count && displayX < width && _cursorVisible && ((IWidget)this).Focussed)
         {
-            result[0][cursorDisplayX] = new Rune('█');
+            result[0][displayX] = new Rune('█');
         }
+    }
+
+    private static int GetRuneDisplayWidth(Rune rune)
+    {
+        int value = rune.Value;
+
+        // Emoji ranges
+        if ((value >= 0x1F300 && value <= 0x1F9FF) ||
+            (value >= 0x1F600 && value <= 0x1F64F) ||
+            (value >= 0x1F680 && value <= 0x1F6FF) ||
+            (value >= 0x1F900 && value <= 0x1F9FF))
+        {
+            return 2;
+        }
+
+        // East Asian Wide and Fullwidth characters
+        if ((value >= 0x1100 && value <= 0x115F) ||
+            (value >= 0x2E80 && value <= 0x9FFF) ||
+            (value >= 0xAC00 && value <= 0xD7A3) ||
+            (value >= 0xF900 && value <= 0xFAFF) ||
+            (value >= 0xFF00 && value <= 0xFF60) ||
+            (value >= 0xFFE0 && value <= 0xFFE6) ||
+            (value >= 0x20000 && value <= 0x2FFFD) ||
+            (value >= 0x30000 && value <= 0x3FFFD))
+        {
+            return 2;
+        }
+
+        return 1;
     }
 
     private void RenderMultiline(Rune[][] result, string displayText, int width, int height)
     {
-        // Wrap text to fit width
-        var wrappedLines = new List<string>();
+        // Convert to runes and wrap based on display width
+        var wrappedLines = new List<List<Rune>>();
         var lines = displayText.Split('\n');
 
         foreach (var line in lines)
         {
-            if (line.Length <= width)
+            var lineRunes = new List<Rune>();
+            foreach (var rune in line.EnumerateRunes())
             {
-                wrappedLines.Add(line);
+                lineRunes.Add(rune);
             }
-            else
+
+            if (lineRunes.Count == 0)
             {
-                // Break long lines into chunks
-                for (int i = 0; i < line.Length; i += width)
+                wrappedLines.Add(new List<Rune>());
+                continue;
+            }
+
+            // Wrap based on display width
+            var currentLine = new List<Rune>();
+            int currentDisplayWidth = 0;
+
+            foreach (var rune in lineRunes)
+            {
+                int runeWidth = GetRuneDisplayWidth(rune);
+
+                if (currentDisplayWidth + runeWidth > width && currentLine.Count > 0)
                 {
-                    int len = Math.Min(width, line.Length - i);
-                    wrappedLines.Add(line.Substring(i, len));
+                    // Start new line
+                    wrappedLines.Add(currentLine);
+                    currentLine = new List<Rune>();
+                    currentDisplayWidth = 0;
                 }
+
+                currentLine.Add(rune);
+                currentDisplayWidth += runeWidth;
+            }
+
+            if (currentLine.Count > 0)
+            {
+                wrappedLines.Add(currentLine);
             }
         }
 
-        // Find cursor position in wrapped lines
+        // Find cursor position in wrapped lines (rune index, not display position)
         int cursorLine = 0;
-        int cursorCol = 0;
-        int charCount = 0;
+        int cursorRuneCol = 0;
+        int runeCount = 0;
+        var allRunes = new List<Rune>();
+        foreach (var r in displayText.EnumerateRunes())
+        {
+            allRunes.Add(r);
+        }
 
         for (int i = 0; i < wrappedLines.Count; i++)
         {
-            int lineLength = wrappedLines[i].Length;
-            if (charCount + lineLength >= _cursorPosition)
+            int lineRuneLength = wrappedLines[i].Count;
+            if (runeCount + lineRuneLength >= _cursorPosition)
             {
                 cursorLine = i;
-                cursorCol = _cursorPosition - charCount;
+                cursorRuneCol = _cursorPosition - runeCount;
                 break;
             }
-            charCount += lineLength;
-            // Account for original newlines
-            if (i < wrappedLines.Count - 1 && displayText.IndexOf('\n', charCount) == charCount)
-            {
-                charCount++;
-            }
+            runeCount += lineRuneLength;
         }
 
         // Adjust vertical scroll to keep cursor visible
         if (cursorLine < _scrollOffsetY)
         {
-            // Cursor above visible area, scroll up
             _scrollOffsetY = cursorLine;
         }
         else if (cursorLine >= _scrollOffsetY + height)
         {
-            // Cursor below visible area, scroll down
             _scrollOffsetY = cursorLine - height + 1;
         }
 
@@ -697,23 +852,57 @@ public class Input : IWidget
             int sourceLineIdx = _scrollOffsetY + displayLineIdx;
             if (sourceLineIdx >= wrappedLines.Count) break;
 
-            string line = wrappedLines[sourceLineIdx];
-            for (int x = 0; x < Math.Min(line.Length, width); x++)
+            var lineRunes = wrappedLines[sourceLineIdx];
+
+            // Render runes with display width tracking
+            int displayX = 0;
+            int runeIdx = 0;
+
+            while (runeIdx < lineRunes.Count && displayX < width)
             {
-                if (sourceLineIdx == cursorLine && x == cursorCol && _cursorVisible && ((IWidget)this).Focussed)
+                Rune rune = lineRunes[runeIdx];
+                int runeWidth = GetRuneDisplayWidth(rune);
+
+                if (displayX + runeWidth > width)
                 {
-                    result[displayLineIdx][x] = new Rune('█'); // Cursor block
+                    break;
                 }
-                else
+
+                // Check if cursor should be shown at this rune position (replaces the character)
+                if (sourceLineIdx == cursorLine && runeIdx == cursorRuneCol && _cursorVisible && ((IWidget)this).Focussed)
                 {
-                    result[displayLineIdx][x] = new Rune(line[x]);
+                    // Show cursor - it replaces the character at cursor position
+                    result[displayLineIdx][displayX] = new Rune('█');
+                    displayX++;
+
+                    // Fill additional cells if the replaced character was wide
+                    for (int k = 1; k < runeWidth && displayX < width; k++)
+                    {
+                        result[displayLineIdx][displayX] = new Rune(' ');
+                        displayX++;
+                    }
+
+                    runeIdx++;
+                    continue;
                 }
+
+                result[displayLineIdx][displayX] = rune;
+                displayX++;
+
+                // Fill additional cells for wide characters
+                for (int k = 1; k < runeWidth && displayX < width; k++)
+                {
+                    result[displayLineIdx][displayX] = new Rune(' ');
+                    displayX++;
+                }
+
+                runeIdx++;
             }
 
             // Cursor at end of line
-            if (sourceLineIdx == cursorLine && cursorCol == line.Length && cursorCol < width && _cursorVisible && ((IWidget)this).Focussed)
+            if (sourceLineIdx == cursorLine && cursorRuneCol == lineRunes.Count && displayX < width && _cursorVisible && ((IWidget)this).Focussed)
             {
-                result[displayLineIdx][cursorCol] = new Rune('█');
+                result[displayLineIdx][displayX] = new Rune('█');
             }
         }
     }

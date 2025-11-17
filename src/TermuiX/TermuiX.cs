@@ -728,6 +728,19 @@ public sealed class TermuiX
                 }
 
                 displayWidth += runeWidth;
+
+                // Skip the next array position if this was a wide character
+                // (the next position contains a placeholder space)
+                // But don't skip if the next position contains something other than a space
+                if (runeWidth == 2 && x + 1 < chars[y].Length)
+                {
+                    var nextRune = chars[y][x + 1];
+                    // Only skip if it's a space (placeholder)
+                    if (nextRune.Value == ' ')
+                    {
+                        x++;
+                    }
+                }
             }
         }
 
@@ -740,7 +753,6 @@ public sealed class TermuiX
 
         // Emoji ranges (simplified check for common emoji blocks)
         if ((value >= 0x1F300 && value <= 0x1F9FF) || // Misc Symbols and Pictographs, Emoticons, etc.
-            (value >= 0x2600 && value <= 0x27BF) ||   // Misc symbols
             (value >= 0x1F600 && value <= 0x1F64F) || // Emoticons
             (value >= 0x1F680 && value <= 0x1F6FF) || // Transport and Map
             (value >= 0x1F900 && value <= 0x1F9FF))   // Supplemental Symbols

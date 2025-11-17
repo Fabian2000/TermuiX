@@ -44,7 +44,7 @@ public class FileExplorer
     Height='{contentHeight}ch'
     PositionX='0ch'
     PositionY='{TopBarHeight}ch'
-    BackgroundColor='DarkBlue'
+    BackgroundColor='Black'
     ForegroundColor='White'
     Scrollable='true'>
 </Container>
@@ -369,7 +369,8 @@ public class FileExplorer
                     PaddingRight = "0ch",
                     PaddingTop = "0ch",
                     PaddingBottom = "0ch",
-                    BackgroundColor = ConsoleColor.DarkBlue,
+                    AllowWrapping = false,
+                    BackgroundColor = ConsoleColor.Black,
                     ForegroundColor = ConsoleColor.White,
                     FocusBackgroundColor = ConsoleColor.DarkGray,
                     FocusForegroundColor = ConsoleColor.White
@@ -401,7 +402,8 @@ public class FileExplorer
                     PaddingRight = "0ch",
                     PaddingTop = "0ch",
                     PaddingBottom = "0ch",
-                    BackgroundColor = ConsoleColor.DarkBlue,
+                    AllowWrapping = false,
+                    BackgroundColor = ConsoleColor.Black,
                     ForegroundColor = ConsoleColor.White,
                     FocusBackgroundColor = ConsoleColor.DarkGray,
                     FocusForegroundColor = ConsoleColor.White
@@ -433,7 +435,7 @@ public class FileExplorer
                 PaddingRight = "0ch",
                 PaddingTop = "0ch",
                 PaddingBottom = "0ch",
-                BackgroundColor = ConsoleColor.DarkBlue,
+                BackgroundColor = ConsoleColor.Black,
                 ForegroundColor = ConsoleColor.Red,
                 FocusBackgroundColor = ConsoleColor.DarkGray,
                 FocusForegroundColor = ConsoleColor.Red,
@@ -484,8 +486,8 @@ public class FileExplorer
             }
             else
             {
-                // Not selected - revert to default DarkBlue
-                button.BackgroundColor = ConsoleColor.DarkBlue;
+                // Not selected - revert to default Black
+                button.BackgroundColor = ConsoleColor.Black;
                 button.FocusBackgroundColor = ConsoleColor.DarkGray;
             }
         }
