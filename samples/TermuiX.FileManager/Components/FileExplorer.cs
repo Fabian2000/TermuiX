@@ -10,6 +10,7 @@ public class FileExplorer
     private readonly TermuiXLib _termui;
     private Container? _leftColumn;
     private Container? _rightColumn;
+    private Text? _navigationHints;
     private Text? _lblNameValue;
     private Text? _lblTypeValue;
     private Text? _lblSizeValue;
@@ -19,7 +20,18 @@ public class FileExplorer
     private Button? _btnMove;
     private Button? _btnDelete;
     private Button? _btnRename;
-    private Button? _btnProperties;
+    private Input? _inputRename;
+    private string? _itemBeingRenamed;
+    private Container? _deleteConfirmPopup;
+    private Container? _deleteOverlay;
+    private Button? _btnDeleteYes;
+    private Button? _btnDeleteNo;
+    private Text? _deleteConfirmText;
+
+    // Copy/Move operation state
+    private enum ClipboardOperation { None, Copy, Move }
+    private ClipboardOperation _clipboardOperation = ClipboardOperation.None;
+    private string? _clipboardItemPath;
 
     private string _currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private readonly HashSet<string> _selectedItems = [];
@@ -27,6 +39,11 @@ public class FileExplorer
     private string? _filterText;
     private FilterType _currentSort = FilterType.NameAsc;
     private string? _lastFocusedFilePath;
+
+    // History tracking for navigation
+    private readonly List<(string directory, string? lastClickedItem)> _historyBack = [];
+    private readonly List<(string directory, string? lastClickedItem)> _historyForward = [];
+    private string? _lastClickedItemInCurrentDir;
 
     public FileExplorer(TermuiXLib termui)
     {
@@ -47,7 +64,7 @@ public class FileExplorer
     Height='1ch'
     BackgroundColor='Black'
     ForegroundColor='DarkGray'>
-    ↓ Ctrl+R ← Ctrl+Z Ctrl+Y →
+    ↓ Ctrl+R ← Ctrl+U Ctrl+Y →
 </Text>
 
 <Container
@@ -264,26 +281,6 @@ public class FileExplorer
         Rename
     </Button>
 
-    <Button
-        Name='btnProperties'
-        PositionX='0ch'
-        PositionY='23ch'
-        Width='100%'
-        Height='3ch'
-        BackgroundColor='Black'
-        ForegroundColor='White'
-        FocusBackgroundColor='Gray'
-        FocusForegroundColor='White'
-        BorderStyle='Single'
-        RoundedCorners='true'
-        PaddingLeft='1ch'
-        PaddingRight='1ch'
-        PaddingTop='1ch'
-        PaddingBottom='1ch'
-        Disabled='true'>
-        Properties
-    </Button>
-
     <Text
         Name='lblActionsShortcut'
         PositionX='10ch'
@@ -295,6 +292,102 @@ public class FileExplorer
         Ctrl+P
     </Text>
 </Container>
+
+<Input
+    Name='inputRename'
+    Width='40ch'
+    Height='1ch'
+    PositionX='10ch'
+    PositionY='10ch'
+    BackgroundColor='Black'
+    ForegroundColor='White'
+    FocusBackgroundColor='DarkGray'
+    FocusForegroundColor='White'
+    BorderStyle='Single'
+    MultiLine='false'
+    Visible='false'>
+</Input>
+
+<Container
+    Name='deleteOverlay'
+    Width='100%'
+    Height='100%'
+    PositionX='0ch'
+    PositionY='0ch'
+    BackgroundColor='Black'
+    Visible='false'>
+</Container>
+
+<Container
+    Name='deleteConfirmPopup'
+    Width='50ch'
+    Height='10ch'
+    PositionX='0ch'
+    PositionY='0ch'
+    BackgroundColor='Black'
+    ForegroundColor='White'
+    BorderStyle='Single'
+    RoundedCorners='true'
+    Visible='false'>
+
+    <Text
+        Name='deleteConfirmTitle'
+        PositionX='1ch'
+        PositionY='1ch'
+        BackgroundColor='Black'
+        ForegroundColor='Red'
+        Style='Bold'>
+        Delete Confirmation
+    </Text>
+
+    <Text
+        Name='deleteConfirmText'
+        PositionX='1ch'
+        PositionY='3ch'
+        Width='46ch'
+        BackgroundColor='Black'
+        ForegroundColor='White'>
+        Are you sure you want to delete this item?
+    </Text>
+
+    <Button
+        Name='btnDeleteNo'
+        PositionX='9ch'
+        PositionY='5ch'
+        Width='12ch'
+        Height='3ch'
+        BackgroundColor='DarkGray'
+        ForegroundColor='White'
+        FocusBackgroundColor='Gray'
+        FocusForegroundColor='White'
+        BorderStyle='Single'
+        RoundedCorners='true'
+        PaddingLeft='1ch'
+        PaddingRight='1ch'
+        PaddingTop='1ch'
+        PaddingBottom='1ch'>
+        No
+    </Button>
+
+    <Button
+        Name='btnDeleteYes'
+        PositionX='27ch'
+        PositionY='5ch'
+        Width='12ch'
+        Height='3ch'
+        BackgroundColor='Red'
+        ForegroundColor='White'
+        FocusBackgroundColor='DarkRed'
+        FocusForegroundColor='White'
+        BorderStyle='Single'
+        RoundedCorners='true'
+        PaddingLeft='1ch'
+        PaddingRight='1ch'
+        PaddingTop='1ch'
+        PaddingBottom='1ch'>
+        Yes
+    </Button>
+</Container>
 ";
     }
 
@@ -302,6 +395,7 @@ public class FileExplorer
     {
         _leftColumn = _termui.GetWidget<Container>("leftColumn");
         _rightColumn = _termui.GetWidget<Container>("rightColumn");
+        _navigationHints = _termui.GetWidget<Text>("navigationHints");
         _lblNameValue = _termui.GetWidget<Text>("lblNameValue");
         _lblTypeValue = _termui.GetWidget<Text>("lblTypeValue");
         _lblSizeValue = _termui.GetWidget<Text>("lblSizeValue");
@@ -311,12 +405,176 @@ public class FileExplorer
         _btnMove = _termui.GetWidget<Button>("btnMove");
         _btnDelete = _termui.GetWidget<Button>("btnDelete");
         _btnRename = _termui.GetWidget<Button>("btnRename");
-        _btnProperties = _termui.GetWidget<Button>("btnProperties");
+        _inputRename = _termui.GetWidget<Input>("inputRename");
+        _deleteConfirmPopup = _termui.GetWidget<Container>("deleteConfirmPopup");
+        _deleteOverlay = _termui.GetWidget<Container>("deleteOverlay");
+        _btnDeleteYes = _termui.GetWidget<Button>("btnDeleteYes");
+        _btnDeleteNo = _termui.GetWidget<Button>("btnDeleteNo");
+        _deleteConfirmText = _termui.GetWidget<Text>("deleteConfirmText");
+
+        // Attach copy button click handler
+        if (_btnCopy is not null)
+        {
+            _btnCopy.Click += OnCopyClick;
+        }
+
+        // Attach move button click handler
+        if (_btnMove is not null)
+        {
+            _btnMove.Click += OnMoveClick;
+        }
+
+        // Attach rename button click handler
+        if (_btnRename is not null)
+        {
+            _btnRename.Click += OnRenameClick;
+        }
+
+        // Attach input enter handler
+        if (_inputRename is not null)
+        {
+            _inputRename.EnterPressed += OnRenameInputEnter;
+        }
+
+        // Attach delete button click handler
+        if (_btnDelete is not null)
+        {
+            _btnDelete.Click += OnDeleteClick;
+        }
+
+        // Attach delete confirmation button handlers
+        if (_btnDeleteYes is not null)
+        {
+            _btnDeleteYes.Click += OnDeleteConfirmYes;
+        }
+
+        if (_btnDeleteNo is not null)
+        {
+            _btnDeleteNo.Click += OnDeleteConfirmNo;
+        }
+
+        // Subscribe to focus changes to update navigation hints
+        _termui.FocusChanged += OnFocusChanged;
 
         RefreshFileList();
     }
 
+    private void OnFocusChanged(object? sender, IWidget widget)
+    {
+        // If delete popup is visible, restrict focus to Yes/No buttons only
+        if (_deleteConfirmPopup is not null && _deleteConfirmPopup.Visible)
+        {
+            if (widget != _btnDeleteYes && widget != _btnDeleteNo)
+            {
+                // Force focus back to No button (safer option)
+                if (_btnDeleteNo is not null)
+                {
+                    _termui.SetFocus(_btnDeleteNo);
+                }
+            }
+            return;
+        }
+
+        UpdateNavigationHints(widget);
+
+        // Update last focused file path when focus changes to a file/folder button
+        if (widget is Button button && _buttonPathMap.TryGetValue(button, out string? path))
+        {
+            _lastFocusedFilePath = path;
+        }
+
+        // Close rename overlay if focus moves away from the input
+        if (_inputRename is not null && _inputRename.Visible && widget != _inputRename)
+        {
+            CloseRenameOverlay();
+        }
+    }
+
+    private void UpdateNavigationHints(IWidget? focusedWidget)
+    {
+        if (_navigationHints is null)
+        {
+            return;
+        }
+
+        // Check if focused widget is inside the explorer
+        bool isFocusInExplorer = IsFocusInExplorer(focusedWidget);
+
+        if (isFocusInExplorer)
+        {
+            _navigationHints.Content = "↻ Ctrl+R ← Ctrl+U Ctrl+Y →";
+        }
+        else
+        {
+            _navigationHints.Content = "↓ Ctrl+R ← Ctrl+U Ctrl+Y →";
+        }
+    }
+
+    private bool IsFocusInExplorer(IWidget? widget)
+    {
+        if (widget is null || _leftColumn is null)
+        {
+            return false;
+        }
+
+        // Check if widget is the left column itself or a child of it
+        IWidget? current = widget;
+        while (current is not null)
+        {
+            if (current == _leftColumn)
+            {
+                return true;
+            }
+            current = current.Parent;
+        }
+
+        return false;
+    }
+
     public Button? GetCopyButton() => _btnCopy;
+
+    /// <summary>
+    /// Selects the currently focused item without navigating into it.
+    /// This allows selecting folders for copy/move operations.
+    /// </summary>
+    public void SelectCurrentItem()
+    {
+        if (_lastFocusedFilePath is null)
+        {
+            return;
+        }
+
+        // Find the button for the currently focused item
+        var button = _buttonPathMap.FirstOrDefault(kvp => kvp.Value == _lastFocusedFilePath).Key;
+        if (button is null)
+        {
+            return;
+        }
+
+        // Single selection mode: clear previous selections and add current item
+        _selectedItems.Clear();
+        _selectedItems.Add(_lastFocusedFilePath);
+
+        // Update button colors
+        UpdateSelectionColors();
+
+        // Enable/disable action buttons
+        UpdateActionButtons();
+
+        // Update properties panel
+        UpdatePropertiesPanel(_lastFocusedFilePath);
+    }
+
+    /// <summary>
+    /// Refreshes the current directory, reloading all files and folders.
+    /// </summary>
+    public void Refresh()
+    {
+        RefreshFileList();
+
+        // Try to restore focus to the same item
+        FocusFirstOrSpecificItem(_lastFocusedFilePath);
+    }
 
     public void FocusLastFileButton()
     {
@@ -340,10 +598,132 @@ public class FileExplorer
         }
     }
 
+    /// <summary>
+    /// Checks if the current focus is in the explorer.
+    /// </summary>
+    public bool IsFocusedInExplorer()
+    {
+        var focusedWidget = _termui.GetType()
+            .GetField("_focusedWidget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.GetValue(_termui) as IWidget;
+
+        return IsFocusInExplorer(focusedWidget);
+    }
+
+    /// <summary>
+    /// Focuses on a specific item by path, or the first item if no path is provided.
+    /// </summary>
+    private void FocusFirstOrSpecificItem(string? itemPath)
+    {
+        if (itemPath is not null)
+        {
+            // Try to find the button for the specific item
+            var button = _buttonPathMap.FirstOrDefault(kvp => kvp.Value == itemPath).Key;
+            if (button is not null)
+            {
+                _termui.SetFocus(button);
+                _lastFocusedFilePath = itemPath;
+                return;
+            }
+        }
+
+        // Focus the first item
+        var firstButton = _buttonPathMap.Keys.FirstOrDefault();
+        if (firstButton is not null)
+        {
+            _termui.SetFocus(firstButton);
+            _lastFocusedFilePath = _buttonPathMap[firstButton];
+        }
+    }
+
     public void ApplySort(FilterType sortType)
     {
         _currentSort = sortType;
         RefreshFileList();
+    }
+
+    /// <summary>
+    /// Navigates to a new directory and updates the history.
+    /// </summary>
+    public void NavigateToDirectory(string newDirectory, string? clickedItem = null)
+    {
+        if (!Directory.Exists(newDirectory))
+        {
+            return;
+        }
+
+        // Add current directory to back history with the item we're about to click
+        // This way when we go back, we can focus on the item that led us to the next directory
+        if (_historyBack.Count == 0 || _historyBack[^1].directory != _currentDirectory)
+        {
+            _historyBack.Add((_currentDirectory, clickedItem));
+        }
+
+        // Clear forward history when navigating to a new directory
+        _historyForward.Clear();
+
+        // Navigate to new directory
+        _currentDirectory = newDirectory;
+        _lastClickedItemInCurrentDir = clickedItem;
+
+        RefreshFileList();
+
+        // Focus the first item after navigation
+        FocusFirstOrSpecificItem(null);
+    }
+
+    /// <summary>
+    /// Goes back in the navigation history (Ctrl+U).
+    /// </summary>
+    public void GoBack()
+    {
+        if (_historyBack.Count == 0)
+        {
+            return;
+        }
+
+        // Add current directory to forward history
+        _historyForward.Add((_currentDirectory, _lastClickedItemInCurrentDir));
+
+        // Get the last directory from back history
+        var (previousDirectory, lastClickedItem) = _historyBack[^1];
+        _historyBack.RemoveAt(_historyBack.Count - 1);
+
+        // Navigate to it
+        _currentDirectory = previousDirectory;
+        _lastClickedItemInCurrentDir = lastClickedItem;
+
+        RefreshFileList();
+
+        // Focus on the item that was clicked to enter the directory we're coming from
+        FocusFirstOrSpecificItem(lastClickedItem);
+    }
+
+    /// <summary>
+    /// Goes forward in the navigation history (Ctrl+Y).
+    /// </summary>
+    public void GoForward()
+    {
+        if (_historyForward.Count == 0)
+        {
+            return;
+        }
+
+        // Add current directory to back history
+        _historyBack.Add((_currentDirectory, _lastClickedItemInCurrentDir));
+
+        // Get the last directory from forward history
+        var (nextDirectory, lastClickedItem) = _historyForward[^1];
+        _historyForward.RemoveAt(_historyForward.Count - 1);
+
+        // Navigate to it
+        _currentDirectory = nextDirectory;
+        _lastClickedItemInCurrentDir = lastClickedItem;
+
+        RefreshFileList();
+
+        // Focus on the first item or specific item if available
+        FocusFirstOrSpecificItem(lastClickedItem);
     }
 
     private void RefreshFileList()
@@ -512,6 +892,16 @@ public class FileExplorer
 
     private void OnFileItemClick(string itemPath, Button button)
     {
+        // If it's a directory, navigate to it
+        if (Directory.Exists(itemPath))
+        {
+            // When navigating forward, we want to remember the path of the folder we clicked
+            // so when we come back, we can focus on it again
+            NavigateToDirectory(itemPath, clickedItem: itemPath);
+            return;
+        }
+
+        // For files: handle selection
         // Single selection mode: clear previous selections
         // TODO: Implement Ctrl+Click multi-selection when framework supports modifier detection in Click events
         _selectedItems.Clear();
@@ -582,11 +972,6 @@ public class FileExplorer
         if (_btnRename is not null)
         {
             _btnRename.Disabled = !hasSelection;
-        }
-
-        if (_btnProperties is not null)
-        {
-            _btnProperties.Disabled = !hasSelection;
         }
     }
 
@@ -693,6 +1078,417 @@ public class FileExplorer
             _rightColumn.Height = $"{contentHeight}ch";
             _rightColumn.PositionX = $"{leftColumnWidth}ch";
             _rightColumn.PositionY = $"{TopBarHeight + 1}ch";
+        }
+    }
+
+    private void OnRenameClick(object? sender, EventArgs e)
+    {
+        if (_lastFocusedFilePath is null || _inputRename is null)
+        {
+            return;
+        }
+
+        // Store the item being renamed
+        _itemBeingRenamed = _lastFocusedFilePath;
+
+        // Get the current name (without path)
+        string currentName = Path.GetFileName(_lastFocusedFilePath);
+
+        // Set input value to current name
+        _inputRename.Value = currentName;
+
+        // Get the button for the focused item to position the overlay
+        var button = _buttonPathMap.FirstOrDefault(kvp => kvp.Value == _lastFocusedFilePath).Key;
+        if (button is not null && _leftColumn is not null)
+        {
+            // Parse the button's PositionY to get its Y offset within the container
+            string buttonPosY = button.PositionY;
+            if (buttonPosY.EndsWith("ch"))
+            {
+                buttonPosY = buttonPosY[..^2]; // Remove "ch"
+            }
+
+            if (int.TryParse(buttonPosY, out int buttonYInContainer))
+            {
+                // Calculate absolute position
+                // Y = TopBarHeight + 1 (container offset) + button's Y in container - scroll offset
+                long scrollOffset = ((IWidget)_leftColumn).ScrollOffsetY;
+                int inputY = TopBarHeight + 1 + buttonYInContainer - (int)scrollOffset;
+
+                // X position is just a small offset from the left edge of the left column
+                int inputX = 2;
+
+                _inputRename.PositionX = $"{inputX}ch";
+                _inputRename.PositionY = $"{inputY}ch";
+            }
+        }
+
+        // Show the input and focus it
+        _inputRename.Visible = true;
+        _termui.SetFocus(_inputRename);
+    }
+
+    private void OnRenameInputEnter(object? sender, string newName)
+    {
+        if (_itemBeingRenamed is null || string.IsNullOrWhiteSpace(newName))
+        {
+            CloseRenameOverlay();
+            return;
+        }
+
+        try
+        {
+            // Get the current name (without path)
+            string currentName = Path.GetFileName(_itemBeingRenamed);
+
+            // If name hasn't changed, just close the overlay without doing anything
+            if (newName == currentName)
+            {
+                CloseRenameOverlay();
+                return;
+            }
+
+            // Build the new path
+            string directory = Path.GetDirectoryName(_itemBeingRenamed) ?? _currentDirectory;
+            string newPath = Path.Combine(directory, newName);
+
+            // Check if target already exists
+            if (File.Exists(newPath) || Directory.Exists(newPath))
+            {
+                // TODO: Show error message
+                CloseRenameOverlay();
+                return;
+            }
+
+            // Perform the rename
+            if (Directory.Exists(_itemBeingRenamed))
+            {
+                Directory.Move(_itemBeingRenamed, newPath);
+            }
+            else if (File.Exists(_itemBeingRenamed))
+            {
+                File.Move(_itemBeingRenamed, newPath);
+            }
+
+            // Update selection if the item was selected
+            if (_selectedItems.Contains(_itemBeingRenamed))
+            {
+                _selectedItems.Remove(_itemBeingRenamed);
+                _selectedItems.Add(newPath);
+            }
+
+            // Update last focused path
+            if (_lastFocusedFilePath == _itemBeingRenamed)
+            {
+                _lastFocusedFilePath = newPath;
+            }
+
+            // Refresh the file list
+            RefreshFileList();
+
+            // Focus the renamed item
+            FocusFirstOrSpecificItem(newPath);
+
+            CloseRenameOverlay();
+        }
+        catch (Exception)
+        {
+            // TODO: Show error message
+            CloseRenameOverlay();
+        }
+    }
+
+    private void CloseRenameOverlay()
+    {
+        if (_inputRename is null)
+        {
+            return;
+        }
+
+        _inputRename.Visible = false;
+        _itemBeingRenamed = null;
+
+        // Return focus to the file explorer
+        if (_lastFocusedFilePath is not null)
+        {
+            var button = _buttonPathMap.FirstOrDefault(kvp => kvp.Value == _lastFocusedFilePath).Key;
+            if (button is not null)
+            {
+                _termui.SetFocus(button);
+            }
+        }
+    }
+
+    private void OnDeleteClick(object? sender, EventArgs e)
+    {
+        if (_lastFocusedFilePath is null)
+        {
+            return;
+        }
+
+        // Update the confirmation text with the item name
+        if (_deleteConfirmText is not null)
+        {
+            string itemName = Path.GetFileName(_lastFocusedFilePath);
+            _deleteConfirmText.Content = $"Are you sure you want to delete '{itemName}'?";
+        }
+
+        // Show overlay and popup (centered)
+        ShowDeleteConfirmation();
+    }
+
+    private void ShowDeleteConfirmation()
+    {
+        if (_deleteOverlay is null || _deleteConfirmPopup is null || _btnDeleteNo is null)
+        {
+            return;
+        }
+
+        // Hide all other UI elements
+        if (_leftColumn is not null) _leftColumn.Visible = false;
+        if (_rightColumn is not null) _rightColumn.Visible = false;
+        if (_navigationHints is not null) _navigationHints.Visible = false;
+
+        // Center the popup
+        const int popupWidth = 50;
+        const int popupHeight = 10;
+        int centerX = (Console.WindowWidth - popupWidth) / 2;
+        int centerY = (Console.WindowHeight - popupHeight) / 2;
+
+        _deleteConfirmPopup.PositionX = $"{centerX}ch";
+        _deleteConfirmPopup.PositionY = $"{centerY}ch";
+
+        // Show overlay and popup
+        _deleteOverlay.Visible = true;
+        _deleteConfirmPopup.Visible = true;
+
+        // Focus the "No" button by default (safer option)
+        _termui.SetFocus(_btnDeleteNo);
+    }
+
+    private void OnDeleteConfirmYes(object? sender, EventArgs e)
+    {
+        if (_lastFocusedFilePath is null)
+        {
+            CloseDeleteConfirmation();
+            return;
+        }
+
+        try
+        {
+            // Delete the file or directory
+            if (Directory.Exists(_lastFocusedFilePath))
+            {
+                Directory.Delete(_lastFocusedFilePath, true); // Recursive delete
+            }
+            else if (File.Exists(_lastFocusedFilePath))
+            {
+                File.Delete(_lastFocusedFilePath);
+            }
+
+            // Remove from selection
+            _selectedItems.Remove(_lastFocusedFilePath);
+
+            // Clear last focused path
+            _lastFocusedFilePath = null;
+
+            // Refresh the file list
+            RefreshFileList();
+
+            // Focus the first item
+            FocusFirstOrSpecificItem(null);
+
+            CloseDeleteConfirmation();
+        }
+        catch (Exception)
+        {
+            // TODO: Show error message
+            CloseDeleteConfirmation();
+        }
+    }
+
+    private void OnDeleteConfirmNo(object? sender, EventArgs e)
+    {
+        CloseDeleteConfirmation();
+    }
+
+    private void CloseDeleteConfirmation()
+    {
+        if (_deleteOverlay is null || _deleteConfirmPopup is null)
+        {
+            return;
+        }
+
+        _deleteOverlay.Visible = false;
+        _deleteConfirmPopup.Visible = false;
+
+        // Show all other UI elements again
+        if (_leftColumn is not null) _leftColumn.Visible = true;
+        if (_rightColumn is not null) _rightColumn.Visible = true;
+        if (_navigationHints is not null) _navigationHints.Visible = true;
+
+        // Return focus to the file explorer
+        if (_lastFocusedFilePath is not null)
+        {
+            var button = _buttonPathMap.FirstOrDefault(kvp => kvp.Value == _lastFocusedFilePath).Key;
+            if (button is not null)
+            {
+                _termui.SetFocus(button);
+            }
+        }
+    }
+
+    private void OnCopyClick(object? sender, EventArgs e)
+    {
+        if (_clipboardOperation != ClipboardOperation.None)
+        {
+            // Paste operation
+            PerformPaste();
+        }
+        else
+        {
+            // Copy operation
+            if (_lastFocusedFilePath is null)
+            {
+                return;
+            }
+
+            _clipboardOperation = ClipboardOperation.Copy;
+            _clipboardItemPath = _lastFocusedFilePath;
+            UpdateButtonLabels();
+        }
+    }
+
+    private void OnMoveClick(object? sender, EventArgs e)
+    {
+        if (_clipboardOperation != ClipboardOperation.None)
+        {
+            // Cancel operation
+            _clipboardOperation = ClipboardOperation.None;
+            _clipboardItemPath = null;
+            UpdateButtonLabels();
+        }
+        else
+        {
+            // Move operation
+            if (_lastFocusedFilePath is null)
+            {
+                return;
+            }
+
+            _clipboardOperation = ClipboardOperation.Move;
+            _clipboardItemPath = _lastFocusedFilePath;
+            UpdateButtonLabels();
+        }
+    }
+
+    private void PerformPaste()
+    {
+        if (_clipboardItemPath is null || _clipboardOperation == ClipboardOperation.None)
+        {
+            return;
+        }
+
+        try
+        {
+            string itemName = Path.GetFileName(_clipboardItemPath);
+            string targetPath = Path.Combine(_currentDirectory, itemName);
+
+            // Check if target already exists
+            if (File.Exists(targetPath) || Directory.Exists(targetPath))
+            {
+                // TODO: Show error message or ask for rename
+                _clipboardOperation = ClipboardOperation.None;
+                _clipboardItemPath = null;
+                UpdateButtonLabels();
+                return;
+            }
+
+            if (_clipboardOperation == ClipboardOperation.Copy)
+            {
+                // Copy file or directory
+                if (Directory.Exists(_clipboardItemPath))
+                {
+                    CopyDirectory(_clipboardItemPath, targetPath);
+                }
+                else if (File.Exists(_clipboardItemPath))
+                {
+                    File.Copy(_clipboardItemPath, targetPath);
+                }
+
+                // Keep clipboard for multiple pastes
+            }
+            else if (_clipboardOperation == ClipboardOperation.Move)
+            {
+                // Move file or directory
+                if (Directory.Exists(_clipboardItemPath))
+                {
+                    Directory.Move(_clipboardItemPath, targetPath);
+                }
+                else if (File.Exists(_clipboardItemPath))
+                {
+                    File.Move(_clipboardItemPath, targetPath);
+                }
+
+                // Clear clipboard after move
+                _clipboardOperation = ClipboardOperation.None;
+                _clipboardItemPath = null;
+                UpdateButtonLabels();
+            }
+
+            // Refresh the file list
+            RefreshFileList();
+
+            // Focus the pasted/moved item
+            FocusFirstOrSpecificItem(targetPath);
+        }
+        catch (Exception)
+        {
+            // TODO: Show error message
+            _clipboardOperation = ClipboardOperation.None;
+            _clipboardItemPath = null;
+            UpdateButtonLabels();
+        }
+    }
+
+    private void CopyDirectory(string sourceDir, string targetDir)
+    {
+        // Create target directory
+        Directory.CreateDirectory(targetDir);
+
+        // Copy all files
+        foreach (string file in Directory.GetFiles(sourceDir))
+        {
+            string fileName = Path.GetFileName(file);
+            string targetFile = Path.Combine(targetDir, fileName);
+            File.Copy(file, targetFile);
+        }
+
+        // Copy all subdirectories recursively
+        foreach (string subDir in Directory.GetDirectories(sourceDir))
+        {
+            string dirName = Path.GetFileName(subDir);
+            string targetSubDir = Path.Combine(targetDir, dirName);
+            CopyDirectory(subDir, targetSubDir);
+        }
+    }
+
+    private void UpdateButtonLabels()
+    {
+        if (_btnCopy is not null && _btnMove is not null)
+        {
+            if (_clipboardOperation != ClipboardOperation.None)
+            {
+                // Show Paste and Cancel
+                _btnCopy.Text = "Paste";
+                _btnMove.Text = "Cancel";
+            }
+            else
+            {
+                // Show Copy and Move
+                _btnCopy.Text = "Copy";
+                _btnMove.Text = "Move";
+            }
         }
     }
 }

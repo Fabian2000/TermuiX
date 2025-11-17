@@ -46,6 +46,14 @@ try
     }
 
     sidebar.Initialize();
+    sidebar.SetFileExplorer(fileExplorer);
+
+    // Set initial directory to first drive from sidebar
+    var firstDrive = sidebar.GetFirstDrive();
+    if (firstDrive is not null)
+    {
+        fileExplorer.NavigateToDirectory(firstDrive);
+    }
 
     var filterButton = topBar.GetFilterButton();
     var filterPopup = new FilterPopup(termui, filterButton);
@@ -136,6 +144,13 @@ try
         }
         else if (key.Key == ConsoleKey.P)
         {
+            // Select the current item first (if in explorer)
+            if (fileExplorer.IsFocusedInExplorer())
+            {
+                fileExplorer.SelectCurrentItem();
+            }
+
+            // Then jump to copy button
             var copyButton = fileExplorer.GetCopyButton();
             if (copyButton is not null)
             {
@@ -144,7 +159,24 @@ try
         }
         else if (key.Key == ConsoleKey.R)
         {
-            fileExplorer.FocusLastFileButton();
+            // If focus is in explorer, refresh the directory
+            // Otherwise, jump to explorer
+            if (fileExplorer.IsFocusedInExplorer())
+            {
+                fileExplorer.Refresh();
+            }
+            else
+            {
+                fileExplorer.FocusLastFileButton();
+            }
+        }
+        else if (key.Key == ConsoleKey.U)
+        {
+            fileExplorer.GoBack();
+        }
+        else if (key.Key == ConsoleKey.Y)
+        {
+            fileExplorer.GoForward();
         }
     };
 

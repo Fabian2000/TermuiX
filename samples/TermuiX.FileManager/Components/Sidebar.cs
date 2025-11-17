@@ -19,6 +19,7 @@ public class Sidebar
     private List<string> _cachedDrives = [];
     private Timer? _driveWatcher;
     private readonly Button? _burgerButton;
+    private FileExplorer? _fileExplorer;
 
     public bool IsOpen { get; private set; }
 
@@ -28,6 +29,16 @@ public class Sidebar
         _burgerButton = burgerButton;
         IsOpen = false;
         InitializeDriveWatcher();
+    }
+
+    public void SetFileExplorer(FileExplorer fileExplorer)
+    {
+        _fileExplorer = fileExplorer;
+    }
+
+    public string? GetFirstDrive()
+    {
+        return _cachedDrives.FirstOrDefault();
     }
 
     private void InitializeDriveWatcher()
@@ -123,6 +134,10 @@ public class Sidebar
                 FocusBackgroundColor = ConsoleColor.DarkGray,
                 FocusForegroundColor = ConsoleColor.White
             };
+
+            // Capture the drive name for the click handler
+            string capturedDriveName = driveName;
+            button.Click += (sender, e) => OnDriveClick(capturedDriveName);
 
             _contentContainer.Add(button);
 
@@ -349,6 +364,21 @@ public class Sidebar
     private void OnSearchTextChanged(object? sender, string newValue)
     {
         RefreshDriveButtons(newValue);
+    }
+
+    private void OnDriveClick(string driveName)
+    {
+        if (_fileExplorer is null)
+        {
+            return;
+        }
+
+        // Navigate to the drive root directory
+        // Pass the drive name as clicked item so history navigation works correctly
+        _fileExplorer.NavigateToDirectory(driveName, clickedItem: driveName);
+
+        // Close the sidebar
+        _ = CloseAsync();
     }
 
     private void UpdateFocusability()
