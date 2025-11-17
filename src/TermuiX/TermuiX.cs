@@ -279,6 +279,9 @@ public sealed class TermuiX
         _focusedWidget.Focussed = true;
 
         FocusChanged?.Invoke(this, widget);
+
+        // Auto-scroll to the focused widget if it's outside the visible area
+        ScrollToWidget(_focusedWidget);
     }
 
     private void MoveFocus(bool forward)
