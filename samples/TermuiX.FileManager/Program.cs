@@ -56,6 +56,7 @@ try
     }
 
     filterPopup.Initialize();
+    filterPopup.SetFileExplorer(fileExplorer);
 
     if (burgerButton is not null)
     {
@@ -140,6 +141,10 @@ try
             {
                 termui.SetFocus(copyButton);
             }
+        }
+        else if (key.Key == ConsoleKey.R)
+        {
+            fileExplorer.FocusLastFileButton();
         }
     };
 

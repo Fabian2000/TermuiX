@@ -3,6 +3,16 @@ using TermuiXLib = TermuiX.TermuiX;
 
 namespace TermuiX.FileManager.Components;
 
+public enum FilterType
+{
+    NameAsc,
+    NameDesc,
+    DateAsc,
+    DateDesc,
+    SizeAsc,
+    SizeDesc
+}
+
 public class FilterPopup
 {
     private const int PopupWidth = 14;
@@ -17,6 +27,7 @@ public class FilterPopup
     private Button? _dateDescButton;
     private Button? _sizeAscButton;
     private Button? _sizeDescButton;
+    private FileExplorer? _fileExplorer;
 
     public bool IsOpen { get; private set; }
 
@@ -25,6 +36,11 @@ public class FilterPopup
         _termui = termui;
         _filterButton = filterButton;
         IsOpen = false;
+    }
+
+    public void SetFileExplorer(FileExplorer fileExplorer)
+    {
+        _fileExplorer = fileExplorer;
     }
 
     public string BuildXml()
@@ -168,7 +184,42 @@ public class FilterPopup
         _sizeAscButton = _termui.GetWidget<Button>("btnSizeAsc");
         _sizeDescButton = _termui.GetWidget<Button>("btnSizeDesc");
 
+        // Attach click handlers
+        if (_nameAscButton is not null)
+        {
+            _nameAscButton.Click += (sender, e) => OnFilterSelected(FilterType.NameAsc);
+        }
+        if (_nameDescButton is not null)
+        {
+            _nameDescButton.Click += (sender, e) => OnFilterSelected(FilterType.NameDesc);
+        }
+        if (_dateAscButton is not null)
+        {
+            _dateAscButton.Click += (sender, e) => OnFilterSelected(FilterType.DateAsc);
+        }
+        if (_dateDescButton is not null)
+        {
+            _dateDescButton.Click += (sender, e) => OnFilterSelected(FilterType.DateDesc);
+        }
+        if (_sizeAscButton is not null)
+        {
+            _sizeAscButton.Click += (sender, e) => OnFilterSelected(FilterType.SizeAsc);
+        }
+        if (_sizeDescButton is not null)
+        {
+            _sizeDescButton.Click += (sender, e) => OnFilterSelected(FilterType.SizeDesc);
+        }
+
         UpdateLayout();
+    }
+
+    private void OnFilterSelected(FilterType filterType)
+    {
+        // Apply filter to file explorer
+        _fileExplorer?.ApplySort(filterType);
+
+        // Close popup and return focus to filter button
+        Close();
     }
 
     public void Open()

@@ -25,6 +25,8 @@ public class FileExplorer
     private readonly HashSet<string> _selectedItems = [];
     private readonly Dictionary<Button, string> _buttonPathMap = [];
     private string? _filterText;
+    private FilterType _currentSort = FilterType.NameAsc;
+    private string? _lastFocusedFilePath;
 
     public FileExplorer(TermuiXLib termui)
     {
@@ -33,17 +35,27 @@ public class FileExplorer
 
     public string BuildXml()
     {
-        int contentHeight = Console.WindowHeight - TopBarHeight;
+        int contentHeight = Console.WindowHeight - TopBarHeight - 1;
         int leftColumnWidth = (int)(Console.WindowWidth * 0.7);
         int rightColumnWidth = Console.WindowWidth - leftColumnWidth;
 
         return $@"
+<Text
+    Name='navigationHints'
+    PositionX='0ch'
+    PositionY='{TopBarHeight}ch'
+    Height='1ch'
+    BackgroundColor='Black'
+    ForegroundColor='DarkGray'>
+    ↓ Ctrl+R ← Ctrl+Z Ctrl+Y →
+</Text>
+
 <Container
     Name='leftColumn'
     Width='{leftColumnWidth}ch'
     Height='{contentHeight}ch'
     PositionX='0ch'
-    PositionY='{TopBarHeight}ch'
+    PositionY='{TopBarHeight + 1}ch'
     BackgroundColor='Black'
     ForegroundColor='White'
     Scrollable='true'>
@@ -54,7 +66,7 @@ public class FileExplorer
     Width='{rightColumnWidth}ch'
     Height='{contentHeight}ch'
     PositionX='{leftColumnWidth}ch'
-    PositionY='{TopBarHeight}ch'
+    PositionY='{TopBarHeight + 1}ch'
     BackgroundColor='Black'
     ForegroundColor='White'
     Scrollable='true'>
@@ -306,6 +318,34 @@ public class FileExplorer
 
     public Button? GetCopyButton() => _btnCopy;
 
+    public void FocusLastFileButton()
+    {
+        // If we have a last focused path, find the button for that path
+        if (_lastFocusedFilePath is not null)
+        {
+            var button = _buttonPathMap.FirstOrDefault(kvp => kvp.Value == _lastFocusedFilePath).Key;
+            if (button is not null)
+            {
+                _termui.SetFocus(button);
+                return;
+            }
+        }
+
+        // Otherwise, focus the first file button
+        var firstButton = _buttonPathMap.Keys.FirstOrDefault();
+        if (firstButton is not null)
+        {
+            _termui.SetFocus(firstButton);
+            _lastFocusedFilePath = _buttonPathMap[firstButton];
+        }
+    }
+
+    public void ApplySort(FilterType sortType)
+    {
+        _currentSort = sortType;
+        RefreshFileList();
+    }
+
     private void RefreshFileList()
     {
         if (_leftColumn is null)
@@ -330,12 +370,10 @@ public class FileExplorer
             // Get directories and files
             var directories = Directory.GetDirectories(_currentDirectory)
                 .Select(d => new DirectoryInfo(d))
-                .OrderBy(d => d.Name)
                 .ToList();
 
             var files = Directory.GetFiles(_currentDirectory)
                 .Select(f => new FileInfo(f))
-                .OrderBy(f => f.Name)
                 .ToList();
 
             // Apply filter if set
@@ -349,6 +387,29 @@ public class FileExplorer
                     .Where(f => f.Name.Contains(_filterText, StringComparison.OrdinalIgnoreCase))
                     .ToList();
             }
+
+            // Apply sorting
+            directories = _currentSort switch
+            {
+                FilterType.NameAsc => directories.OrderBy(d => d.Name).ToList(),
+                FilterType.NameDesc => directories.OrderByDescending(d => d.Name).ToList(),
+                FilterType.DateAsc => directories.OrderBy(d => d.LastWriteTime).ToList(),
+                FilterType.DateDesc => directories.OrderByDescending(d => d.LastWriteTime).ToList(),
+                FilterType.SizeAsc => directories.OrderBy(d => d.Name).ToList(), // Directories don't have size
+                FilterType.SizeDesc => directories.OrderBy(d => d.Name).ToList(), // Directories don't have size
+                _ => directories.OrderBy(d => d.Name).ToList()
+            };
+
+            files = _currentSort switch
+            {
+                FilterType.NameAsc => files.OrderBy(f => f.Name).ToList(),
+                FilterType.NameDesc => files.OrderByDescending(f => f.Name).ToList(),
+                FilterType.DateAsc => files.OrderBy(f => f.LastWriteTime).ToList(),
+                FilterType.DateDesc => files.OrderByDescending(f => f.LastWriteTime).ToList(),
+                FilterType.SizeAsc => files.OrderBy(f => f.Length).ToList(),
+                FilterType.SizeDesc => files.OrderByDescending(f => f.Length).ToList(),
+                _ => files.OrderBy(f => f.Name).ToList()
+            };
 
             int yPosition = 0;
             int buttonIndex = 0;
@@ -444,6 +505,9 @@ public class FileExplorer
 
             _leftColumn.Add(errorButton);
         }
+
+        // Restore selection colors for previously selected items
+        UpdateSelectionColors();
     }
 
     private void OnFileItemClick(string itemPath, Button button)
@@ -454,6 +518,9 @@ public class FileExplorer
 
         // Add clicked item to selection
         _selectedItems.Add(itemPath);
+
+        // Remember this path as the last focused file path
+        _lastFocusedFilePath = itemPath;
 
         // Update button colors for all file item buttons
         UpdateSelectionColors();
@@ -609,7 +676,7 @@ public class FileExplorer
 
     public void UpdateLayout()
     {
-        int contentHeight = Console.WindowHeight - TopBarHeight;
+        int contentHeight = Console.WindowHeight - TopBarHeight - 1;
         int leftColumnWidth = (int)(Console.WindowWidth * 0.7);
         int rightColumnWidth = Console.WindowWidth - leftColumnWidth;
 
@@ -617,6 +684,7 @@ public class FileExplorer
         {
             _leftColumn.Width = $"{leftColumnWidth}ch";
             _leftColumn.Height = $"{contentHeight}ch";
+            _leftColumn.PositionY = $"{TopBarHeight + 1}ch";
         }
 
         if (_rightColumn is not null)
@@ -624,6 +692,7 @@ public class FileExplorer
             _rightColumn.Width = $"{rightColumnWidth}ch";
             _rightColumn.Height = $"{contentHeight}ch";
             _rightColumn.PositionX = $"{leftColumnWidth}ch";
+            _rightColumn.PositionY = $"{TopBarHeight + 1}ch";
         }
     }
 }
