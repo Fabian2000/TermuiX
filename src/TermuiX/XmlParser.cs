@@ -1,3 +1,4 @@
+using System.Text;
 using System.Xml.Linq;
 using TermuiX.Widgets;
 
@@ -11,6 +12,47 @@ internal static class XmlParser
         var root = doc.Root ?? throw new InvalidOperationException("XML document has no root element");
 
         return ParseElement(root);
+    }
+
+    private static int CalculateDisplayWidth(string text)
+    {
+        int totalWidth = 0;
+        foreach (var rune in text.EnumerateRunes())
+        {
+            totalWidth += GetRuneDisplayWidth(rune);
+        }
+        return totalWidth;
+    }
+
+    private static int GetRuneDisplayWidth(Rune rune)
+    {
+        int value = rune.Value;
+
+        // Emoji ranges (simplified check for common emoji blocks)
+        if ((value >= 0x1F300 && value <= 0x1F9FF) || // Misc Symbols and Pictographs, Emoticons, etc.
+            (value >= 0x2600 && value <= 0x27BF) ||   // Misc symbols
+            (value >= 0x1F600 && value <= 0x1F64F) || // Emoticons
+            (value >= 0x1F680 && value <= 0x1F6FF) || // Transport and Map
+            (value >= 0x1F900 && value <= 0x1F9FF))   // Supplemental Symbols
+        {
+            return 2;
+        }
+
+        // East Asian Wide and Fullwidth characters
+        if ((value >= 0x1100 && value <= 0x115F) ||   // Hangul Jamo
+            (value >= 0x2E80 && value <= 0x9FFF) ||   // CJK
+            (value >= 0xAC00 && value <= 0xD7A3) ||   // Hangul Syllables
+            (value >= 0xF900 && value <= 0xFAFF) ||   // CJK Compatibility Ideographs
+            (value >= 0xFF00 && value <= 0xFF60) ||   // Fullwidth Forms
+            (value >= 0xFFE0 && value <= 0xFFE6) ||   // Fullwidth Forms
+            (value >= 0x20000 && value <= 0x2FFFD) || // CJK Extension
+            (value >= 0x30000 && value <= 0x3FFFD))   // CJK Extension
+        {
+            return 2;
+        }
+
+        // Default: 1 cell for ASCII and most characters
+        return 1;
     }
 
     private static IWidget ParseElement(XElement element)
@@ -59,7 +101,7 @@ internal static class XmlParser
         {
             if (!element.Attributes().Any(a => a.Name.LocalName.Equals("Width", StringComparison.OrdinalIgnoreCase)))
             {
-                int autoWidth = textContent.Length + 4;
+                int autoWidth = CalculateDisplayWidth(textContent) + 4;
                 button.Width = $"{autoWidth}ch";
             }
 
@@ -77,7 +119,7 @@ internal static class XmlParser
                 if (!element.Attributes().Any(a => a.Name.LocalName.Equals("Width", StringComparison.OrdinalIgnoreCase)))
                 {
                     var lines = textContent.Split('\n');
-                    int maxWidth = lines.Max(line => line.Length);
+                    int maxWidth = lines.Max(line => CalculateDisplayWidth(line));
                     text.Width = $"{maxWidth}ch";
                 }
 

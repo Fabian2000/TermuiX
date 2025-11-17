@@ -700,13 +700,23 @@ public sealed class TermuiX
             {
             }
 
+            int displayWidth = 0;
             for (int x = 0; x < chars[y].Length; x++)
             {
+                var rune = chars[y][x];
+                int runeWidth = GetRuneDisplayWidth(rune);
+
+                // Stop if this rune would exceed the terminal width
+                if (displayWidth + runeWidth > width)
+                {
+                    break;
+                }
+
                 Console.BackgroundColor = bgColors[y][x];
                 Console.ForegroundColor = fgColors[y][x];
 
                 // Write the Rune by encoding to UTF16
-                int charsWritten = chars[y][x].EncodeToUtf16(buffer);
+                int charsWritten = rune.EncodeToUtf16(buffer);
                 if (charsWritten == 1)
                 {
                     Console.Write(buffer[0]);
@@ -716,9 +726,42 @@ public sealed class TermuiX
                     Console.Write(buffer[0]);
                     Console.Write(buffer[1]);
                 }
+
+                displayWidth += runeWidth;
             }
         }
 
         Console.ResetColor();
+    }
+
+    private static int GetRuneDisplayWidth(Rune rune)
+    {
+        int value = rune.Value;
+
+        // Emoji ranges (simplified check for common emoji blocks)
+        if ((value >= 0x1F300 && value <= 0x1F9FF) || // Misc Symbols and Pictographs, Emoticons, etc.
+            (value >= 0x2600 && value <= 0x27BF) ||   // Misc symbols
+            (value >= 0x1F600 && value <= 0x1F64F) || // Emoticons
+            (value >= 0x1F680 && value <= 0x1F6FF) || // Transport and Map
+            (value >= 0x1F900 && value <= 0x1F9FF))   // Supplemental Symbols
+        {
+            return 2;
+        }
+
+        // East Asian Wide and Fullwidth characters
+        if ((value >= 0x1100 && value <= 0x115F) ||   // Hangul Jamo
+            (value >= 0x2E80 && value <= 0x9FFF) ||   // CJK
+            (value >= 0xAC00 && value <= 0xD7A3) ||   // Hangul Syllables
+            (value >= 0xF900 && value <= 0xFAFF) ||   // CJK Compatibility Ideographs
+            (value >= 0xFF00 && value <= 0xFF60) ||   // Fullwidth Forms
+            (value >= 0xFFE0 && value <= 0xFFE6) ||   // Fullwidth Forms
+            (value >= 0x20000 && value <= 0x2FFFD) || // CJK Extension
+            (value >= 0x30000 && value <= 0x3FFFD))   // CJK Extension
+        {
+            return 2;
+        }
+
+        // Default: 1 cell for ASCII and most characters
+        return 1;
     }
 }

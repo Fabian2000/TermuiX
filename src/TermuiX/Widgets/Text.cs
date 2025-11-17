@@ -184,30 +184,47 @@ public class Text : IWidget
         {
             string line = lines[i];
 
-            // Convert line to Runes with styling
+            // Convert line to Runes with styling and calculate display width
             var displayRunes = new List<Rune>();
-            foreach (char c in line)
-            {
-                Rune styledRune = ApplyTextStyleToChar(c, Style);
-                displayRunes.Add(styledRune);
-            }
+            int totalDisplayWidth = 0;
 
-            // Truncate to fit width
-            if (displayRunes.Count > actualWidth)
+            foreach (Rune rune in line.EnumerateRunes())
             {
-                displayRunes = displayRunes.Take(actualWidth).ToList();
+                Rune styledRune = ApplyTextStyleToRune(rune, Style);
+                int runeWidth = GetRuneDisplayWidth(styledRune);
+
+                // Check if adding this rune would exceed the width
+                if (totalDisplayWidth + runeWidth > actualWidth)
+                {
+                    break;
+                }
+
+                displayRunes.Add(styledRune);
+                totalDisplayWidth += runeWidth;
             }
 
             int offset = TextAlign switch
             {
-                TextAlign.Center => Math.Max(0, (actualWidth - displayRunes.Count) / 2),
-                TextAlign.Right => Math.Max(0, actualWidth - displayRunes.Count),
+                TextAlign.Center => Math.Max(0, (actualWidth - totalDisplayWidth) / 2),
+                TextAlign.Right => Math.Max(0, actualWidth - totalDisplayWidth),
                 _ => 0
             };
 
-            for (int j = 0; j < displayRunes.Count && offset + j < actualWidth; j++)
+            int currentX = offset;
+            for (int j = 0; j < displayRunes.Count && currentX < actualWidth; j++)
             {
-                result[i][offset + j] = displayRunes[j];
+                Rune rune = displayRunes[j];
+                result[i][currentX] = rune;
+
+                int runeWidth = GetRuneDisplayWidth(rune);
+                currentX += runeWidth;
+
+                // Fill additional cells for wide characters (emojis)
+                for (int k = 1; k < runeWidth && currentX < actualWidth; k++)
+                {
+                    result[i][currentX] = new Rune(' ');
+                    currentX++;
+                }
             }
         }
 
@@ -306,12 +323,60 @@ public class Text : IWidget
         return 0;
     }
 
-    private static Rune ApplyTextStyleToChar(char c, TextStyle style)
+    private static int GetRuneDisplayWidth(Rune rune)
+    {
+        // Most emojis and East Asian characters take 2 cells
+        // ASCII and most Latin characters take 1 cell
+        int value = rune.Value;
+
+        // Emoji ranges (simplified check for common emoji blocks)
+        if ((value >= 0x1F300 && value <= 0x1F9FF) || // Misc Symbols and Pictographs, Emoticons, etc.
+            (value >= 0x2600 && value <= 0x27BF) ||   // Misc symbols
+            (value >= 0x1F600 && value <= 0x1F64F) || // Emoticons
+            (value >= 0x1F680 && value <= 0x1F6FF) || // Transport and Map
+            (value >= 0x1F900 && value <= 0x1F9FF))   // Supplemental Symbols
+        {
+            return 2;
+        }
+
+        // East Asian Wide and Fullwidth characters
+        if ((value >= 0x1100 && value <= 0x115F) ||   // Hangul Jamo
+            (value >= 0x2E80 && value <= 0x9FFF) ||   // CJK
+            (value >= 0xAC00 && value <= 0xD7A3) ||   // Hangul Syllables
+            (value >= 0xF900 && value <= 0xFAFF) ||   // CJK Compatibility Ideographs
+            (value >= 0xFF00 && value <= 0xFF60) ||   // Fullwidth Forms
+            (value >= 0xFFE0 && value <= 0xFFE6) ||   // Fullwidth Forms
+            (value >= 0x20000 && value <= 0x2FFFD) || // CJK Extension
+            (value >= 0x30000 && value <= 0x3FFFD))   // CJK Extension
+        {
+            return 2;
+        }
+
+        // Default: 1 cell for ASCII and most characters
+        return 1;
+    }
+
+    private static Rune ApplyTextStyleToRune(Rune rune, TextStyle style)
     {
         if (style == TextStyle.Normal)
         {
-            return new Rune(c);
+            return rune;
         }
+
+        // Only apply styling to ASCII characters that can be converted
+        // For emojis and other complex unicode, return as-is
+        if (!rune.IsAscii)
+        {
+            return rune;
+        }
+
+        int value = rune.Value;
+        if (value > 127)
+        {
+            return rune;
+        }
+
+        char c = (char)value;
 
         // Transform based on style
         if (style == TextStyle.Bold)
@@ -331,11 +396,11 @@ public class Text : IWidget
             // For underline and strikethrough, we use the base character
             // Note: Combining characters are not well-supported in Rune rendering
             // so we'll just return the base character
-            return new Rune(c);
+            return rune;
         }
         else
         {
-            return new Rune(c);
+            return rune;
         }
     }
 

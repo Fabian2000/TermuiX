@@ -356,7 +356,7 @@ public class FileExplorer
             // Add directory buttons
             foreach (var directory in directories)
             {
-                var button = new Button($"O  {directory.Name}")
+                var button = new Button($"📁 {directory.Name}")
                 {
                     Name = $"fileItem{buttonIndex}",
                     PositionX = "0ch",
@@ -388,7 +388,7 @@ public class FileExplorer
             // Add file buttons
             foreach (var file in files)
             {
-                var button = new Button($"D  {file.Name}")
+                var button = new Button($"📄 {file.Name}")
                 {
                     Name = $"fileItem{buttonIndex}",
                     PositionX = "0ch",
