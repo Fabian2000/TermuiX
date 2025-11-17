@@ -460,40 +460,22 @@ public class Input : IWidget
         if (string.IsNullOrEmpty(_text)) return;
 
         var lines = _text.Split('\n');
-        if (lines.Length == 1) return; // Only one line, can't move vertically
 
-        // Build an array of line rune counts
-        int[] lineRuneCounts = new int[lines.Length];
-        for (int i = 0; i < lines.Length; i++)
-        {
-            lineRuneCounts[i] = lines[i].EnumerateRunes().Count();
-        }
-
-        // Find current line and column (using Rune counts)
+        // Find current line and column
         int currentLine = 0;
         int currentCol = 0;
-        int runePos = 0;
+        int runesSoFar = 0;
 
         for (int i = 0; i < lines.Length; i++)
         {
-            // Check if cursor is on this line
-            if (i < lines.Length - 1)
+            int lineRuneCount = lines[i].EnumerateRunes().Count();
+            if (runesSoFar + lineRuneCount >= _cursorPosition)
             {
-                // Not the last line - check including the newline position
-                if (_cursorPosition <= runePos + lineRuneCounts[i])
-                {
-                    currentLine = i;
-                    currentCol = _cursorPosition - runePos;
-                    break;
-                }
-                runePos += lineRuneCounts[i] + 1; // +1 for \n
-            }
-            else
-            {
-                // Last line - cursor must be here
                 currentLine = i;
-                currentCol = _cursorPosition - runePos;
+                currentCol = _cursorPosition - runesSoFar;
+                break;
             }
+            runesSoFar += lineRuneCount + 1; // +1 for newline
         }
 
         // Calculate target line
@@ -505,11 +487,12 @@ public class Input : IWidget
         int newPosition = 0;
         for (int i = 0; i < targetLine; i++)
         {
-            newPosition += lineRuneCounts[i] + 1; // +1 for \n
+            newPosition += lines[i].EnumerateRunes().Count() + 1; // +1 for newline
         }
 
-        // Add column offset (clamp to target line length)
-        int targetCol = Math.Min(currentCol, lineRuneCounts[targetLine]);
+        // Keep same column, or end of line if shorter
+        int targetLineRuneCount = lines[targetLine].EnumerateRunes().Count();
+        int targetCol = Math.Min(currentCol, targetLineRuneCount);
         newPosition += targetCol;
 
         _cursorPosition = newPosition;
@@ -774,6 +757,10 @@ public class Input : IWidget
         var wrappedLines = new List<List<Rune>>();
         var lines = displayText.Split('\n');
 
+        // Track which wrapped line corresponds to which original line
+        var wrappedLineToOriginalLine = new List<int>();
+        int originalLineIdx = 0;
+
         foreach (var line in lines)
         {
             var lineRunes = new List<Rune>();
@@ -785,6 +772,8 @@ public class Input : IWidget
             if (lineRunes.Count == 0)
             {
                 wrappedLines.Add(new List<Rune>());
+                wrappedLineToOriginalLine.Add(originalLineIdx);
+                originalLineIdx++;
                 continue;
             }
 
@@ -798,8 +787,9 @@ public class Input : IWidget
 
                 if (currentDisplayWidth + runeWidth > width && currentLine.Count > 0)
                 {
-                    // Start new line
+                    // Start new line (still part of same original line)
                     wrappedLines.Add(currentLine);
+                    wrappedLineToOriginalLine.Add(originalLineIdx);
                     currentLine = new List<Rune>();
                     currentDisplayWidth = 0;
                 }
@@ -811,29 +801,53 @@ public class Input : IWidget
             if (currentLine.Count > 0)
             {
                 wrappedLines.Add(currentLine);
+                wrappedLineToOriginalLine.Add(originalLineIdx);
             }
+
+            originalLineIdx++;
         }
 
-        // Find cursor position in wrapped lines (rune index, not display position)
-        int cursorLine = 0;
-        int cursorRuneCol = 0;
-        int runeCount = 0;
-        var allRunes = new List<Rune>();
-        foreach (var r in displayText.EnumerateRunes())
-        {
-            allRunes.Add(r);
-        }
+        // Find cursor position in original lines first
+        int cursorOrigLine = 0;
+        int cursorOrigCol = 0;
+        int runesInOrigText = 0;
 
-        for (int i = 0; i < wrappedLines.Count; i++)
+        for (int i = 0; i < lines.Length; i++)
         {
-            int lineRuneLength = wrappedLines[i].Count;
-            if (runeCount + lineRuneLength >= _cursorPosition)
+            int lineRuneCount = lines[i].EnumerateRunes().Count();
+            if (_cursorPosition <= runesInOrigText + lineRuneCount)
             {
-                cursorLine = i;
-                cursorRuneCol = _cursorPosition - runeCount;
+                cursorOrigLine = i;
+                cursorOrigCol = _cursorPosition - runesInOrigText;
                 break;
             }
-            runeCount += lineRuneLength;
+            runesInOrigText += lineRuneCount + 1; // +1 for \n
+        }
+
+        // Now find which wrapped line contains this cursor position
+        int cursorLine = 0;
+        int cursorRuneCol = 0;
+        int runesCountedInOrig = 0;
+
+        for (int wIdx = 0; wIdx < wrappedLines.Count; wIdx++)
+        {
+            if (wrappedLineToOriginalLine[wIdx] != cursorOrigLine)
+            {
+                // Skip this wrapped line, it's not in our original line
+                continue;
+            }
+
+            // This wrapped line is part of the cursor's original line
+            int runesInThisWrappedLine = wrappedLines[wIdx].Count;
+
+            if (cursorOrigCol <= runesCountedInOrig + runesInThisWrappedLine)
+            {
+                cursorLine = wIdx;
+                cursorRuneCol = cursorOrigCol - runesCountedInOrig;
+                break;
+            }
+
+            runesCountedInOrig += runesInThisWrappedLine;
         }
 
         // Adjust vertical scroll to keep cursor visible
