@@ -1,6 +1,6 @@
 # TermuiX
 
-A modern, declarative terminal UI framework for .NET 9.0 that brings XML-based UI definition to the console.
+A modern, declarative terminal UI framework for .NET 9.0 and .NET 10.0 that brings XML-based UI definition to the console.
 
 ![TermuiX Demo](https://github.com/Fabian2000/Termui/blob/main/Preview.png?raw=true)
 
@@ -12,19 +12,24 @@ TermuiX offers a unique approach to terminal UI development:
 - **Declarative UI** - Define your interface in XML, similar to web development or XAML
 - **Simple Rendering Model** - Straightforward render loop - call `Render()` when ready, no complex state management
 - **Pure C#** - No need to learn platform-specific APIs or deal with interop complexities
-- **Cross-Platform** - Works on any platform that supports .NET 9.0 and ANSI terminals
+- **Cross-Platform** - Works on any platform that supports .NET 9.0/10.0 and ANSI terminals
+- **AOT Compatible** - Full support for Native AOT compilation for minimal deployment size and fast startup
+- **Extensible** - Register custom widgets and components for reusable UI patterns
 
 Perfect for building dashboards, TUI tools, interactive CLIs, and terminal-based applications.
 
 ## Features
 
 - **Declarative XML-based UI** - Define your terminal UI using familiar XML syntax
-- **Rich Widget Set** - Comprehensive collection of interactive widgets
+- **Rich Widget Set** - Comprehensive collection of interactive widgets with disabled state support
 - **Event-Driven Architecture** - Clean event handling for user interactions
 - **Flexible Styling** - Support for colors, borders, text styles (bold, italic, underline, strikethrough)
 - **Advanced Layout** - Positioned and scrollable containers with padding support
 - **Keyboard Navigation** - Built-in Tab/Shift+Tab navigation and custom keyboard shortcuts
 - **Multi-line Support** - Tables and inputs with multi-line text capabilities
+- **Unicode & Emoji Support** - Full support for emojis, East Asian characters, and wide Unicode characters
+- **Custom Widgets** - Register your own widget types and reusable components in XML
+- **Widget Cloning** - Deep and shallow cloning support for all widgets
 
 ## Available Widgets
 
@@ -343,9 +348,81 @@ TermuiX supports multiple border styles:
 
 ## Requirements
 
-- .NET 9.0 or higher
+- .NET 9.0 or .NET 10.0
 - Terminal with Unicode support
 - Terminal with ANSI color support
+
+## What's New in v1.1.0
+
+### Custom Widget & Component Registration
+Register your own widget types and reusable components directly in the XML parser:
+
+```csharp
+// Register a custom widget
+termui.RegisterWidget("CustomButton", attrs =>
+{
+    var text = attrs.GetValueOrDefault("Text", "Default");
+    return new CustomButton(text);
+});
+
+// Register a reusable component
+var fileExplorer = new FileExplorer(termui);
+termui.RegisterComponent("FileExplorer", attrs =>
+{
+    var width = attrs.GetValueOrDefault("Width", "100%");
+    return fileExplorer.BuildXml();
+});
+fileExplorer.Initialize();
+
+// Use in XML
+// <CustomButton Text="Click Me" />
+// <FileExplorer Width="80%" Height="90%" />
+```
+
+### Emoji & Unicode Support
+Full support for emojis, East Asian characters (CJK), and all wide Unicode characters with proper display width calculation:
+
+```xml
+<Text>Hello 👋 World! 你好世界</Text>
+<Button>Save 💾</Button>
+```
+
+### Disabled State for All Interactive Widgets
+All interactive widgets now support disabled states with customizable colors:
+
+```xml
+<Button Name="submitBtn" Disabled="true"
+        DisabledForegroundColor="Gray"
+        DisabledBackgroundColor="DarkGray">
+    Submit
+</Button>
+
+<Input Disabled="true" DisabledForegroundColor="DarkGray" />
+<Checkbox Disabled="true" />
+<RadioButton Disabled="true" />
+<Slider Disabled="true" />
+```
+
+### .NET 10.0 & AOT Support
+- Multi-targeting for .NET 9.0 and .NET 10.0
+- Full Native AOT compatibility for minimal deployment size
+- Enabled AOT analyzer for build-time warnings
+
+### New FileManager Sample
+Complete file explorer implementation demonstrating:
+- Two-column layout with file properties
+- Navigation with history (back/forward buttons)
+- File operations (copy, move, delete, rename)
+- Confirmation dialogs
+- Filter and sort functionality
+- Custom component registration
+
+### Framework Improvements
+- Auto-scroll to keep focused widgets visible
+- Better rendering of wide characters and emojis
+- Improved layout calculations with scrollbar awareness
+- Enhanced clipboard support in Input widget
+- Better multiline navigation with proper rune handling
 
 ## Additional Features
 
@@ -398,6 +475,7 @@ Check out the included samples:
 - **TermuiX.Demo3** - Animated sidebar with burger menu using negative positioning
 - **TermuiX.Demo4** - Component model demonstration with dynamic widget addition
 - **TermuiX.Demo5** - Auto-scroll messenger with programmatic scroll control
+- **TermuiX.FileManager** - Full-featured file explorer with custom component registration
 
 Run samples:
 
@@ -415,6 +493,9 @@ cd samples/TermuiX.Demo4
 dotnet run
 
 cd samples/TermuiX.Demo5
+dotnet run
+
+cd samples/TermuiX.FileManager
 dotnet run
 ```
 
