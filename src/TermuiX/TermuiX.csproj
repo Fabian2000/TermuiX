@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>TermuiX</AssemblyName>
@@ -9,10 +9,10 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>TermuiX</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>Fabian Schlüter</Authors>
     <Company>Fabian Schlüter</Company>
-    <Description>A modern, declarative terminal UI framework for .NET 9.0 that brings XML-based UI definition to the console. Includes rich widget set, event-driven architecture, and advanced layout capabilities.</Description>
+    <Description>A modern, declarative terminal UI framework for .NET 9.0 and .NET 10.0 that brings XML-based UI definition to the console. Includes rich widget set, event-driven architecture, and advanced layout capabilities.</Description>
     <PackageTags>terminal;tui;console;ui;xml;widgets;terminal-ui;console-ui</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/Fabian2000/Termui</PackageProjectUrl>
@@ -35,6 +35,10 @@
     <!-- Deterministic Build -->
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <Deterministic>true</Deterministic>
+
+    <!-- AOT Compatibility -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>

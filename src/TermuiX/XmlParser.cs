@@ -6,6 +6,29 @@ namespace TermuiX;
 
 internal static class XmlParser
 {
+    private static readonly Dictionary<string, Func<Dictionary<string, string>, IWidget>> _customWidgetFactories = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, Func<Dictionary<string, string>, string>> _customComponentFactories = new(StringComparer.OrdinalIgnoreCase);
+
+    internal static void RegisterWidget(string tagName, Func<Dictionary<string, string>, IWidget> factory)
+    {
+        _customWidgetFactories[tagName] = factory;
+    }
+
+    internal static void UnregisterWidget(string tagName)
+    {
+        _customWidgetFactories.Remove(tagName);
+    }
+
+    internal static void RegisterComponent(string tagName, Func<Dictionary<string, string>, string> xmlFactory)
+    {
+        _customComponentFactories[tagName] = xmlFactory;
+    }
+
+    internal static void UnregisterComponent(string tagName)
+    {
+        _customComponentFactories.Remove(tagName);
+    }
+
     public static IWidget Parse(string xml)
     {
         var doc = XDocument.Parse(xml);
@@ -56,6 +79,39 @@ internal static class XmlParser
 
     private static IWidget ParseElement(XElement element)
     {
+        // Extract attributes into a dictionary
+        var attributes = element.Attributes()
+            .ToDictionary(
+                attr => attr.Name.LocalName,
+                attr => attr.Value,
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        // Check custom component registry first (components that return XML)
+        if (_customComponentFactories.TryGetValue(element.Name.LocalName, out var componentFactory))
+        {
+            string componentXml = componentFactory(attributes);
+            return Parse(componentXml);
+        }
+
+        // Check custom widget registry second (direct IWidget implementations)
+        if (_customWidgetFactories.TryGetValue(element.Name.LocalName, out var widgetFactory))
+        {
+            IWidget customWidget = widgetFactory(attributes);
+
+            // For custom widgets that are containers, parse their children
+            if (customWidget is Container customContainer)
+            {
+                foreach (var childElement in element.Elements())
+                {
+                    var childWidget = ParseElement(childElement);
+                    customContainer.Add(childWidget);
+                }
+            }
+
+            return customWidget;
+        }
+
         IWidget widget = element.Name.LocalName.ToLower() switch
         {
             "container" => new Container(),

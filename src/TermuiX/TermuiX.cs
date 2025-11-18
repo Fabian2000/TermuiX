@@ -111,6 +111,74 @@ public sealed class TermuiX
         RebuildFocusList();
     }
 
+    /// <summary>
+    /// Registers a custom widget type for use in XML parsing.
+    /// Use this for widgets that implement IWidget directly.
+    /// </summary>
+    /// <param name="tagName">The XML tag name to use for this widget (case-insensitive).</param>
+    /// <param name="factory">A factory function that receives XML attributes and creates new instances of the widget.</param>
+    /// <example>
+    /// <code>
+    /// termui.RegisterWidget("CustomButton", attrs =>
+    /// {
+    ///     var text = attrs.GetValueOrDefault("Text", "Default");
+    ///     return new CustomButton(text);
+    /// });
+    ///
+    /// // Then use in XML:
+    /// // &lt;CustomButton Text="Click Me" /&gt;
+    /// </code>
+    /// </example>
+    public void RegisterWidget(string tagName, Func<Dictionary<string, string>, IWidget> factory)
+    {
+        XmlParser.RegisterWidget(tagName, factory);
+    }
+
+    /// <summary>
+    /// Unregisters a custom widget type from XML parsing.
+    /// </summary>
+    /// <param name="tagName">The XML tag name to unregister.</param>
+    public void UnregisterWidget(string tagName)
+    {
+        XmlParser.UnregisterWidget(tagName);
+    }
+
+    /// <summary>
+    /// Registers a custom component for use in XML parsing.
+    /// Use this for components that generate XML through a BuildXml() method.
+    /// </summary>
+    /// <param name="tagName">The XML tag name to use for this component (case-insensitive).</param>
+    /// <param name="xmlFactory">A factory function that receives XML attributes and returns the XML string for this component.</param>
+    /// <example>
+    /// <code>
+    /// var fileExplorer = new FileExplorer(termui);
+    /// termui.RegisterComponent("FileExplorer", attrs =>
+    /// {
+    ///     var width = attrs.GetValueOrDefault("Width", "100%");
+    ///     var height = attrs.GetValueOrDefault("Height", "100%");
+    ///     // You can use attributes to customize the component
+    ///     return fileExplorer.BuildXml();
+    /// });
+    /// fileExplorer.Initialize();
+    ///
+    /// // Then use in XML:
+    /// // &lt;FileExplorer Width="80%" Height="90%" /&gt;
+    /// </code>
+    /// </example>
+    public void RegisterComponent(string tagName, Func<Dictionary<string, string>, string> xmlFactory)
+    {
+        XmlParser.RegisterComponent(tagName, xmlFactory);
+    }
+
+    /// <summary>
+    /// Unregisters a custom component from XML parsing.
+    /// </summary>
+    /// <param name="tagName">The XML tag name to unregister.</param>
+    public void UnregisterComponent(string tagName)
+    {
+        XmlParser.UnregisterComponent(tagName);
+    }
+
     private void ValidateUniqueNames()
     {
         if (_widget is null)

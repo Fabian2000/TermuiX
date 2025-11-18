@@ -643,6 +643,26 @@ public class FileExplorer
     }
 
     /// <summary>
+    /// Sets the search filter text to filter displayed files and directories.
+    /// </summary>
+    public void SetSearchFilter(string? filterText)
+    {
+        _filterText = filterText;
+        RefreshFileList();
+        FocusFirstOrSpecificItem(null);
+    }
+
+    /// <summary>
+    /// Clears the search filter.
+    /// </summary>
+    public void ClearSearchFilter()
+    {
+        _filterText = null;
+        RefreshFileList();
+        FocusFirstOrSpecificItem(null);
+    }
+
+    /// <summary>
     /// Navigates to a new directory and updates the history.
     /// </summary>
     public void NavigateToDirectory(string newDirectory, string? clickedItem = null)

@@ -82,6 +82,43 @@ try
         };
     }
 
+    var searchInput = topBar.GetSearchInput();
+    if (searchInput is not null)
+    {
+        searchInput.EnterPressed += (sender, searchText) =>
+        {
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                // Clear filter if search is empty
+                fileExplorer.ClearSearchFilter();
+                return;
+            }
+
+            // Check if the input is a valid directory path
+            if (Directory.Exists(searchText))
+            {
+                // Navigate to the directory
+                fileExplorer.NavigateToDirectory(searchText);
+                // Clear the search input after navigation
+                searchInput.Value = "";
+            }
+            else
+            {
+                // Apply filter to show only matching files
+                fileExplorer.SetSearchFilter(searchText);
+            }
+        };
+
+        searchInput.TextChanged += (sender, newText) =>
+        {
+            if (string.IsNullOrWhiteSpace(newText))
+            {
+                // Clear filter when text is cleared
+                fileExplorer.ClearSearchFilter();
+            }
+        };
+    }
+
     termui.FocusChanged += async (sender, widget) =>
     {
         if (sidebar.IsOpen && !sidebar.ContainsWidget(widget))
