@@ -1,6 +1,6 @@
 # TermuiX
 
-A modern, declarative terminal UI framework for .NET 9.0 and .NET 10.0 that brings XML-based UI definition to the console.
+A modern, declarative terminal UI library for .NET 9.0 and .NET 10.0 that brings XML-based UI definition to the console.
 
 ![TermuiX Demo](https://github.com/Fabian2000/Termui/blob/main/Preview.png?raw=true)
 
@@ -417,7 +417,7 @@ Complete file explorer implementation demonstrating:
 - Filter and sort functionality
 - Custom component registration
 
-### Framework Improvements
+### Library Improvements
 - Auto-scroll to keep focused widgets visible
 - Better rendering of wide characters and emojis
 - Improved layout calculations with scrollbar awareness
