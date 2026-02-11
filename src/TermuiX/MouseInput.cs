@@ -262,6 +262,7 @@ internal static partial class MouseInput
     private static byte[] _unixBuf = new byte[256];
     private static int _unixBufStart; // read position
     private static int _unixBufEnd;   // write position (exclusive)
+    private static char _pendingLowSurrogate; // for 4-byte UTF-8 emoji split across two TryRead calls
 
     private static int UnixBufCount => _unixBufEnd - _unixBufStart;
 
@@ -430,6 +431,14 @@ internal static partial class MouseInput
     {
         mouseEvent = default;
         keyEvent = default;
+
+        // Return pending low surrogate from a previous 4-byte UTF-8 decode
+        if (_pendingLowSurrogate != 0)
+        {
+            keyEvent = new ConsoleKeyInfo(_pendingLowSurrogate, 0, false, false, false);
+            _pendingLowSurrogate = (char)0;
+            return 2;
+        }
 
         // Read available bytes from stdin using poll() + read().
         // poll() is a pure query — it doesn't change fd state.
@@ -648,6 +657,44 @@ internal static partial class MouseInput
 
         // Regular character (not an escape sequence)
         byte ch = BufAt(0);
+
+        // Decode UTF-8 multi-byte sequences (é = 0xC3 0xA9, emoji = up to 4 bytes)
+        int seqLen = ch switch
+        {
+            < 0x80 => 1,                    // ASCII
+            >= 0xC0 and < 0xE0 => 2,        // 2-byte (U+0080..U+07FF)
+            >= 0xE0 and < 0xF0 => 3,        // 3-byte (U+0800..U+FFFF)
+            >= 0xF0 and < 0xF8 => 4,        // 4-byte (U+10000..U+10FFFF)
+            _ => 1                           // Invalid lead byte, treat as single
+        };
+
+        if (seqLen > 1)
+        {
+            if (UnixBufCount < seqLen)
+                return 0; // Incomplete UTF-8 sequence, wait for more bytes
+
+            // Decode UTF-8 to a Unicode codepoint
+            int codepoint = seqLen switch
+            {
+                2 => ((BufAt(0) & 0x1F) << 6) | (BufAt(1) & 0x3F),
+                3 => ((BufAt(0) & 0x0F) << 12) | ((BufAt(1) & 0x3F) << 6) | (BufAt(2) & 0x3F),
+                4 => ((BufAt(0) & 0x07) << 18) | ((BufAt(1) & 0x3F) << 12) | ((BufAt(2) & 0x3F) << 6) | (BufAt(3) & 0x3F),
+                _ => ch
+            };
+
+            UnixBufConsume(seqLen);
+
+            // Convert to string for ConsoleKeyInfo (may be surrogate pair for emoji)
+            string s = char.ConvertFromUtf32(codepoint);
+            if (s.Length == 2)
+            {
+                // Surrogate pair: return high surrogate now, queue low surrogate for next call
+                _pendingLowSurrogate = s[1];
+            }
+            keyEvent = new ConsoleKeyInfo(s[0], 0, false, false, false);
+            return 2;
+        }
+
         UnixBufConsume(1);
 
         char character = (char)ch;

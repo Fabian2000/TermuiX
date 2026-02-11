@@ -1056,6 +1056,40 @@ public sealed class TermuiX
     {
         int value = rune.Value;
 
+        // Control characters
+        if (value == 0 || Rune.IsControl(rune))
+            return 0;
+
+        // Explicit zero-width characters
+        if (value == 0x200B ||                          // Zero-Width Space
+            value == 0x200C ||                          // Zero-Width Non-Joiner
+            value == 0x200D ||                          // Zero-Width Joiner
+            value == 0x2060 ||                          // Word Joiner
+            value == 0xFEFF ||                          // Zero-Width No-Break Space (BOM)
+            (value >= 0xFE00 && value <= 0xFE0F) ||     // Variation Selectors
+            (value >= 0xE0100 && value <= 0xE01EF) ||   // Variation Selectors Supplement
+            (value >= 0xE0000 && value <= 0xE007F))     // Tags Block
+        {
+            return 0;
+        }
+
+        // Hangul Jungseong/Jongseong (combining vowels/finals in Korean syllables)
+        if ((value >= 0x1160 && value <= 0x11FF) ||
+            (value >= 0xD7B0 && value <= 0xD7C6) ||
+            (value >= 0xD7CB && value <= 0xD7FB))
+        {
+            return 0;
+        }
+
+        // Combining marks and format characters
+        var runeCategory = Rune.GetUnicodeCategory(rune);
+        if (runeCategory == System.Globalization.UnicodeCategory.NonSpacingMark ||
+            runeCategory == System.Globalization.UnicodeCategory.EnclosingMark ||
+            runeCategory == System.Globalization.UnicodeCategory.Format)
+        {
+            return 0;
+        }
+
         if ((value >= 0x1100 && value <= 0x115F) ||
             (value >= 0x231A && value <= 0x231B) ||
             (value >= 0x2329 && value <= 0x232A) ||
