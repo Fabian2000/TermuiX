@@ -153,6 +153,7 @@ public class Border : IWidget
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => _child is not null ? [_child] : [];
     bool IWidget.Focussed { get; set; }
+    bool IWidget.Hovered { get; set; }
     int IWidget.ComputedWidth { get; set; }
     int IWidget.ComputedHeight { get; set; }
     bool IWidget.HasVerticalScrollbar { get; set; }

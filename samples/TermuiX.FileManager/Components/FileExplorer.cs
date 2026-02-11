@@ -28,6 +28,15 @@ public class FileExplorer
     private Button? _btnDeleteNo;
     private Text? _deleteConfirmText;
 
+    // Context menu
+    private Container? _contextMenu;
+    private Button? _ctxOpen;
+    private Button? _ctxCopy;
+    private Button? _ctxMove;
+    private Button? _ctxRename;
+    private Button? _ctxDelete;
+    private string? _contextMenuTargetPath;
+
     // Copy/Move operation state
     private enum ClipboardOperation { None, Copy, Move }
     private ClipboardOperation _clipboardOperation = ClipboardOperation.None;
@@ -39,6 +48,7 @@ public class FileExplorer
     private string? _filterText;
     private FilterType _currentSort = FilterType.NameAsc;
     private string? _lastFocusedFilePath;
+    private string? _previousFocusedFilePath;
 
     // History tracking for navigation
     private readonly List<(string directory, string? lastClickedItem)> _historyBack = [];
@@ -85,8 +95,7 @@ public class FileExplorer
     PositionX='{leftColumnWidth}ch'
     PositionY='{TopBarHeight + 1}ch'
     BackgroundColor='Black'
-    ForegroundColor='White'
-    Scrollable='true'>
+    ForegroundColor='White'>
 
     <Text
         Name='propertiesTitle'
@@ -388,6 +397,114 @@ public class FileExplorer
         Yes
     </Button>
 </Container>
+
+<Container
+    Name='contextMenu'
+    Width='18ch'
+    Height='7ch'
+    PositionX='0ch'
+    PositionY='0ch'
+    BackgroundColor='Black'
+    ForegroundColor='White'
+    BorderStyle='Single'
+    RoundedCorners='true'
+    Visible='false'>
+
+    <Button
+        Name='ctxOpen'
+        PositionX='0ch'
+        PositionY='0ch'
+        Width='100%'
+        Height='1ch'
+        BackgroundColor='Black'
+        ForegroundColor='White'
+        FocusBackgroundColor='DarkGray'
+        FocusForegroundColor='White'
+        TextAlign='Left'
+        BorderStyle='None'
+        PaddingLeft='0ch'
+        PaddingRight='0ch'
+        PaddingTop='0ch'
+        PaddingBottom='0ch'>
+        Open
+    </Button>
+
+    <Button
+        Name='ctxCopy'
+        PositionX='0ch'
+        PositionY='1ch'
+        Width='100%'
+        Height='1ch'
+        BackgroundColor='Black'
+        ForegroundColor='White'
+        FocusBackgroundColor='DarkGray'
+        FocusForegroundColor='White'
+        TextAlign='Left'
+        BorderStyle='None'
+        PaddingLeft='0ch'
+        PaddingRight='0ch'
+        PaddingTop='0ch'
+        PaddingBottom='0ch'>
+        Copy
+    </Button>
+
+    <Button
+        Name='ctxMove'
+        PositionX='0ch'
+        PositionY='2ch'
+        Width='100%'
+        Height='1ch'
+        BackgroundColor='Black'
+        ForegroundColor='White'
+        FocusBackgroundColor='DarkGray'
+        FocusForegroundColor='White'
+        TextAlign='Left'
+        BorderStyle='None'
+        PaddingLeft='0ch'
+        PaddingRight='0ch'
+        PaddingTop='0ch'
+        PaddingBottom='0ch'>
+        Move
+    </Button>
+
+    <Button
+        Name='ctxRename'
+        PositionX='0ch'
+        PositionY='3ch'
+        Width='100%'
+        Height='1ch'
+        BackgroundColor='Black'
+        ForegroundColor='White'
+        FocusBackgroundColor='DarkGray'
+        FocusForegroundColor='White'
+        TextAlign='Left'
+        BorderStyle='None'
+        PaddingLeft='0ch'
+        PaddingRight='0ch'
+        PaddingTop='0ch'
+        PaddingBottom='0ch'>
+        Rename
+    </Button>
+
+    <Button
+        Name='ctxDelete'
+        PositionX='0ch'
+        PositionY='4ch'
+        Width='100%'
+        Height='1ch'
+        BackgroundColor='Black'
+        ForegroundColor='Red'
+        FocusBackgroundColor='DarkGray'
+        FocusForegroundColor='Red'
+        TextAlign='Left'
+        BorderStyle='None'
+        PaddingLeft='0ch'
+        PaddingRight='0ch'
+        PaddingTop='0ch'
+        PaddingBottom='0ch'>
+        Delete
+    </Button>
+</Container>
 ";
     }
 
@@ -453,18 +570,65 @@ public class FileExplorer
             _btnDeleteNo.Click += OnDeleteConfirmNo;
         }
 
+        // Context menu
+        _contextMenu = _termui.GetWidget<Container>("contextMenu");
+        _ctxOpen = _termui.GetWidget<Button>("ctxOpen");
+        _ctxCopy = _termui.GetWidget<Button>("ctxCopy");
+        _ctxMove = _termui.GetWidget<Button>("ctxMove");
+        _ctxRename = _termui.GetWidget<Button>("ctxRename");
+        _ctxDelete = _termui.GetWidget<Button>("ctxDelete");
+
+        if (_ctxOpen is not null)
+            _ctxOpen.Click += (_, _) => { OnContextOpen(); CloseContextMenu(); };
+        if (_ctxCopy is not null)
+            _ctxCopy.Click += (_, _) => { OnContextCopy(); CloseContextMenu(); };
+        if (_ctxMove is not null)
+            _ctxMove.Click += (_, _) => { OnContextMove(); CloseContextMenu(); };
+        if (_ctxRename is not null)
+            _ctxRename.Click += (_, _) => { OnContextRename(); CloseContextMenu(); };
+        if (_ctxDelete is not null)
+            _ctxDelete.Click += (_, _) => { OnContextDelete(); CloseContextMenu(); };
+
         // Subscribe to focus changes to update navigation hints
         _termui.FocusChanged += OnFocusChanged;
+
+        // Close context menu on any mouse click (handles clicking into empty areas)
+        _termui.MouseClick += (_, e) =>
+        {
+            if (IsContextMenuOpen &&
+                (e.EventType == MouseEventType.LeftButtonPressed || e.EventType == MouseEventType.RightButtonPressed))
+            {
+                // Only close if click is outside the context menu area
+                if (_contextMenu is not null)
+                {
+                    int menuX = int.Parse(_contextMenu.PositionX.Replace("ch", ""));
+                    int menuY = int.Parse(_contextMenu.PositionY.Replace("ch", ""));
+                    int menuW = 18;
+                    int menuH = 7;
+
+                    if (e.X < menuX || e.X >= menuX + menuW || e.Y < menuY || e.Y >= menuY + menuH)
+                    {
+                        CloseContextMenu();
+                    }
+                }
+            }
+        };
 
         RefreshFileList();
     }
 
-    private void OnFocusChanged(object? sender, IWidget widget)
+    private void OnFocusChanged(object? sender, FocusChangedEventArgs e)
     {
+        // Close context menu when focus moves outside it
+        if (IsContextMenuOpen && !ContainsContextMenuWidget(e.Widget))
+        {
+            CloseContextMenu();
+        }
+
         // If delete popup is visible, restrict focus to Yes/No buttons only
         if (_deleteConfirmPopup is not null && _deleteConfirmPopup.Visible)
         {
-            if (widget != _btnDeleteYes && widget != _btnDeleteNo)
+            if (e.Widget != _btnDeleteYes && e.Widget != _btnDeleteNo)
             {
                 // Force focus back to No button (safer option)
                 if (_btnDeleteNo is not null)
@@ -475,16 +639,18 @@ public class FileExplorer
             return;
         }
 
-        UpdateNavigationHints(widget);
+        UpdateNavigationHints(e.Widget);
 
         // Update last focused file path when focus changes to a file/folder button
-        if (widget is Button button && _buttonPathMap.TryGetValue(button, out string? path))
+        if (e.Widget is Button button && _buttonPathMap.TryGetValue(button, out string? path))
         {
+            _previousFocusedFilePath = _lastFocusedFilePath;
             _lastFocusedFilePath = path;
+            UpdatePropertiesPanel(path);
         }
 
         // Close rename overlay if focus moves away from the input
-        if (_inputRename is not null && _inputRename.Visible && widget != _inputRename)
+        if (_inputRename is not null && _inputRename.Visible && e.Widget != _inputRename)
         {
             CloseRenameOverlay();
         }
@@ -840,6 +1006,7 @@ public class FileExplorer
                 string itemPath = directory.FullName;
                 _buttonPathMap[button] = itemPath;
                 button.Click += (sender, e) => OnFileItemClick(itemPath, button);
+                button.RightClick += (sender, args) => ShowContextMenu(args.X, args.Y, itemPath);
 
                 _leftColumn.Add(button);
 
@@ -873,6 +1040,7 @@ public class FileExplorer
                 string itemPath = file.FullName;
                 _buttonPathMap[button] = itemPath;
                 button.Click += (sender, e) => OnFileItemClick(itemPath, button);
+                button.RightClick += (sender, args) => ShowContextMenu(args.X, args.Y, itemPath);
 
                 _leftColumn.Add(button);
 
@@ -912,34 +1080,29 @@ public class FileExplorer
 
     private void OnFileItemClick(string itemPath, Button button)
     {
+        // Focus-then-activate: first click focuses, second click performs action.
+        // When clicking, OnFocusChanged fires BEFORE OnFileItemClick and sets
+        // _lastFocusedFilePath = itemPath. So we check _previousFocusedFilePath instead:
+        // if the item was NOT previously focused, this is the first click (just focus).
+        if (_previousFocusedFilePath != itemPath)
+        {
+            return;
+        }
+
         // If it's a directory, navigate to it
         if (Directory.Exists(itemPath))
         {
-            // When navigating forward, we want to remember the path of the folder we clicked
-            // so when we come back, we can focus on it again
             NavigateToDirectory(itemPath, clickedItem: itemPath);
             return;
         }
 
         // For files: handle selection
-        // Single selection mode: clear previous selections
-        // TODO: Implement Ctrl+Click multi-selection when framework supports modifier detection in Click events
         _selectedItems.Clear();
-
-        // Add clicked item to selection
         _selectedItems.Add(itemPath);
-
-        // Remember this path as the last focused file path
         _lastFocusedFilePath = itemPath;
 
-        // Update button colors for all file item buttons
         UpdateSelectionColors();
-
-        // Enable/disable action buttons based on selection
         UpdateActionButtons();
-
-        // Update properties panel with selected item info
-        UpdatePropertiesPanel(itemPath);
     }
 
     private void UpdateSelectionColors()
@@ -1218,7 +1381,7 @@ public class FileExplorer
         }
     }
 
-    private void CloseRenameOverlay()
+    public void CloseRenameOverlay()
     {
         if (_inputRename is null)
         {
@@ -1491,6 +1654,92 @@ public class FileExplorer
             string targetSubDir = Path.Combine(targetDir, dirName);
             CopyDirectory(subDir, targetSubDir);
         }
+    }
+
+    private void ShowContextMenu(int x, int y, string targetPath)
+    {
+        if (_contextMenu is null)
+            return;
+
+        _contextMenuTargetPath = targetPath;
+
+        // Clamp to screen bounds (18ch wide, 7ch tall including border)
+        int menuWidth = 18;
+        int menuHeight = 7;
+        if (x + menuWidth > Console.WindowWidth)
+            x = Console.WindowWidth - menuWidth;
+        if (y + menuHeight > Console.WindowHeight)
+            y = Console.WindowHeight - menuHeight;
+
+        _contextMenu.PositionX = $"{x}ch";
+        _contextMenu.PositionY = $"{y}ch";
+        _contextMenu.Visible = true;
+
+        if (_ctxOpen is not null)
+            _termui.SetFocus(_ctxOpen);
+    }
+
+    public void CloseContextMenu()
+    {
+        if (_contextMenu is null)
+            return;
+
+        _contextMenu.Visible = false;
+        _contextMenuTargetPath = null;
+    }
+
+    public bool IsContextMenuOpen => _contextMenu?.Visible == true;
+
+    public bool IsRenameOpen => _inputRename?.Visible == true;
+
+    public bool ContainsContextMenuWidget(IWidget widget)
+    {
+        return widget == _ctxOpen || widget == _ctxCopy || widget == _ctxMove
+            || widget == _ctxRename || widget == _ctxDelete;
+    }
+
+    private void OnContextOpen()
+    {
+        if (_contextMenuTargetPath is null) return;
+
+        if (Directory.Exists(_contextMenuTargetPath))
+        {
+            NavigateToDirectory(_contextMenuTargetPath, clickedItem: _contextMenuTargetPath);
+        }
+    }
+
+    private void OnContextCopy()
+    {
+        if (_contextMenuTargetPath is null) return;
+
+        _clipboardOperation = ClipboardOperation.Copy;
+        _clipboardItemPath = _contextMenuTargetPath;
+        UpdateButtonLabels();
+    }
+
+    private void OnContextMove()
+    {
+        if (_contextMenuTargetPath is null) return;
+
+        _clipboardOperation = ClipboardOperation.Move;
+        _clipboardItemPath = _contextMenuTargetPath;
+        UpdateButtonLabels();
+    }
+
+    private void OnContextRename()
+    {
+        if (_contextMenuTargetPath is null) return;
+
+        _lastFocusedFilePath = _contextMenuTargetPath;
+        OnRenameClick(null, EventArgs.Empty);
+    }
+
+    private void OnContextDelete()
+    {
+        if (_contextMenuTargetPath is null) return;
+
+        _lastFocusedFilePath = _contextMenuTargetPath;
+        OnDeleteClick(null, EventArgs.Empty);
     }
 
     private void UpdateButtonLabels()

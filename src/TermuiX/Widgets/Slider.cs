@@ -188,6 +188,7 @@ public class Slider : IWidget
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => [];
     bool IWidget.Focussed { get; set; }
+    bool IWidget.Hovered { get; set; }
     int IWidget.ComputedWidth { get; set; }
     int IWidget.ComputedHeight { get; set; }
     bool IWidget.HasVerticalScrollbar { get; set; }

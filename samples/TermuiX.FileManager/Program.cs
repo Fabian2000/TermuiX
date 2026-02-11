@@ -119,14 +119,14 @@ try
         };
     }
 
-    termui.FocusChanged += async (sender, widget) =>
+    termui.FocusChanged += async (sender, e) =>
     {
-        if (sidebar.IsOpen && !sidebar.ContainsWidget(widget))
+        if (sidebar.IsOpen && !sidebar.ContainsWidget(e.Widget))
         {
             await sidebar.CloseAsync();
         }
 
-        if (filterPopup.IsOpen && !filterPopup.ContainsWidget(widget))
+        if (filterPopup.IsOpen && !filterPopup.ContainsWidget(e.Widget))
         {
             filterPopup.Close();
         }
@@ -215,10 +215,43 @@ try
         {
             fileExplorer.GoForward();
         }
+        else if (key.Key == ConsoleKey.M)
+        {
+            topBar.ToggleMouse();
+        }
+        else if (key.Key == ConsoleKey.Escape)
+        {
+            // Close whatever is open: sidebar, filter popup, context menu, rename overlay
+            if (sidebar.IsOpen)
+            {
+                await sidebar.CloseAsync();
+            }
+            else if (filterPopup.IsOpen)
+            {
+                filterPopup.Close();
+            }
+            else if (fileExplorer.IsContextMenuOpen)
+            {
+                fileExplorer.CloseContextMenu();
+            }
+            else if (fileExplorer.IsRenameOpen)
+            {
+                fileExplorer.CloseRenameOverlay();
+            }
+            else
+            {
+                // Nothing open — jump focus back to file explorer
+                fileExplorer.FocusLastFileButton();
+            }
+        }
     };
 
     int lastWidth = Console.WindowWidth;
     int lastHeight = Console.WindowHeight;
+
+    // FPS tracking
+    int frameCount = 0;
+    long lastFpsTick = Environment.TickCount64;
 
     while (true)
     {
@@ -234,6 +267,16 @@ try
 
             lastWidth = currentWidth;
             lastHeight = currentHeight;
+        }
+
+        // Update FPS every second
+        frameCount++;
+        long now = Environment.TickCount64;
+        if (now - lastFpsTick >= 1000)
+        {
+            topBar.UpdateFps(frameCount);
+            frameCount = 0;
+            lastFpsTick = now;
         }
 
         termui.Render();

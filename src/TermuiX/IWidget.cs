@@ -127,6 +127,11 @@ namespace TermuiX
         bool Focussed { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the mouse is currently hovering over this widget.
+        /// </summary>
+        bool Hovered { get; set; }
+
+        /// <summary>
         /// Gets a value indicating whether the widget can receive focus.
         /// </summary>
         bool CanFocus { get; }
@@ -174,6 +179,13 @@ namespace TermuiX
         /// </summary>
         /// <param name="keyInfo">The key press information.</param>
         void KeyPress(ConsoleKeyInfo keyInfo);
+
+        /// <summary>
+        /// Handles mouse input when the mouse interacts with this widget.
+        /// Default implementation does nothing; widgets can override to handle mouse clicks.
+        /// </summary>
+        /// <param name="args">The mouse event data.</param>
+        void MousePress(MouseEventArgs args) { }
 
         /// <summary>
         /// Creates a deep or shallow copy of the widget.

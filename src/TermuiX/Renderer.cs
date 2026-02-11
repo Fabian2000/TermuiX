@@ -10,39 +10,63 @@ namespace TermuiX
         private int _width;
         private int _height;
 
+        // Cached frame buffers — reused across frames when size stays the same
+        private Rune[][]? _cachedOutput;
+        private ConsoleColor[][]? _cachedFg;
+        private ConsoleColor[][]? _cachedBg;
+        private int _cachedWidth;
+        private int _cachedHeight;
+
         internal void Size(int width, int height)
         {
             _width = width;
             _height = height;
         }
 
-        internal (Rune[][] chars, ConsoleColor[][] fg, ConsoleColor[][] bg) Render(IWidget widget)
+        internal (Rune[][] chars, ConsoleColor[][] fg, ConsoleColor[][] bg) Render(IWidget widget, HitTestMap? hitTestMap = null, bool focusVisible = true)
         {
             if (_width == 0 || _height == 0)
             {
                 throw new InvalidOperationException("Renderer size not set. Call Size(width, height) before Render().");
             }
 
-            var output = new Rune[_height][];
-            var fgColors = new ConsoleColor[_height][];
-            var bgColors = new ConsoleColor[_height][];
+            // Only reallocate when terminal size changes
+            if (_cachedOutput == null || _cachedWidth != _width || _cachedHeight != _height)
+            {
+                _cachedOutput = new Rune[_height][];
+                _cachedFg = new ConsoleColor[_height][];
+                _cachedBg = new ConsoleColor[_height][];
 
+                for (int i = 0; i < _height; i++)
+                {
+                    _cachedOutput[i] = new Rune[_width];
+                    _cachedFg[i] = new ConsoleColor[_width];
+                    _cachedBg[i] = new ConsoleColor[_width];
+                }
+
+                _cachedWidth = _width;
+                _cachedHeight = _height;
+            }
+
+            var output = _cachedOutput;
+            var fgColors = _cachedFg!;
+            var bgColors = _cachedBg!;
+
+            // Clear buffers for new frame
             for (int i = 0; i < _height; i++)
             {
-                output[i] = new Rune[_width];
-                fgColors[i] = new ConsoleColor[_width];
-                bgColors[i] = new ConsoleColor[_width];
                 Array.Fill(output[i], new Rune(' '));
                 Array.Fill(fgColors[i], ConsoleColor.White);
                 Array.Fill(bgColors[i], ConsoleColor.Black);
             }
 
-            RenderWidget(output, fgColors, bgColors, widget, 0, 0, _width, _height, 0, 0);
+            hitTestMap?.Reset(_width, _height);
+            RenderWidget(output, fgColors, bgColors, widget, 0, 0, _width, _height, 0, 0, hitTestMap, focusVisible);
 
             return (output, fgColors, bgColors);
         }
 
-        private static void RenderWidget(Rune[][] output, ConsoleColor[][] fgColors, ConsoleColor[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY)
+        private static void RenderWidget(Rune[][] output, ConsoleColor[][] fgColors, ConsoleColor[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY, HitTestMap? hitTestMap, bool focusVisible)
         {
             // Skip invisible widgets and their children
             if (!widget.Visible)
@@ -75,6 +99,8 @@ namespace TermuiX
             int absX = parentX + posX;
             int absY = parentY + posY;
 
+            hitTestMap?.Set(absX, absY, width, height, widget, parentX, parentY, parentWidth, parentHeight);
+
             if (absX >= parentX + parentWidth || absY >= parentY + parentHeight)
             {
                 return;
@@ -95,10 +121,11 @@ namespace TermuiX
             int scrollX = widget.Scrollable ? (int)widget.ScrollOffsetX : 0;
             int scrollY = widget.Scrollable ? (int)widget.ScrollOffsetY : 0;
 
+            bool highlighted = (widget.Focussed && focusVisible) || widget.Hovered;
             var bgColor = widget.Disabled && widget.DisabledBackgroundColor.HasValue ? widget.DisabledBackgroundColor.Value :
-                          (widget.Focussed ? widget.FocusBackgroundColor : widget.BackgroundColor);
+                          (highlighted ? widget.FocusBackgroundColor : widget.BackgroundColor);
             var fgColor = widget.Disabled ? widget.DisabledForegroundColor :
-                          (widget.Focussed ? widget.FocusForegroundColor : widget.ForegroundColor);
+                          (highlighted ? widget.FocusForegroundColor : widget.ForegroundColor);
             for (int y = 0; y < height && absY + y < output.Length; y++)
             {
                 for (int x = 0; x < width && absX + x < output[0].Length; x++)
@@ -185,7 +212,7 @@ namespace TermuiX
 
             foreach (var child in widget.Children)
             {
-                RenderWidget(output, fgColors, bgColors, child, childClipX, childClipY, childClipWidth, childClipHeight, childScrollX, childScrollY);
+                RenderWidget(output, fgColors, bgColors, child, childClipX, childClipY, childClipWidth, childClipHeight, childScrollX, childScrollY, hitTestMap, focusVisible);
             }
 
             // Render scrollbars AFTER children so they're always on top
