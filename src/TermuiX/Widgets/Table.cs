@@ -172,9 +172,14 @@ public class Table : IWidget
     public bool CanFocus { get; set; } = false;
 
     /// <summary>
-    /// Gets a value indicating whether the table widget is scrollable.
+    /// Gets a value indicating whether horizontal scrolling is enabled.
     /// </summary>
-    public bool Scrollable => false;
+    public bool ScrollX => false;
+
+    /// <summary>
+    /// Gets a value indicating whether vertical scrolling is enabled.
+    /// </summary>
+    public bool ScrollY => false;
 
     // Explicit interface implementation to hide these members
     IWidget? IWidget.Parent { get; set; }

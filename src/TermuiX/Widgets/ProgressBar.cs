@@ -164,9 +164,14 @@ public class ProgressBar : IWidget
     public bool CanFocus => false;
 
     /// <summary>
-    /// Gets a value indicating whether the progress bar is scrollable.
+    /// Gets a value indicating whether horizontal scrolling is enabled.
     /// </summary>
-    public bool Scrollable => false;
+    public bool ScrollX => false;
+
+    /// <summary>
+    /// Gets a value indicating whether vertical scrolling is enabled.
+    /// </summary>
+    public bool ScrollY => false;
 
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => [];

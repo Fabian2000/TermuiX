@@ -138,8 +138,8 @@ namespace TermuiX
             int contentX = absX + padLeft;
             int contentY = absY + padTop;
 
-            int scrollX = widget.Scrollable ? (int)widget.ScrollOffsetX : 0;
-            int scrollY = widget.Scrollable ? (int)widget.ScrollOffsetY : 0;
+            int scrollX = widget.ScrollX ? (int)widget.ScrollOffsetX : 0;
+            int scrollY = widget.ScrollY ? (int)widget.ScrollOffsetY : 0;
 
             bool highlighted = (widget.Focussed && focusVisible) || widget.Hovered;
             var bgColor = widget.Disabled && widget.DisabledBackgroundColor.HasValue ? widget.DisabledBackgroundColor.Value :
@@ -406,7 +406,7 @@ namespace TermuiX
             bool willRenderVerticalScrollbar = false;
             bool willRenderHorizontalScrollbar = false;
 
-            if (widget.Scrollable && widget.Children.Count > 0)
+            if ((widget.ScrollX || widget.ScrollY) && widget.Children.Count > 0)
             {
                 int maxChildBottom = 0;
                 int maxChildRight = 0;
@@ -436,8 +436,8 @@ namespace TermuiX
                         suppressVertical = true; // wrapping prevents vertical overflow
                 }
 
-                willRenderVerticalScrollbar = !suppressVertical && contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0);
-                willRenderHorizontalScrollbar = !suppressHorizontal && contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0);
+                willRenderVerticalScrollbar = widget.ScrollY && !suppressVertical && contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0);
+                willRenderHorizontalScrollbar = widget.ScrollX && !suppressHorizontal && contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0);
             }
 
             // Reduce clip region if scrollbars will be rendered
@@ -460,7 +460,7 @@ namespace TermuiX
             }
 
             // Render scrollbars AFTER children so they're always on top
-            if (widget.Scrollable && widget.Children.Count > 0)
+            if ((widget.ScrollX || widget.ScrollY) && widget.Children.Count > 0)
             {
                 int maxChildBottom = 0;
                 int maxChildRight = 0;
@@ -492,7 +492,7 @@ namespace TermuiX
                         renderSuppressV = true;
                 }
 
-                if (!renderSuppressV && contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0))
+                if (widget.ScrollY && !renderSuppressV && contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0))
                 {
                     // Set flag indicating vertical scrollbar is rendered in this frame
                     widget.HasVerticalScrollbar = true;
@@ -524,7 +524,7 @@ namespace TermuiX
                     }
                 }
 
-                if (!renderSuppressH && contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0))
+                if (widget.ScrollX && !renderSuppressH && contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0))
                 {
                     // Set flag indicating horizontal scrollbar is rendered in this frame
                     widget.HasHorizontalScrollbar = true;
@@ -728,5 +728,6 @@ namespace TermuiX
 
             throw new FormatException($"Invalid size value: '{size}'. Size must end with 'ch', '%', or be 'auto' (e.g., '10ch', '50%', 'auto')");
         }
+
     }
 }

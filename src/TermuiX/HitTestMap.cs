@@ -132,7 +132,7 @@ internal class HitTestMap
         var widget = GetWidgetAt(x, y);
         while (widget != null)
         {
-            if (widget.Scrollable)
+            if (widget.ScrollX || widget.ScrollY)
                 return widget;
             widget = widget.Parent;
         }

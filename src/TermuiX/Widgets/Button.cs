@@ -312,9 +312,14 @@ public class Button : IWidget
     public bool CanFocus => !Disabled;
 
     /// <summary>
-    /// Gets a value indicating whether the button is scrollable.
+    /// Gets a value indicating whether horizontal scrolling is enabled.
     /// </summary>
-    public bool Scrollable => false;
+    public bool ScrollX => false;
+
+    /// <summary>
+    /// Gets a value indicating whether vertical scrolling is enabled.
+    /// </summary>
+    public bool ScrollY => false;
 
     // Explicit interface implementation
     IWidget? IWidget.Parent { get; set; }

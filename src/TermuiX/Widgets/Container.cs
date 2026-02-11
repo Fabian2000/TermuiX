@@ -115,9 +115,24 @@ public class Container : IWidget
     public bool CanFocus { get; set; } = false;
 
     /// <summary>
-    /// Gets or sets a value indicating whether the container is scrollable.
+    /// Gets or sets a value indicating whether horizontal scrolling is enabled.
     /// </summary>
-    public bool Scrollable { get; set; } = false;
+    public bool ScrollX { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether vertical scrolling is enabled.
+    /// </summary>
+    public bool ScrollY { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the container is scrollable on both axes.
+    /// Setting to true enables both ScrollX and ScrollY.
+    /// </summary>
+    public bool Scrollable
+    {
+        get => ScrollX && ScrollY;
+        set { ScrollX = value; ScrollY = value; }
+    }
 
     /// <summary>
     /// Gets or sets the border style for the container.
@@ -177,6 +192,37 @@ public class Container : IWidget
             {
                 // Clone to avoid shared references
                 Add(child.Clone(true));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Inserts a child widget at the specified index.
+    /// </summary>
+    /// <param name="index">The zero-based index at which the widget should be inserted.</param>
+    /// <param name="widget">The widget to insert.</param>
+    public void Insert(int index, IWidget widget)
+    {
+        widget.Parent = this;
+        _children.Insert(index, widget);
+    }
+
+    /// <summary>
+    /// Inserts child widgets from an XML string at the specified index.
+    /// </summary>
+    /// <param name="index">The zero-based index at which the widgets should be inserted.</param>
+    /// <param name="xml">The XML string containing widget definitions.</param>
+    public void Insert(int index, string xml)
+    {
+        var wrappedXml = $"<Container>{xml}</Container>";
+        var tempContainer = XmlParser.Parse(wrappedXml) as Container;
+
+        if (tempContainer != null)
+        {
+            int i = index;
+            foreach (var child in ((IWidget)tempContainer).Children)
+            {
+                Insert(i++, child.Clone(true));
             }
         }
     }
@@ -408,7 +454,8 @@ public class Container : IWidget
             FocusForegroundColor = FocusForegroundColor,
             BorderStyle = BorderStyle,
             RoundedCorners = RoundedCorners,
-            Scrollable = Scrollable
+            ScrollX = ScrollX,
+            ScrollY = ScrollY
         };
 
         // Deep clone: recursively clone all children
