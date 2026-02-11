@@ -51,29 +51,128 @@ internal static class XmlParser
     {
         int value = rune.Value;
 
-        // Emoji ranges (simplified check for common emoji blocks)
-        if ((value >= 0x1F300 && value <= 0x1F9FF) || // Misc Symbols and Pictographs, Emoticons, etc.
-            (value >= 0x1F600 && value <= 0x1F64F) || // Emoticons
-            (value >= 0x1F680 && value <= 0x1F6FF) || // Transport and Map
-            (value >= 0x1F900 && value <= 0x1F9FF))   // Supplemental Symbols
-        {
-            return 2;
-        }
-
         // East Asian Wide and Fullwidth characters
         if ((value >= 0x1100 && value <= 0x115F) ||   // Hangul Jamo
-            (value >= 0x2E80 && value <= 0x9FFF) ||   // CJK
+            (value >= 0x231A && value <= 0x231B) ||   // ⌚⌛
+            (value >= 0x2329 && value <= 0x232A) ||   // 〈〉
+            (value >= 0x23E9 && value <= 0x23EC) ||   // ⏩⏪⏫⏬
+            value == 0x23F0 ||                        // ⏰
+            value == 0x23F3 ||                        // ⏳
+            (value >= 0x25FD && value <= 0x25FE) ||   // ◽◾
+            (value >= 0x2614 && value <= 0x2615) ||   // ☔☕
+            (value >= 0x2648 && value <= 0x2653) ||   // ♈-♓
+            value == 0x267F ||                        // ♿
+            value == 0x2693 ||                        // ⚓
+            value == 0x26A1 ||                        // ⚡
+            (value >= 0x26AA && value <= 0x26AB) ||   // ⚪⚫
+            (value >= 0x26BD && value <= 0x26BE) ||   // ⚽⚾
+            (value >= 0x26C4 && value <= 0x26C5) ||   // ⛄⛅
+            value == 0x26CE ||                        // ⛎
+            value == 0x26D4 ||                        // ⛔
+            value == 0x26EA ||                        // ⛪
+            (value >= 0x26F2 && value <= 0x26F3) ||   // ⛲⛳
+            value == 0x26F5 ||                        // ⛵
+            value == 0x26FA ||                        // ⛺
+            value == 0x26FD ||                        // ⛽
+            value == 0x2705 ||                        // ✅
+            (value >= 0x270A && value <= 0x270B) ||   // ✊✋
+            value == 0x2728 ||                        // ✨
+            value == 0x274C ||                        // ❌
+            value == 0x274E ||                        // ❎
+            (value >= 0x2753 && value <= 0x2755) ||   // ❓❔❕
+            value == 0x2757 ||                        // ❗
+            (value >= 0x2795 && value <= 0x2797) ||   // ➕➖➗
+            value == 0x27B0 ||                        // ➰
+            value == 0x27BF ||                        // ➿
+            (value >= 0x2B1B && value <= 0x2B1C) ||   // ⬛⬜
+            value == 0x2B50 ||                        // ⭐
+            value == 0x2B55 ||                        // ⭕
+            (value >= 0x2E80 && value <= 0x9FFF) ||   // CJK Radicals, Kangxi, CJK Unified
+            (value >= 0xA000 && value <= 0xA4C6) ||   // Yi Syllables + Radicals
+            (value >= 0xA960 && value <= 0xA97C) ||   // Hangul Jamo Extended-A
             (value >= 0xAC00 && value <= 0xD7A3) ||   // Hangul Syllables
             (value >= 0xF900 && value <= 0xFAFF) ||   // CJK Compatibility Ideographs
+            (value >= 0xFE10 && value <= 0xFE19) ||   // Vertical Forms
+            (value >= 0xFE30 && value <= 0xFE6B) ||   // CJK Compatibility Forms
             (value >= 0xFF00 && value <= 0xFF60) ||   // Fullwidth Forms
-            (value >= 0xFFE0 && value <= 0xFFE6) ||   // Fullwidth Forms
-            (value >= 0x20000 && value <= 0x2FFFD) || // CJK Extension
-            (value >= 0x30000 && value <= 0x3FFFD))   // CJK Extension
+            (value >= 0xFFE0 && value <= 0xFFE6))     // Fullwidth Signs
         {
             return 2;
         }
 
-        // Default: 1 cell for ASCII and most characters
+        // Emoji wide ranges (per wcwidth, U+1F000+)
+        if (value == 0x1F004 ||                        // 🀄
+            value == 0x1F0CF ||                        // 🃏
+            value == 0x1F18E ||                        // 🆎
+            (value >= 0x1F191 && value <= 0x1F19A) || // 🆑-🆚
+            (value >= 0x1F200 && value <= 0x1F202) || // 🈀-🈂
+            (value >= 0x1F210 && value <= 0x1F23B) || // 🈐-🈻
+            (value >= 0x1F240 && value <= 0x1F248) || // 🈴-🉈
+            (value >= 0x1F250 && value <= 0x1F251) || // 🉐🉑
+            (value >= 0x1F260 && value <= 0x1F265) || // 🉠-🉥
+            (value >= 0x1F300 && value <= 0x1F320) ||
+            (value >= 0x1F32D && value <= 0x1F335) ||
+            (value >= 0x1F337 && value <= 0x1F37C) ||
+            (value >= 0x1F37E && value <= 0x1F393) ||
+            (value >= 0x1F3A0 && value <= 0x1F3CA) ||
+            (value >= 0x1F3CF && value <= 0x1F3D3) ||
+            (value >= 0x1F3E0 && value <= 0x1F3F0) ||
+            value == 0x1F3F4 ||
+            (value >= 0x1F3F8 && value <= 0x1F43E) ||
+            value == 0x1F440 ||
+            (value >= 0x1F442 && value <= 0x1F4FC) ||
+            (value >= 0x1F4FF && value <= 0x1F53D) ||
+            (value >= 0x1F54B && value <= 0x1F54E) ||
+            (value >= 0x1F550 && value <= 0x1F567) ||
+            value == 0x1F57A ||
+            (value >= 0x1F595 && value <= 0x1F596) ||
+            value == 0x1F5A4 ||
+            (value >= 0x1F5FB && value <= 0x1F64F) ||
+            (value >= 0x1F680 && value <= 0x1F6C5) ||
+            value == 0x1F6CC ||
+            (value >= 0x1F6D0 && value <= 0x1F6D2) ||
+            (value >= 0x1F6D5 && value <= 0x1F6D7) ||
+            (value >= 0x1F6DC && value <= 0x1F6DF) ||
+            (value >= 0x1F6EB && value <= 0x1F6EC) ||
+            (value >= 0x1F6F4 && value <= 0x1F6FC) ||
+            (value >= 0x1F7E0 && value <= 0x1F7EB) ||
+            value == 0x1F7F0 ||
+            (value >= 0x1F90C && value <= 0x1F93A) ||
+            (value >= 0x1F93C && value <= 0x1F945) ||
+            (value >= 0x1F947 && value <= 0x1F9FF) ||
+            (value >= 0x1FA70 && value <= 0x1FA7C) || // 🩰-🩼
+            (value >= 0x1FA80 && value <= 0x1FA88) || // 🪀-🪈
+            (value >= 0x1FA90 && value <= 0x1FABD) || // 🪐-🪽
+            (value >= 0x1FABF && value <= 0x1FAC5) || // 🪿-🫅
+            (value >= 0x1FACE && value <= 0x1FADB) || // 🫎-🫛
+            (value >= 0x1FAE0 && value <= 0x1FAE8) || // 🫠-🫨
+            (value >= 0x1FAF0 && value <= 0x1FAF8))   // 🫰-🫸
+        {
+            return 2;
+        }
+
+        // CJK Supplementary + Tangut + Nushu + Katakana Extended
+        if ((value >= 0x16FE0 && value <= 0x16FE3) ||
+            (value >= 0x16FF0 && value <= 0x16FF1) ||
+            (value >= 0x17000 && value <= 0x187F7) || // Tangut
+            (value >= 0x18800 && value <= 0x18CD5) || // Tangut Components + Khitan
+            (value >= 0x18D00 && value <= 0x18D08) ||
+            (value >= 0x1AFF0 && value <= 0x1AFF3) || // Katakana Extended
+            (value >= 0x1AFF5 && value <= 0x1AFFB) ||
+            (value >= 0x1AFFD && value <= 0x1AFFE) ||
+            (value >= 0x1B000 && value <= 0x1B122) || // Kana Supplement/Extended
+            value == 0x1B132 ||
+            (value >= 0x1B150 && value <= 0x1B152) ||
+            value == 0x1B155 ||
+            (value >= 0x1B164 && value <= 0x1B167) ||
+            (value >= 0x1B170 && value <= 0x1B2FB) || // Nushu
+            (value >= 0x20000 && value <= 0x2FA1D) || // CJK Extensions B-G + Compatibility
+            (value >= 0x30000 && value <= 0x3FFFD))   // CJK Extension H+
+        {
+            return 2;
+        }
+
+        // Default: 1 cell
         return 1;
     }
 

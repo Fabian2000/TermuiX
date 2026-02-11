@@ -314,6 +314,16 @@ public class Button : IWidget
         }
     }
 
+    bool IWidget.Hovered
+    {
+        get => ((IWidget)_container).Hovered;
+        set
+        {
+            ((IWidget)_container).Hovered = value;
+            ((IWidget)_textWidget).Hovered = value;
+        }
+    }
+
     long IWidget.ScrollOffsetX
     {
         get => ((IWidget)_container).ScrollOffsetX;
@@ -357,10 +367,27 @@ public class Button : IWidget
         }
     }
 
+    void IWidget.MousePress(MouseEventArgs args)
+    {
+        if (!Disabled && args.EventType == MouseEventType.LeftButtonPressed)
+        {
+            OnClick();
+        }
+        else if (!Disabled && args.EventType == MouseEventType.RightButtonPressed)
+        {
+            OnRightClick(args);
+        }
+    }
+
     /// <summary>
     /// Occurs when the button is clicked.
     /// </summary>
     public event EventHandler? Click;
+
+    /// <summary>
+    /// Occurs when the button is right-clicked. Provides mouse coordinates for context menu positioning.
+    /// </summary>
+    public event EventHandler<MouseEventArgs>? RightClick;
 
     /// <summary>
     /// Raises the Click event.
@@ -368,6 +395,14 @@ public class Button : IWidget
     protected virtual void OnClick()
     {
         Click?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Raises the RightClick event.
+    /// </summary>
+    protected virtual void OnRightClick(MouseEventArgs args)
+    {
+        RightClick?.Invoke(this, args);
     }
 
     /// <summary>

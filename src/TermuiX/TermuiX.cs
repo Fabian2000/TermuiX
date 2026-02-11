@@ -11,9 +11,13 @@ public sealed class TermuiX
     private IWidget? _widget = null;
     private readonly Renderer _renderer = new();
     private IWidget? _focusedWidget = null;
+    private IWidget? _hoveredWidget = null;
     private readonly List<IWidget> _focusableWidgets = [];
     private static ConsoleCancelEventHandler? _cancelHandler = null;
     private static bool _isInitialized = false;
+    private readonly HitTestMap _hitTestMap = new();
+    private bool _mouseEnabled = true;
+    private bool _focusVisible = true;
 
     /// <summary>
     /// Gets or sets a value indicating whether Ctrl+C should terminate the application.
@@ -30,8 +34,36 @@ public sealed class TermuiX
 
     /// <summary>
     /// Event triggered when the focused widget changes.
+    /// Includes the reason for the change (Keyboard, Click, Hover, Programmatic).
     /// </summary>
-    public event EventHandler<IWidget>? FocusChanged;
+    public event EventHandler<FocusChangedEventArgs>? FocusChanged;
+
+    /// <summary>
+    /// Event triggered when a mouse click occurs anywhere on the screen.
+    /// </summary>
+    public event EventHandler<MouseEventArgs>? MouseClick;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether mouse input is enabled.
+    /// Default is true.
+    /// </summary>
+    public bool MouseEnabled
+    {
+        get => _mouseEnabled;
+        set
+        {
+            _mouseEnabled = value;
+            if (!value)
+            {
+                if (_hoveredWidget != null)
+                {
+                    _hoveredWidget.Hovered = false;
+                    _hoveredWidget = null;
+                }
+                _focusVisible = true;
+            }
+        }
+    }
 
     private TermuiX() { }
 
@@ -49,6 +81,8 @@ public sealed class TermuiX
         Console.CancelKeyPress += _cancelHandler;
 
         _isInitialized = true;
+
+        MouseInput.Enable();
 
         return new TermuiX();
     }
@@ -73,6 +107,8 @@ public sealed class TermuiX
     {
         // Mark as not initialized FIRST to stop any further rendering
         _isInitialized = false;
+
+        MouseInput.Disable();
 
         // Small delay to ensure any in-flight Render() calls finish
         Thread.Sleep(50);
@@ -328,6 +364,11 @@ public sealed class TermuiX
     /// <param name="widget">The widget to focus.</param>
     public void SetFocus(IWidget widget)
     {
+        SetFocus(widget, FocusChangeReason.Programmatic);
+    }
+
+    private void SetFocus(IWidget widget, FocusChangeReason reason)
+    {
         if (!widget.CanFocus)
         {
             return;
@@ -346,7 +387,7 @@ public sealed class TermuiX
         _focusedWidget = widget;
         _focusedWidget.Focussed = true;
 
-        FocusChanged?.Invoke(this, widget);
+        FocusChanged?.Invoke(this, new FocusChangedEventArgs(widget, reason));
 
         // Auto-scroll to the focused widget if it's outside the visible area
         ScrollToWidget(_focusedWidget);
@@ -385,7 +426,7 @@ public sealed class TermuiX
         _focusedWidget = visibleFocusableWidgets[currentIndex];
         _focusedWidget.Focussed = true;
 
-        FocusChanged?.Invoke(this, _focusedWidget);
+        FocusChanged?.Invoke(this, new FocusChangedEventArgs(_focusedWidget, FocusChangeReason.Keyboard));
 
         // Auto-scroll to the focused widget if it's outside the visible area
         ScrollToWidget(_focusedWidget);
@@ -667,49 +708,182 @@ public sealed class TermuiX
     {
         try
         {
-            if (Console.KeyAvailable)
-            {
-                var key = Console.ReadKey(true);
+            // Mouse escape sequences are always active at the terminal level so that
+            // stdin doesn't get polluted with raw escape bytes.  We must always drain
+            // them via MouseInput.TryRead().  When _mouseEnabled is false we simply
+            // discard all mouse events and only forward keyboard events.
+            MouseEventArgs? lastMoved = null;
 
-                if (key.Modifiers.HasFlag(ConsoleModifiers.Control))
+            while (true)
+            {
+                int result = MouseInput.TryRead(out var mouseEvent, out var keyEvent);
+
+                if (result == 0)
+                    break;
+
+                if (result == 1)
                 {
-                    if (key.Key == ConsoleKey.A || key.Key == ConsoleKey.C || key.Key == ConsoleKey.V)
+                    // Mouse disabled → drain event, don't process
+                    if (!_mouseEnabled)
+                        continue;
+
+                    if (mouseEvent.EventType == MouseEventType.Moved)
                     {
-                        _focusedWidget?.KeyPress(key);
-                    }
-                    else if (key.Key == ConsoleKey.PageUp)
-                    {
-                        HandleScrollHorizontal(true);
-                    }
-                    else if (key.Key == ConsoleKey.PageDown)
-                    {
-                        HandleScrollHorizontal(false);
+                        // Coalesce: just remember the latest position
+                        lastMoved = mouseEvent;
                     }
                     else
                     {
-                        Shortcut?.Invoke(this, key);
+                        // Non-move event: flush any pending move first, then process
+                        if (lastMoved.HasValue)
+                        {
+                            ProcessMouseEvent(lastMoved.Value);
+                            lastMoved = null;
+                        }
+                        ProcessMouseEvent(mouseEvent);
                     }
                 }
-                else if (key.Key == ConsoleKey.Tab)
+                else if (result == 2)
                 {
-                    MoveFocus(!key.Modifiers.HasFlag(ConsoleModifiers.Shift));
+                    // Key event: flush any pending move first
+                    if (lastMoved.HasValue)
+                    {
+                        ProcessMouseEvent(lastMoved.Value);
+                        lastMoved = null;
+                    }
+                    ProcessKeyEvent(keyEvent);
                 }
-                else if (key.Key == ConsoleKey.PageUp)
-                {
-                    HandleScroll(true);
-                }
-                else if (key.Key == ConsoleKey.PageDown)
-                {
-                    HandleScroll(false);
-                }
-                else
-                {
-                    _focusedWidget?.KeyPress(key);
-                }
+            }
+
+            // Flush final pending move
+            if (_mouseEnabled && lastMoved.HasValue)
+            {
+                ProcessMouseEvent(lastMoved.Value);
             }
         }
         catch (InvalidOperationException)
         {
+        }
+    }
+
+    private void ProcessKeyEvent(ConsoleKeyInfo key)
+    {
+        if (key.Modifiers.HasFlag(ConsoleModifiers.Control))
+        {
+            if (key.Key == ConsoleKey.A || key.Key == ConsoleKey.C || key.Key == ConsoleKey.V)
+            {
+                _focusedWidget?.KeyPress(key);
+            }
+            else if (key.Key == ConsoleKey.PageUp)
+            {
+                HandleScrollHorizontal(true);
+            }
+            else if (key.Key == ConsoleKey.PageDown)
+            {
+                HandleScrollHorizontal(false);
+            }
+            else
+            {
+                Shortcut?.Invoke(this, key);
+            }
+        }
+        else if (key.Key == ConsoleKey.Tab)
+        {
+            _focusVisible = true;
+            MoveFocus(!key.Modifiers.HasFlag(ConsoleModifiers.Shift));
+        }
+        else if (key.Key == ConsoleKey.PageUp)
+        {
+            HandleScroll(true);
+        }
+        else if (key.Key == ConsoleKey.PageDown)
+        {
+            HandleScroll(false);
+        }
+        else if (key.Key == ConsoleKey.Escape)
+        {
+            Shortcut?.Invoke(this, key);
+        }
+        else
+        {
+            _focusedWidget?.KeyPress(key);
+        }
+    }
+
+    private void ProcessMouseEvent(MouseEventArgs e)
+    {
+        MouseClick?.Invoke(this, e);
+
+        if (e.EventType == MouseEventType.WheelUp || e.EventType == MouseEventType.WheelDown)
+        {
+            var scrollable = _hitTestMap.GetScrollableWidgetAt(e.X, e.Y);
+            if (scrollable != null)
+            {
+                HandleScrollOnWidget(scrollable, e.EventType == MouseEventType.WheelUp);
+            }
+            return;
+        }
+
+        if (e.EventType == MouseEventType.Moved)
+        {
+            _focusVisible = false;
+            var target = _hitTestMap.GetFocusableWidgetAt(e.X, e.Y);
+            if (target != _hoveredWidget)
+            {
+                if (_hoveredWidget != null)
+                {
+                    _hoveredWidget.Hovered = false;
+                }
+                _hoveredWidget = target;
+                if (_hoveredWidget != null)
+                {
+                    _hoveredWidget.Hovered = true;
+                }
+            }
+            return;
+        }
+
+        if (e.EventType == MouseEventType.LeftButtonPressed || e.EventType == MouseEventType.RightButtonPressed)
+        {
+            var target = _hitTestMap.GetFocusableWidgetAt(e.X, e.Y);
+            if (target != null)
+            {
+                SetFocus(target, FocusChangeReason.Click);
+                target.MousePress(e);
+            }
+        }
+    }
+
+    private void HandleScrollOnWidget(IWidget scrollTarget, bool up)
+    {
+        if (scrollTarget.Children.Count == 0) return;
+
+        int contentHeight = CalculateContentHeight(scrollTarget);
+
+        int availableHeight = contentHeight;
+        if (scrollTarget.HasHorizontalScrollbar)
+        {
+            availableHeight = Math.Max(0, availableHeight - 1);
+        }
+
+        int maxChildBottom = 0;
+
+        foreach (var child in scrollTarget.Children)
+        {
+            int childPosY = ParseSize(child.PositionY, availableHeight);
+            int childHeight = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, availableHeight);
+            maxChildBottom = Math.Max(maxChildBottom, childPosY + childHeight);
+        }
+
+        long maxScroll = Math.Max(0, maxChildBottom - contentHeight);
+
+        if (up)
+        {
+            scrollTarget.ScrollOffsetY = Math.Max(0, scrollTarget.ScrollOffsetY - 3);
+        }
+        else
+        {
+            scrollTarget.ScrollOffsetY = Math.Min(maxScroll, scrollTarget.ScrollOffsetY + 3);
         }
     }
 
@@ -742,33 +916,30 @@ public sealed class TermuiX
         }
 
         _renderer.Size(width, height);
-        var (chars, fgColors, bgColors) = _renderer.Render(_widget);
+        var (chars, fgColors, bgColors) = _renderer.Render(_widget, _hitTestMap, _focusVisible);
 
-        try
+        // Build entire frame into a reusable char[] buffer using ANSI escape codes.
+        // Single Console.Out.Write() call per frame — no per-character I/O overhead.
+        // The char[] is reused across frames (only reallocated when terminal grows).
+        int requiredSize = width * height * 16; // worst case: ~16 chars per cell (escape + rune)
+        if (_renderBuf.Length < requiredSize)
         {
-            Console.SetCursorPosition(0, 0);
+            _renderBuf = new char[requiredSize];
         }
-        catch (IOException)
-        {
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-        }
+        int pos = 0;
 
-        // Pre-allocate buffer outside loop to avoid stack overflow warning
-        Span<char> buffer = stackalloc char[2];
+        // Move to top-left (cursor is hidden for the entire TUI lifetime via Init())
+        WriteAnsi(ref pos, "\x1b[H");
+
+        Span<char> runeChars = stackalloc char[2];
+        ConsoleColor prevFg = (ConsoleColor)(-1);
+        ConsoleColor prevBg = (ConsoleColor)(-1);
 
         for (int y = 0; y < chars.Length; y++)
         {
-            try
+            if (y > 0)
             {
-                Console.SetCursorPosition(0, y);
-            }
-            catch (IOException)
-            {
-            }
-            catch (ArgumentOutOfRangeException)
-            {
+                _renderBuf[pos++] = '\n';
             }
 
             int displayWidth = 0;
@@ -777,36 +948,38 @@ public sealed class TermuiX
                 var rune = chars[y][x];
                 int runeWidth = GetRuneDisplayWidth(rune);
 
-                // Stop if this rune would exceed the terminal width
                 if (displayWidth + runeWidth > width)
                 {
                     break;
                 }
 
-                Console.BackgroundColor = bgColors[y][x];
-                Console.ForegroundColor = fgColors[y][x];
-
-                // Write the Rune by encoding to UTF16
-                int charsWritten = rune.EncodeToUtf16(buffer);
-                if (charsWritten == 1)
+                // Only emit color escape when color actually changes
+                var fg = fgColors[y][x];
+                var bg = bgColors[y][x];
+                if (fg != prevFg || bg != prevBg)
                 {
-                    Console.Write(buffer[0]);
+                    _renderBuf[pos++] = '\x1b';
+                    _renderBuf[pos++] = '[';
+                    WriteAnsiCode(ref pos, AnsiFg[(int)fg]);
+                    _renderBuf[pos++] = ';';
+                    WriteAnsiCode(ref pos, AnsiBg[(int)bg]);
+                    _renderBuf[pos++] = 'm';
+                    prevFg = fg;
+                    prevBg = bg;
                 }
-                else if (charsWritten == 2)
+
+                int charsWritten = rune.EncodeToUtf16(runeChars);
+                _renderBuf[pos++] = runeChars[0];
+                if (charsWritten == 2)
                 {
-                    Console.Write(buffer[0]);
-                    Console.Write(buffer[1]);
+                    _renderBuf[pos++] = runeChars[1];
                 }
 
                 displayWidth += runeWidth;
 
-                // Skip the next array position if this was a wide character
-                // (the next position contains a placeholder space)
-                // But don't skip if the next position contains something other than a space
                 if (runeWidth == 2 && x + 1 < chars[y].Length)
                 {
                     var nextRune = chars[y][x + 1];
-                    // Only skip if it's a space (placeholder)
                     if (nextRune.Value == ' ')
                     {
                         x++;
@@ -815,36 +988,179 @@ public sealed class TermuiX
             }
         }
 
-        Console.ResetColor();
+        // Reset colors, move cursor to top-left (cursor stays hidden during TUI runtime)
+        WriteAnsi(ref pos, "\x1b[0m\x1b[H");
+
+        // Single write for entire frame — zero allocation
+        Console.Out.Write(_renderBuf, 0, pos);
     }
+
+    // Reusable frame buffer — only grows, never shrinks. Zero allocation per frame.
+    private char[] _renderBuf = new char[32768];
+
+    private void WriteAnsi(ref int pos, string s)
+    {
+        for (int i = 0; i < s.Length; i++)
+            _renderBuf[pos++] = s[i];
+    }
+
+    private void WriteAnsiCode(ref int pos, string code)
+    {
+        for (int i = 0; i < code.Length; i++)
+            _renderBuf[pos++] = code[i];
+    }
+
+    // Pre-computed ANSI SGR codes for all 16 ConsoleColors × fg/bg.
+    // Index = (int)ConsoleColor. Avoids any allocation at render time.
+    private static readonly string[] AnsiFg =
+    [
+        "30",  // Black
+        "34",  // DarkBlue
+        "32",  // DarkGreen
+        "36",  // DarkCyan
+        "31",  // DarkRed
+        "35",  // DarkMagenta
+        "33",  // DarkYellow
+        "37",  // Gray
+        "90",  // DarkGray
+        "94",  // Blue
+        "92",  // Green
+        "96",  // Cyan
+        "91",  // Red
+        "95",  // Magenta
+        "93",  // Yellow
+        "97",  // White
+    ];
+
+    private static readonly string[] AnsiBg =
+    [
+        "40",   // Black
+        "44",   // DarkBlue
+        "42",   // DarkGreen
+        "46",   // DarkCyan
+        "41",   // DarkRed
+        "45",   // DarkMagenta
+        "43",   // DarkYellow
+        "47",   // Gray
+        "100",  // DarkGray
+        "104",  // Blue
+        "102",  // Green
+        "106",  // Cyan
+        "101",  // Red
+        "105",  // Magenta
+        "103",  // Yellow
+        "107",  // White
+    ];
 
     private static int GetRuneDisplayWidth(Rune rune)
     {
         int value = rune.Value;
 
-        // Emoji ranges (simplified check for common emoji blocks)
-        if ((value >= 0x1F300 && value <= 0x1F9FF) || // Misc Symbols and Pictographs, Emoticons, etc.
-            (value >= 0x1F600 && value <= 0x1F64F) || // Emoticons
-            (value >= 0x1F680 && value <= 0x1F6FF) || // Transport and Map
-            (value >= 0x1F900 && value <= 0x1F9FF))   // Supplemental Symbols
+        if ((value >= 0x1100 && value <= 0x115F) ||
+            (value >= 0x231A && value <= 0x231B) ||
+            (value >= 0x2329 && value <= 0x232A) ||
+            (value >= 0x23E9 && value <= 0x23EC) ||
+            value == 0x23F0 || value == 0x23F3 ||
+            (value >= 0x25FD && value <= 0x25FE) ||
+            (value >= 0x2614 && value <= 0x2615) ||
+            (value >= 0x2648 && value <= 0x2653) ||
+            value == 0x267F || value == 0x2693 || value == 0x26A1 ||
+            (value >= 0x26AA && value <= 0x26AB) ||
+            (value >= 0x26BD && value <= 0x26BE) ||
+            (value >= 0x26C4 && value <= 0x26C5) ||
+            value == 0x26CE || value == 0x26D4 || value == 0x26EA ||
+            (value >= 0x26F2 && value <= 0x26F3) ||
+            value == 0x26F5 || value == 0x26FA || value == 0x26FD ||
+            value == 0x2705 ||
+            (value >= 0x270A && value <= 0x270B) ||
+            value == 0x2728 || value == 0x274C || value == 0x274E ||
+            (value >= 0x2753 && value <= 0x2755) ||
+            value == 0x2757 ||
+            (value >= 0x2795 && value <= 0x2797) ||
+            value == 0x27B0 || value == 0x27BF ||
+            (value >= 0x2B1B && value <= 0x2B1C) ||
+            value == 0x2B50 || value == 0x2B55 ||
+            (value >= 0x2E80 && value <= 0x9FFF) ||
+            (value >= 0xA000 && value <= 0xA4C6) ||
+            (value >= 0xA960 && value <= 0xA97C) ||
+            (value >= 0xAC00 && value <= 0xD7A3) ||
+            (value >= 0xF900 && value <= 0xFAFF) ||
+            (value >= 0xFE10 && value <= 0xFE19) ||
+            (value >= 0xFE30 && value <= 0xFE6B) ||
+            (value >= 0xFF00 && value <= 0xFF60) ||
+            (value >= 0xFFE0 && value <= 0xFFE6))
         {
             return 2;
         }
 
-        // East Asian Wide and Fullwidth characters
-        if ((value >= 0x1100 && value <= 0x115F) ||   // Hangul Jamo
-            (value >= 0x2E80 && value <= 0x9FFF) ||   // CJK
-            (value >= 0xAC00 && value <= 0xD7A3) ||   // Hangul Syllables
-            (value >= 0xF900 && value <= 0xFAFF) ||   // CJK Compatibility Ideographs
-            (value >= 0xFF00 && value <= 0xFF60) ||   // Fullwidth Forms
-            (value >= 0xFFE0 && value <= 0xFFE6) ||   // Fullwidth Forms
-            (value >= 0x20000 && value <= 0x2FFFD) || // CJK Extension
-            (value >= 0x30000 && value <= 0x3FFFD))   // CJK Extension
+        if (value == 0x1F004 || value == 0x1F0CF || value == 0x1F18E ||
+            (value >= 0x1F191 && value <= 0x1F19A) ||
+            (value >= 0x1F200 && value <= 0x1F202) ||
+            (value >= 0x1F210 && value <= 0x1F23B) ||
+            (value >= 0x1F240 && value <= 0x1F248) ||
+            (value >= 0x1F250 && value <= 0x1F251) ||
+            (value >= 0x1F260 && value <= 0x1F265) ||
+            (value >= 0x1F300 && value <= 0x1F320) ||
+            (value >= 0x1F32D && value <= 0x1F335) ||
+            (value >= 0x1F337 && value <= 0x1F37C) ||
+            (value >= 0x1F37E && value <= 0x1F393) ||
+            (value >= 0x1F3A0 && value <= 0x1F3CA) ||
+            (value >= 0x1F3CF && value <= 0x1F3D3) ||
+            (value >= 0x1F3E0 && value <= 0x1F3F0) ||
+            value == 0x1F3F4 ||
+            (value >= 0x1F3F8 && value <= 0x1F43E) ||
+            value == 0x1F440 ||
+            (value >= 0x1F442 && value <= 0x1F4FC) ||
+            (value >= 0x1F4FF && value <= 0x1F53D) ||
+            (value >= 0x1F54B && value <= 0x1F54E) ||
+            (value >= 0x1F550 && value <= 0x1F567) ||
+            value == 0x1F57A ||
+            (value >= 0x1F595 && value <= 0x1F596) ||
+            value == 0x1F5A4 ||
+            (value >= 0x1F5FB && value <= 0x1F64F) ||
+            (value >= 0x1F680 && value <= 0x1F6C5) ||
+            value == 0x1F6CC ||
+            (value >= 0x1F6D0 && value <= 0x1F6D2) ||
+            (value >= 0x1F6D5 && value <= 0x1F6D7) ||
+            (value >= 0x1F6DC && value <= 0x1F6DF) ||
+            (value >= 0x1F6EB && value <= 0x1F6EC) ||
+            (value >= 0x1F6F4 && value <= 0x1F6FC) ||
+            (value >= 0x1F7E0 && value <= 0x1F7EB) ||
+            value == 0x1F7F0 ||
+            (value >= 0x1F90C && value <= 0x1F93A) ||
+            (value >= 0x1F93C && value <= 0x1F945) ||
+            (value >= 0x1F947 && value <= 0x1F9FF) ||
+            (value >= 0x1FA70 && value <= 0x1FA7C) ||
+            (value >= 0x1FA80 && value <= 0x1FA88) ||
+            (value >= 0x1FA90 && value <= 0x1FABD) ||
+            (value >= 0x1FABF && value <= 0x1FAC5) ||
+            (value >= 0x1FACE && value <= 0x1FADB) ||
+            (value >= 0x1FAE0 && value <= 0x1FAE8) ||
+            (value >= 0x1FAF0 && value <= 0x1FAF8))
         {
             return 2;
         }
 
-        // Default: 1 cell for ASCII and most characters
+        if ((value >= 0x16FE0 && value <= 0x16FE3) ||
+            (value >= 0x16FF0 && value <= 0x16FF1) ||
+            (value >= 0x17000 && value <= 0x187F7) ||
+            (value >= 0x18800 && value <= 0x18CD5) ||
+            (value >= 0x18D00 && value <= 0x18D08) ||
+            (value >= 0x1AFF0 && value <= 0x1AFF3) ||
+            (value >= 0x1AFF5 && value <= 0x1AFFB) ||
+            (value >= 0x1AFFD && value <= 0x1AFFE) ||
+            (value >= 0x1B000 && value <= 0x1B122) ||
+            value == 0x1B132 ||
+            (value >= 0x1B150 && value <= 0x1B152) ||
+            value == 0x1B155 ||
+            (value >= 0x1B164 && value <= 0x1B167) ||
+            (value >= 0x1B170 && value <= 0x1B2FB) ||
+            (value >= 0x20000 && value <= 0x2FA1D) ||
+            (value >= 0x30000 && value <= 0x3FFFD))
+        {
+            return 2;
+        }
+
         return 1;
     }
 }

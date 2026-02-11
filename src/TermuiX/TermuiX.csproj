@@ -39,6 +39,9 @@
     <!-- AOT Compatibility -->
     <IsAotCompatible>true</IsAotCompatible>
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
+
+    <!-- Required for LibraryImport source generator (P/Invoke for mouse input on Windows) -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
