@@ -76,11 +76,31 @@ namespace TermuiX
 
             int width = ParseSize(widget.Width, parentWidth);
             int height = ParseSize(widget.Height, parentHeight);
+
+            // StackPanel auto-size: compute size from children when Width/Height is "auto"
+            if (widget is Widgets.StackPanel autoStack)
+            {
+                var (autoW, autoH) = ResolveAutoSize(autoStack, parentWidth, parentHeight);
+                if (autoW > 0) width = autoW;
+                if (autoH > 0) height = autoH;
+            }
+
+            // For children inside a StackPanel, use ComputedWidth/Height from GetRaw()
+            // instead of ParseSize("100%", parentWidth) which would give the full parent width.
+            if (widget.Parent is Widgets.StackPanel)
+            {
+                if (widget.ComputedWidth > 0) width = widget.ComputedWidth;
+                if (widget.ComputedHeight > 0) height = widget.ComputedHeight;
+            }
+
             int posX = ParseSize(widget.PositionX, parentWidth);
             int posY = ParseSize(widget.PositionY, parentHeight);
 
             posX -= parentScrollX;
             posY -= parentScrollY;
+
+            int marginLeft = ParseSize(widget.MarginLeft, parentWidth);
+            int marginTop = ParseSize(widget.MarginTop, parentHeight);
 
             int padLeft = ParseSize(widget.PaddingLeft, width);
             int padTop = ParseSize(widget.PaddingTop, height);
@@ -96,8 +116,8 @@ namespace TermuiX
                 padBottom += 1;
             }
 
-            int absX = parentX + posX;
-            int absY = parentY + posY;
+            int absX = parentX + posX + marginLeft;
+            int absY = parentY + posY + marginTop;
 
             hitTestMap?.Set(absX, absY, width, height, widget, parentX, parentY, parentWidth, parentHeight);
 
@@ -171,6 +191,217 @@ namespace TermuiX
             int childClipWidth = Math.Max(0, childClipRight - childClipX);
             int childClipHeight = Math.Max(0, childClipBottom - childClipY);
 
+            // StackPanel layout pass: compute child positions before scrollbar checks
+            if (widget is Widgets.StackPanel stackPanel && widget.Children.Count > 0)
+            {
+                bool isVertical = stackPanel.Direction == Widgets.StackDirection.Vertical;
+                var justify = stackPanel.Justify;
+                var align = stackPanel.Align;
+                bool wrap = stackPanel.Wrap;
+
+                int mainAxisSize = isVertical ? contentHeight : contentWidth;
+                int crossAxisSize = isVertical ? contentWidth : contentHeight;
+
+                // Measure all visible children with cumulative % rounding
+                var measured = new List<(IWidget child, int mainSize, int crossSize, int mMain0, int mMain1, int mCross0, int mCross1)>();
+                float cumulativePercent = 0f;
+                int cumulativePixels = 0;
+
+                foreach (var child in widget.Children)
+                {
+                    if (!child.Visible) continue;
+                    child.GetRaw();
+
+                    int mLeft = ParseSize(child.MarginLeft, contentWidth);
+                    int mTop = ParseSize(child.MarginTop, contentHeight);
+                    int mRight = ParseSize(child.MarginRight, contentWidth);
+                    int mBottom = ParseSize(child.MarginBottom, contentHeight);
+
+                    int mMain0 = isVertical ? mTop : mLeft;
+                    int mMain1 = isVertical ? mBottom : mRight;
+                    int mCross0 = isVertical ? mLeft : mTop;
+                    int mCross1 = isVertical ? mRight : mBottom;
+
+                    string sizeStr = isVertical ? child.Height : child.Width;
+                    int mainChildSize;
+
+                    // Cumulative rounding for %-based sizes
+                    if (sizeStr.TrimEnd().EndsWith('%') && float.TryParse(sizeStr.TrimEnd()[..^1].Trim(), out float pct))
+                    {
+                        cumulativePercent += pct;
+                        int newCumulative = (int)(mainAxisSize * cumulativePercent / 100.0f);
+                        mainChildSize = newCumulative - cumulativePixels;
+                        cumulativePixels = newCumulative;
+                    }
+                    else
+                    {
+                        mainChildSize = isVertical
+                            ? (child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, contentHeight))
+                            : (child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, contentWidth));
+                    }
+
+                    int crossChildSize = isVertical
+                        ? (child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, contentWidth))
+                        : (child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, contentHeight));
+
+                    // Store corrected sizes
+                    if (isVertical)
+                        child.ComputedHeight = mainChildSize;
+                    else
+                        child.ComputedWidth = mainChildSize;
+
+                    measured.Add((child, mainChildSize, crossChildSize, mMain0, mMain1, mCross0, mCross1));
+                }
+
+                // Split into lines (wrap) or single line (no wrap)
+                var lines = new List<List<int>>(); // indices into measured
+                var lineMainSizes = new List<int>();
+                var lineCrossSizes = new List<int>();
+
+                var currentLine = new List<int>();
+                int currentMainUsed = 0;
+                int currentMaxCross = 0;
+
+                for (int i = 0; i < measured.Count; i++)
+                {
+                    var m = measured[i];
+                    int totalMain = m.mMain0 + m.mainSize + m.mMain1;
+                    int totalCross = m.mCross0 + m.crossSize + m.mCross1;
+
+                    if (wrap && currentLine.Count > 0 && currentMainUsed + totalMain > mainAxisSize)
+                    {
+                        // Finish current line, start new one
+                        lines.Add(currentLine);
+                        lineMainSizes.Add(currentMainUsed);
+                        lineCrossSizes.Add(currentMaxCross);
+
+                        currentLine = new List<int>();
+                        currentMainUsed = 0;
+                        currentMaxCross = 0;
+                    }
+
+                    currentLine.Add(i);
+                    currentMainUsed += totalMain;
+                    if (totalCross > currentMaxCross) currentMaxCross = totalCross;
+                }
+
+                if (currentLine.Count > 0)
+                {
+                    lines.Add(currentLine);
+                    lineMainSizes.Add(currentMainUsed);
+                    lineCrossSizes.Add(currentMaxCross);
+                }
+
+                // Position each line
+                int crossOffset = 0;
+                for (int lineIdx = 0; lineIdx < lines.Count; lineIdx++)
+                {
+                    var line = lines[lineIdx];
+                    int lineMainUsed = lineMainSizes[lineIdx];
+                    int lineMaxCross = lineCrossSizes[lineIdx];
+                    int lineCount = line.Count;
+
+                    // Calculate justify spacing for this line
+                    int freeSpace = Math.Max(0, mainAxisSize - lineMainUsed);
+                    int startOff = 0;
+                    int spacing = 0;
+                    int remainder = 0;
+
+                    switch (justify)
+                    {
+                        case Widgets.StackJustify.Start:
+                            break;
+                        case Widgets.StackJustify.End:
+                            startOff = freeSpace;
+                            break;
+                        case Widgets.StackJustify.Center:
+                            startOff = freeSpace / 2;
+                            break;
+                        case Widgets.StackJustify.SpaceBetween:
+                            if (lineCount > 1)
+                            {
+                                spacing = freeSpace / (lineCount - 1);
+                                remainder = freeSpace % (lineCount - 1);
+                            }
+                            break;
+                        case Widgets.StackJustify.SpaceAround:
+                            if (lineCount > 0)
+                            {
+                                spacing = freeSpace / lineCount;
+                                remainder = freeSpace % lineCount;
+                                startOff = spacing / 2;
+                            }
+                            break;
+                        case Widgets.StackJustify.SpaceEvenly:
+                            if (lineCount > 0)
+                            {
+                                spacing = freeSpace / (lineCount + 1);
+                                remainder = freeSpace % (lineCount + 1);
+                                startOff = spacing;
+                            }
+                            break;
+                    }
+
+                    // Position children in this line
+                    int mainOffset = startOff;
+                    for (int li = 0; li < line.Count; li++)
+                    {
+                        var m = measured[line[li]];
+                        var child = m.child;
+
+                        if (isVertical)
+                        {
+                            child.PositionY = $"{mainOffset}ch";
+                            mainOffset += m.mMain0 + m.mainSize + m.mMain1;
+
+                            // Cross-axis (X) position
+                            int crossAvail = wrap ? lineMaxCross : crossAxisSize;
+                            int crossFree = Math.Max(0, crossAvail - m.crossSize - m.mCross0 - m.mCross1);
+                            int crossPos = align switch
+                            {
+                                Widgets.StackAlign.Center => m.mCross0 + (crossFree / 2),
+                                Widgets.StackAlign.End => m.mCross0 + crossFree,
+                                _ => 0
+                            };
+                            child.PositionX = $"{crossOffset + crossPos}ch";
+                        }
+                        else
+                        {
+                            child.PositionX = $"{mainOffset}ch";
+                            mainOffset += m.mMain0 + m.mainSize + m.mMain1;
+
+                            // Cross-axis (Y) position
+                            int crossAvail = wrap ? lineMaxCross : crossAxisSize;
+                            int crossFree = Math.Max(0, crossAvail - m.crossSize - m.mCross0 - m.mCross1);
+                            int crossPos = align switch
+                            {
+                                Widgets.StackAlign.Center => m.mCross0 + (crossFree / 2),
+                                Widgets.StackAlign.End => m.mCross0 + crossFree,
+                                _ => 0
+                            };
+                            child.PositionY = $"{crossOffset + crossPos}ch";
+                        }
+
+                        // Justify spacing after each child
+                        if (justify != Widgets.StackJustify.Start && justify != Widgets.StackJustify.End && justify != Widgets.StackJustify.Center)
+                        {
+                            bool isLast = li == line.Count - 1;
+                            if (justify == Widgets.StackJustify.SpaceBetween && isLast)
+                                continue;
+
+                            mainOffset += spacing;
+                            if (remainder > 0)
+                            {
+                                mainOffset++;
+                                remainder--;
+                            }
+                        }
+                    }
+
+                    crossOffset += lineMaxCross;
+                }
+            }
+
             // Check if scrollbars will be rendered (need to check before rendering children)
             bool willRenderVerticalScrollbar = false;
             bool willRenderHorizontalScrollbar = false;
@@ -192,8 +423,21 @@ namespace TermuiX
                     maxChildRight = Math.Max(maxChildRight, childPosX + childWidth);
                 }
 
-                willRenderVerticalScrollbar = contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0);
-                willRenderHorizontalScrollbar = contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0);
+                // For wrapping StackPanels, only allow overflow on the cross axis:
+                // - Horizontal wrap: content wraps down (vertical overflow only)
+                // - Vertical wrap: content wraps right (horizontal overflow only)
+                bool suppressHorizontal = false;
+                bool suppressVertical = false;
+                if (widget is Widgets.StackPanel sp && sp.Wrap)
+                {
+                    if (sp.Direction == Widgets.StackDirection.Horizontal)
+                        suppressHorizontal = true; // wrapping prevents horizontal overflow
+                    else
+                        suppressVertical = true; // wrapping prevents vertical overflow
+                }
+
+                willRenderVerticalScrollbar = !suppressVertical && contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0);
+                willRenderHorizontalScrollbar = !suppressHorizontal && contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0);
             }
 
             // Reduce clip region if scrollbars will be rendered
@@ -237,7 +481,18 @@ namespace TermuiX
                 widget.HasVerticalScrollbar = false;
                 widget.HasHorizontalScrollbar = false;
 
-                if (contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0))
+                // For wrapping StackPanels, only allow overflow on the cross axis
+                bool renderSuppressH = false;
+                bool renderSuppressV = false;
+                if (widget is Widgets.StackPanel spRender && spRender.Wrap)
+                {
+                    if (spRender.Direction == Widgets.StackDirection.Horizontal)
+                        renderSuppressH = true;
+                    else
+                        renderSuppressV = true;
+                }
+
+                if (!renderSuppressV && contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0))
                 {
                     // Set flag indicating vertical scrollbar is rendered in this frame
                     widget.HasVerticalScrollbar = true;
@@ -269,7 +524,7 @@ namespace TermuiX
                     }
                 }
 
-                if (contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0))
+                if (!renderSuppressH && contentHeight > 0 && (maxChildRight > contentWidth || scrollX > 0))
                 {
                     // Set flag indicating horizontal scrollbar is rendered in this frame
                     widget.HasHorizontalScrollbar = true;
@@ -303,6 +558,139 @@ namespace TermuiX
             }
         }
 
+        /// <summary>
+        /// Recursively resolves auto-sized dimensions for a StackPanel by measuring its children.
+        /// Returns (width, height) where 0 means "not auto / use ParseSize result".
+        /// </summary>
+        private static (int width, int height) ResolveAutoSize(Widgets.StackPanel stack, int parentWidth, int parentHeight)
+        {
+            bool autoW = stack.Width.Equals("auto", StringComparison.OrdinalIgnoreCase);
+            bool autoH = stack.Height.Equals("auto", StringComparison.OrdinalIgnoreCase);
+
+            if (!autoW && !autoH)
+            {
+                return (0, 0);
+            }
+
+            bool isVert = stack.Direction == Widgets.StackDirection.Vertical;
+            bool doWrap = stack.Wrap;
+
+            // Measure all visible children
+            var items = new List<(int mainSize, int crossSize)>();
+            foreach (var child in ((IWidget)stack).Children)
+            {
+                if (!child.Visible) continue;
+
+                // Recursively resolve nested auto-sized StackPanels first
+                if (child is Widgets.StackPanel childStack)
+                {
+                    var (cAutoW, cAutoH) = ResolveAutoSize(childStack, parentWidth, parentHeight);
+                    if (cAutoW > 0) child.ComputedWidth = cAutoW;
+                    if (cAutoH > 0) child.ComputedHeight = cAutoH;
+                }
+
+                // Measure the child's actual rendered dimensions from GetRaw()
+                var childRaw = child.GetRaw();
+                int cw = 0, ch = 0;
+                if (childRaw != null && childRaw.Length > 0)
+                {
+                    ch = childRaw.Length;
+                    for (int i = 0; i < childRaw.Length; i++)
+                    {
+                        if (childRaw[i] != null && childRaw[i].Length > cw)
+                            cw = childRaw[i].Length;
+                    }
+                }
+                if (cw == 0)
+                    cw = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, parentWidth);
+                if (ch == 0)
+                    ch = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, parentHeight);
+
+                child.ComputedWidth = cw;
+                child.ComputedHeight = ch;
+
+                int mLeft = ParseSize(child.MarginLeft, 0);
+                int mTop = ParseSize(child.MarginTop, 0);
+                int mRight = ParseSize(child.MarginRight, 0);
+                int mBottom = ParseSize(child.MarginBottom, 0);
+
+                int mainTotal = isVert ? (mTop + ch + mBottom) : (mLeft + cw + mRight);
+                int crossTotal = isVert ? (cw + mLeft + mRight) : (ch + mTop + mBottom);
+                items.Add((mainTotal, crossTotal));
+            }
+
+            int border = stack.HasBorder ? 2 : 0;
+            int padH = ParseSize(stack.PaddingLeft, 0) + ParseSize(stack.PaddingRight, 0);
+            int padV = ParseSize(stack.PaddingTop, 0) + ParseSize(stack.PaddingBottom, 0);
+
+            int totalStack = 0;
+            int maxCross = 0;
+
+            if (doWrap)
+            {
+                // For wrap: need the fixed main-axis size to know where to break
+                int mainAxisLimit = isVert
+                    ? (autoH ? int.MaxValue : ParseSize(stack.Height, parentHeight) - border - padV)
+                    : (autoW ? int.MaxValue : ParseSize(stack.Width, parentWidth) - border - padH);
+
+                int lineMain = 0;
+                int lineMaxCross = 0;
+                int maxLineMain = 0;
+                int totalCross = 0;
+
+                foreach (var item in items)
+                {
+                    if (lineMain > 0 && lineMain + item.mainSize > mainAxisLimit)
+                    {
+                        // Finish line
+                        if (lineMain > maxLineMain) maxLineMain = lineMain;
+                        totalCross += lineMaxCross;
+                        lineMain = 0;
+                        lineMaxCross = 0;
+                    }
+
+                    lineMain += item.mainSize;
+                    if (item.crossSize > lineMaxCross) lineMaxCross = item.crossSize;
+                }
+
+                // Last line
+                if (lineMain > maxLineMain) maxLineMain = lineMain;
+                totalCross += lineMaxCross;
+
+                totalStack = maxLineMain;
+                maxCross = totalCross;
+            }
+            else
+            {
+                // No wrap: simple sum/max
+                foreach (var item in items)
+                {
+                    totalStack += item.mainSize;
+                    if (item.crossSize > maxCross) maxCross = item.crossSize;
+                }
+            }
+
+            int width = 0;
+            int height = 0;
+
+            if (isVert)
+            {
+                if (autoH) height = totalStack + border + padV;
+                if (autoW) width = maxCross + border + padH;
+            }
+            else
+            {
+                if (autoW) width = totalStack + border + padH;
+                if (autoH) height = maxCross + border + padV;
+            }
+
+            // Store computed values so GetRaw() and external code can use them
+            ((IWidget)stack).ComputedWidth = width > 0 ? width : ParseSize(stack.Width, parentWidth);
+            ((IWidget)stack).ComputedHeight = height > 0 ? height : ParseSize(stack.Height, parentHeight);
+
+            return (width, height);
+        }
+
         private static int ParseSize(string size, int parentSize)
         {
             if (string.IsNullOrEmpty(size))
@@ -311,6 +699,11 @@ namespace TermuiX
             }
 
             size = size.Trim();
+
+            if (size.Equals("auto", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0;
+            }
 
             if (size.EndsWith("ch"))
             {
@@ -333,7 +726,7 @@ namespace TermuiX
                 throw new FormatException($"Invalid size value: '{size}'. Expected format: '{{number}}%' (e.g., '50%')");
             }
 
-            throw new FormatException($"Invalid size value: '{size}'. Size must end with 'ch' or '%' (e.g., '10ch' or '50%')");
+            throw new FormatException($"Invalid size value: '{size}'. Size must end with 'ch', '%', or be 'auto' (e.g., '10ch', '50%', 'auto')");
         }
     }
 }

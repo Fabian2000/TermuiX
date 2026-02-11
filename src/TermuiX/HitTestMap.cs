@@ -9,6 +9,7 @@ internal class HitTestMap
     private List<IWidget>?[][]? _map;
     private int _width;
     private int _height;
+    private readonly Dictionary<IWidget, (int X, int Y, int Width, int Height)> _bounds = new();
 
     /// <summary>
     /// Initializes or resets the map for the current frame.
@@ -35,6 +36,7 @@ internal class HitTestMap
                 }
             }
         }
+        _bounds.Clear();
     }
 
     /// <summary>
@@ -45,6 +47,8 @@ internal class HitTestMap
                       int clipX, int clipY, int clipWidth, int clipHeight)
     {
         if (_map == null) return;
+
+        _bounds[widget] = (x, y, width, height);
 
         int startX = Math.Max(x, clipX);
         int startY = Math.Max(y, clipY);
@@ -133,5 +137,13 @@ internal class HitTestMap
             widget = widget.Parent;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Returns the screen bounds (absX, absY, width, height) for a widget, or null if not found.
+    /// </summary>
+    internal (int X, int Y, int Width, int Height)? GetBounds(IWidget widget)
+    {
+        return _bounds.TryGetValue(widget, out var bounds) ? bounds : null;
     }
 }

@@ -191,6 +191,26 @@ public class Button : IWidget
     }
 
     /// <summary>
+    /// Gets or sets the left margin.
+    /// </summary>
+    public string MarginLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top margin.
+    /// </summary>
+    public string MarginTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right margin.
+    /// </summary>
+    public string MarginRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom margin.
+    /// </summary>
+    public string MarginBottom { get; set; } = "0ch";
+
+    /// <summary>
     /// Gets or sets the X position.
     /// </summary>
     public string PositionX
@@ -341,6 +361,13 @@ public class Button : IWidget
         // Set container's parent to this widget's parent for proper size calculation
         ((IWidget)_container).Parent = ((IWidget)this).Parent;
 
+        // If the StackPanel measurement pass already computed our size, use that
+        // instead of letting the inner container recalculate from parent %
+        if (((IWidget)this).ComputedWidth > 0)
+            _container.Width = $"{((IWidget)this).ComputedWidth}ch";
+        if (((IWidget)this).ComputedHeight > 0)
+            _container.Height = $"{((IWidget)this).ComputedHeight}ch";
+
         // Propagate disabled state to inner widgets so they render with disabled colors
         ((IWidget)_container).Disabled = Disabled;
         ((IWidget)_container).DisabledForegroundColor = DisabledForegroundColor;
@@ -422,6 +449,10 @@ public class Button : IWidget
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,
             PaddingBottom = PaddingBottom,
+            MarginLeft = MarginLeft,
+            MarginTop = MarginTop,
+            MarginRight = MarginRight,
+            MarginBottom = MarginBottom,
             PositionX = PositionX,
             PositionY = PositionY,
             Visible = Visible,

@@ -40,7 +40,7 @@ public class Checkbox : IWidget
     /// <summary>
     /// Gets or sets the width of the checkbox.
     /// </summary>
-    public string Width { get; set; } = "1ch";
+    public string Width { get; set; } = "2ch";
 
     /// <summary>
     /// Gets or sets the height of the checkbox.
@@ -66,6 +66,26 @@ public class Checkbox : IWidget
     /// Gets or sets the bottom padding.
     /// </summary>
     public string PaddingBottom { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the left margin.
+    /// </summary>
+    public string MarginLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top margin.
+    /// </summary>
+    public string MarginTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right margin.
+    /// </summary>
+    public string MarginRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom margin.
+    /// </summary>
+    public string MarginBottom { get; set; } = "0ch";
 
     /// <summary>
     /// Gets or sets the X position.
@@ -159,9 +179,10 @@ public class Checkbox : IWidget
     Rune[][] IWidget.GetRaw()
     {
         var result = new Rune[1][];
-        result[0] = new Rune[1];
+        result[0] = new Rune[2];
 
-        result[0][0] = _checked ? new Rune('☑') : new Rune('☐');
+        result[0][0] = _checked ? new Rune('☒') : new Rune('☐');
+        result[0][1] = new Rune(' ');
 
         return result;
     }
@@ -210,6 +231,10 @@ public class Checkbox : IWidget
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,
             PaddingBottom = PaddingBottom,
+            MarginLeft = MarginLeft,
+            MarginTop = MarginTop,
+            MarginRight = MarginRight,
+            MarginBottom = MarginBottom,
             PositionX = PositionX,
             PositionY = PositionY,
             Visible = Visible,

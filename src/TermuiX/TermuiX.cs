@@ -18,6 +18,7 @@ public sealed class TermuiX
     private readonly HitTestMap _hitTestMap = new();
     private bool _mouseEnabled = true;
     private bool _focusVisible = true;
+    private IWidget? _dragTarget = null;
 
     /// <summary>
     /// Gets or sets a value indicating whether Ctrl+C should terminate the application.
@@ -64,6 +65,11 @@ public sealed class TermuiX
             }
         }
     }
+
+    /// <summary>
+    /// Gets the currently focused widget, or null if no widget has focus.
+    /// </summary>
+    public IWidget? FocusedWidget => _focusedWidget;
 
     private TermuiX() { }
 
@@ -819,7 +825,17 @@ public sealed class TermuiX
             var scrollable = _hitTestMap.GetScrollableWidgetAt(e.X, e.Y);
             if (scrollable != null)
             {
-                HandleScrollOnWidget(scrollable, e.EventType == MouseEventType.WheelUp);
+                bool horizontal = e.Shift;
+
+                // Auto-detect: if widget only has horizontal scrollbar (no vertical),
+                // route regular wheel to horizontal scroll
+                if (!horizontal && scrollable.HasHorizontalScrollbar && !scrollable.HasVerticalScrollbar)
+                    horizontal = true;
+
+                if (horizontal)
+                    HandleScrollHorizontalOnWidget(scrollable, e.EventType == MouseEventType.WheelUp);
+                else
+                    HandleScrollOnWidget(scrollable, e.EventType == MouseEventType.WheelUp);
             }
             return;
         }
@@ -827,6 +843,22 @@ public sealed class TermuiX
         if (e.EventType == MouseEventType.Moved)
         {
             _focusVisible = false;
+
+            // Drag: forward move events to the widget that received the initial press
+            if (_dragTarget != null)
+            {
+                var bounds = _hitTestMap.GetBounds(_dragTarget);
+                int bx = bounds?.X ?? 0;
+                int by = bounds?.Y ?? 0;
+                _dragTarget.MousePress(new MouseEventArgs
+                {
+                    X = e.X, Y = e.Y,
+                    LocalX = e.X - bx, LocalY = e.Y - by,
+                    EventType = e.EventType
+                });
+                return;
+            }
+
             var target = _hitTestMap.GetFocusableWidgetAt(e.X, e.Y);
             if (target != _hoveredWidget)
             {
@@ -843,13 +875,28 @@ public sealed class TermuiX
             return;
         }
 
+        if (e.EventType == MouseEventType.LeftButtonReleased || e.EventType == MouseEventType.RightButtonReleased)
+        {
+            _dragTarget = null;
+        }
+
         if (e.EventType == MouseEventType.LeftButtonPressed || e.EventType == MouseEventType.RightButtonPressed)
         {
             var target = _hitTestMap.GetFocusableWidgetAt(e.X, e.Y);
             if (target != null)
             {
                 SetFocus(target, FocusChangeReason.Click);
-                target.MousePress(e);
+                _dragTarget = target;
+
+                var bounds = _hitTestMap.GetBounds(target);
+                int bx = bounds?.X ?? 0;
+                int by = bounds?.Y ?? 0;
+                target.MousePress(new MouseEventArgs
+                {
+                    X = e.X, Y = e.Y,
+                    LocalX = e.X - bx, LocalY = e.Y - by,
+                    EventType = e.EventType
+                });
             }
         }
     }
@@ -884,6 +931,39 @@ public sealed class TermuiX
         else
         {
             scrollTarget.ScrollOffsetY = Math.Min(maxScroll, scrollTarget.ScrollOffsetY + 3);
+        }
+    }
+
+    private void HandleScrollHorizontalOnWidget(IWidget scrollTarget, bool left)
+    {
+        if (scrollTarget.Children.Count == 0) return;
+
+        int contentWidth = CalculateContentWidth(scrollTarget);
+
+        int availableWidth = contentWidth;
+        if (scrollTarget.HasVerticalScrollbar)
+        {
+            availableWidth = Math.Max(0, availableWidth - 1);
+        }
+
+        int maxChildRight = 0;
+
+        foreach (var child in scrollTarget.Children)
+        {
+            int childPosX = ParseSize(child.PositionX, availableWidth);
+            int childWidth = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, availableWidth);
+            maxChildRight = Math.Max(maxChildRight, childPosX + childWidth);
+        }
+
+        long maxScroll = Math.Max(0, maxChildRight - contentWidth);
+
+        if (left)
+        {
+            scrollTarget.ScrollOffsetX = Math.Max(0, scrollTarget.ScrollOffsetX - 3);
+        }
+        else
+        {
+            scrollTarget.ScrollOffsetX = Math.Min(maxScroll, scrollTarget.ScrollOffsetX + 3);
         }
     }
 

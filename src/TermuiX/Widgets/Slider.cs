@@ -12,6 +12,7 @@ public class Slider : IWidget
     private double _max = 100;
     private ConsoleColor _backgroundColor = ConsoleColor.Black;
     private ConsoleColor _foregroundColor = ConsoleColor.White;
+    private int _lastTrackWidth = 0;
 
     /// <summary>
     /// Gets or sets the current value of the slider.
@@ -113,6 +114,26 @@ public class Slider : IWidget
     public string PaddingBottom { get; set; } = "0ch";
 
     /// <summary>
+    /// Gets or sets the left margin.
+    /// </summary>
+    public string MarginLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top margin.
+    /// </summary>
+    public string MarginTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right margin.
+    /// </summary>
+    public string MarginRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom margin.
+    /// </summary>
+    public string MarginBottom { get; set; } = "0ch";
+
+    /// <summary>
     /// Gets or sets the X position.
     /// </summary>
     public string PositionX { get; set; } = "0ch";
@@ -201,6 +222,14 @@ public class Slider : IWidget
     /// </summary>
     public event EventHandler<double>? ValueChanged;
 
+    void IWidget.MousePress(MouseEventArgs args)
+    {
+        if (args.EventType == MouseEventType.LeftButtonPressed || args.EventType == MouseEventType.Moved)
+        {
+            SetValueFromLocalX(args.LocalX);
+        }
+    }
+
     Rune[][] IWidget.GetRaw()
     {
         int width = GetWidthInChars();
@@ -220,8 +249,14 @@ public class Slider : IWidget
         string valueText = "";
         if (ShowValue)
         {
+            // Always reserve space for the widest possible value text so the track
+            // doesn't shift when the number of digits changes (e.g. 0 → 10 → 100).
+            string minText = $" {_min:0.##}";
+            string maxText = $" {_max:0.##}";
+            int maxLen = Math.Max(minText.Length, maxText.Length);
+
             valueText = $" {_value:0.##}";
-            valueTextLength = valueText.Length;
+            valueTextLength = maxLen;
         }
 
         int trackWidth = width - valueTextLength;
@@ -230,11 +265,13 @@ public class Slider : IWidget
             trackWidth = 3;
         }
 
+        _lastTrackWidth = trackWidth;
+
         result[0][0] = new Rune('[');
         result[0][trackWidth - 1] = new Rune(']');
 
-        int thumbPos = (int)((trackWidth - 2) * normalizedValue);
-        thumbPos = Math.Clamp(thumbPos, 0, trackWidth - 2);
+        int thumbPos = (int)((trackWidth - 3) * normalizedValue);
+        thumbPos = Math.Clamp(thumbPos, 0, trackWidth - 3);
 
         for (int i = 1; i < trackWidth - 1; i++)
         {
@@ -254,9 +291,11 @@ public class Slider : IWidget
 
         if (ShowValue && valueTextLength > 0)
         {
-            for (int i = 0; i < valueText.Length && trackWidth + i < width; i++)
+            // Right-align the value text within the reserved space
+            int padLen = valueTextLength - valueText.Length;
+            for (int i = 0; i < valueText.Length && trackWidth + padLen + i < width; i++)
             {
-                result[0][trackWidth + i] = new Rune(valueText[i]);
+                result[0][trackWidth + padLen + i] = new Rune(valueText[i]);
             }
         }
 
@@ -303,6 +342,23 @@ public class Slider : IWidget
         ValueChanged?.Invoke(this, _value);
     }
 
+    /// <summary>
+    /// Sets the slider value based on a local X coordinate relative to the widget's left edge.
+    /// Called by the framework for mouse click/drag support.
+    /// </summary>
+    internal void SetValueFromLocalX(int localX)
+    {
+        if (Disabled || _lastTrackWidth < 3) return;
+
+        // localX 0 = '[', localX trackWidth-1 = ']', inner positions are 1..trackWidth-2
+        double ratio = Math.Clamp((localX - 1.0) / (_lastTrackWidth - 3), 0.0, 1.0);
+        double raw = _min + ratio * (_max - _min);
+        // Snap to Step grid so mouse input produces the same clean values as keyboard
+        if (Step > 0)
+            raw = Math.Round(raw / Step) * Step;
+        Value = raw;
+    }
+
     private int GetWidthInChars()
     {
         if (Width.EndsWith("ch"))
@@ -340,6 +396,10 @@ public class Slider : IWidget
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,
             PaddingBottom = PaddingBottom,
+            MarginLeft = MarginLeft,
+            MarginTop = MarginTop,
+            MarginRight = MarginRight,
+            MarginBottom = MarginBottom,
             PositionX = PositionX,
             PositionY = PositionY,
             Visible = Visible,
