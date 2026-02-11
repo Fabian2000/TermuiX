@@ -769,11 +769,7 @@ public class FileExplorer
     /// </summary>
     public bool IsFocusedInExplorer()
     {
-        var focusedWidget = _termui.GetType()
-            .GetField("_focusedWidget", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
-            ?.GetValue(_termui) as IWidget;
-
-        return IsFocusInExplorer(focusedWidget);
+        return IsFocusInExplorer(_termui.FocusedWidget);
     }
 
     /// <summary>

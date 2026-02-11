@@ -258,6 +258,7 @@ internal static class XmlParser
             "slider" => new Slider(),
             "line" => new Line(),
             "table" => new Table(),
+            "stackpanel" => new StackPanel(),
             _ => throw new NotSupportedException($"Widget type '{element.Name.LocalName}' is not supported")
         };
 
@@ -468,10 +469,26 @@ internal static class XmlParser
             case "paddingbottom":
                 widget.PaddingBottom = value;
                 break;
+            case "marginleft":
+                widget.MarginLeft = value;
+                break;
+            case "margintop":
+                widget.MarginTop = value;
+                break;
+            case "marginright":
+                widget.MarginRight = value;
+                break;
+            case "marginbottom":
+                widget.MarginBottom = value;
+                break;
         }
 
-        // Widget-specific properties
-        if (widget is Container container)
+        // Widget-specific properties (StackPanel before Container since it inherits from it)
+        if (widget is StackPanel stackPanel)
+        {
+            SetStackPanelProperty(stackPanel, propLower, value);
+        }
+        else if (widget is Container container)
         {
             SetContainerProperty(container, propLower, value);
         }
@@ -514,6 +531,29 @@ internal static class XmlParser
         else if (widget is Table table)
         {
             SetTableProperty(table, propLower, value);
+        }
+    }
+
+    private static void SetStackPanelProperty(StackPanel stackPanel, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "direction":
+                stackPanel.Direction = Enum.Parse<StackDirection>(value, ignoreCase: true);
+                break;
+            case "justify":
+                stackPanel.Justify = Enum.Parse<StackJustify>(value, ignoreCase: true);
+                break;
+            case "align":
+                stackPanel.Align = Enum.Parse<StackAlign>(value, ignoreCase: true);
+                break;
+            case "wrap":
+                stackPanel.Wrap = bool.Parse(value);
+                break;
+            default:
+                // Fall through to container properties (scrollable, borderstyle, etc.)
+                SetContainerProperty(stackPanel, propertyName, value);
+                break;
         }
     }
 

@@ -82,6 +82,26 @@ namespace TermuiX
         string PaddingBottom { get; set; }
 
         /// <summary>
+        /// Gets or sets the left margin of the widget.
+        /// </summary>
+        string MarginLeft { get; set; }
+
+        /// <summary>
+        /// Gets or sets the top margin of the widget.
+        /// </summary>
+        string MarginTop { get; set; }
+
+        /// <summary>
+        /// Gets or sets the right margin of the widget.
+        /// </summary>
+        string MarginRight { get; set; }
+
+        /// <summary>
+        /// Gets or sets the bottom margin of the widget.
+        /// </summary>
+        string MarginBottom { get; set; }
+
+        /// <summary>
         /// Gets or sets the X position of the widget relative to its parent.
         /// </summary>
         string PositionX { get; set; }

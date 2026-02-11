@@ -50,6 +50,26 @@ public class Container : IWidget
     public string PaddingBottom { get; set; } = "0ch";
 
     /// <summary>
+    /// Gets or sets the left margin of the container.
+    /// </summary>
+    public string MarginLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top margin of the container.
+    /// </summary>
+    public string MarginTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right margin of the container.
+    /// </summary>
+    public string MarginRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom margin of the container.
+    /// </summary>
+    public string MarginBottom { get; set; } = "0ch";
+
+    /// <summary>
     /// Gets or sets the X position of the container.
     /// </summary>
     public string PositionX { get; set; } = "0ch";
@@ -181,8 +201,13 @@ public class Container : IWidget
 
     Rune[][] IWidget.GetRaw()
     {
-        int actualWidth = CalculateSize(Width, ((IWidget)this).Parent, true);
-        int actualHeight = CalculateSize(Height, ((IWidget)this).Parent, false);
+        // When size is "auto", the Renderer pre-computes and stores the values
+        int actualWidth = Width.Equals("auto", StringComparison.OrdinalIgnoreCase)
+            ? ((IWidget)this).ComputedWidth
+            : CalculateSize(Width, ((IWidget)this).Parent, true);
+        int actualHeight = Height.Equals("auto", StringComparison.OrdinalIgnoreCase)
+            ? ((IWidget)this).ComputedHeight
+            : CalculateSize(Height, ((IWidget)this).Parent, false);
 
         // Store computed values
         ((IWidget)this).ComputedWidth = actualWidth;
@@ -237,6 +262,11 @@ public class Container : IWidget
         }
 
         size = size.Trim();
+
+        if (size.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
 
         if (size.EndsWith("ch"))
         {
@@ -364,6 +394,10 @@ public class Container : IWidget
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,
             PaddingBottom = PaddingBottom,
+            MarginLeft = MarginLeft,
+            MarginTop = MarginTop,
+            MarginRight = MarginRight,
+            MarginBottom = MarginBottom,
             PositionX = PositionX,
             PositionY = PositionY,
             Visible = Visible,

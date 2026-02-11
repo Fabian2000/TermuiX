@@ -121,6 +121,7 @@ internal static partial class MouseInput
         {
             ref var mouse = ref record.MouseEvent;
             MouseEventType? eventType = null;
+            bool isShift = (mouse.ControlKeyState & SHIFT_PRESSED) != 0;
 
             if (mouse.EventFlags == 0) // Button pressed or released
             {
@@ -143,7 +144,8 @@ internal static partial class MouseInput
                 {
                     X = mouse.MousePosition.X,
                     Y = mouse.MousePosition.Y,
-                    EventType = eventType.Value
+                    EventType = eventType.Value,
+                    Shift = isShift
                 };
                 return 1;
             }
@@ -530,6 +532,7 @@ internal static partial class MouseInput
             bool isPress = terminator == 'M';
             bool isWheel = (cb & 64) != 0;
             bool isMotion = (cb & 32) != 0;
+            bool isShift = (cb & 4) != 0;
             int button = cb & 0x03;
 
             int x = cx - 1;
@@ -570,7 +573,8 @@ internal static partial class MouseInput
                 {
                     X = x,
                     Y = y,
-                    EventType = eventType.Value
+                    EventType = eventType.Value,
+                    Shift = isShift
                 };
                 return 1;
             }
@@ -605,24 +609,90 @@ internal static partial class MouseInput
                     return 2;
                 }
 
-                // Extended sequences like ESC [ 5 ~ (PageUp), ESC [ 6 ~ (PageDown)
-                if (code >= (byte)'0' && code <= (byte)'9' && UnixBufCount > 0 && BufAt(0) == (byte)'~')
+                // Extended sequences: ESC [ number ... (digits, semicolons, then a final letter or ~)
+                if (code >= (byte)'0' && code <= (byte)'9')
                 {
-                    UnixBufConsume(1);
-                    ConsoleKey extKey = code switch
-                    {
-                        (byte)'5' => ConsoleKey.PageUp,
-                        (byte)'6' => ConsoleKey.PageDown,
-                        (byte)'2' => ConsoleKey.Insert,
-                        (byte)'3' => ConsoleKey.Delete,
-                        _ => 0
-                    };
+                    // Collect remaining parameter bytes and find the terminator
+                    // Format examples:
+                    //   ESC [ 5 ~           → PageUp
+                    //   ESC [ 1 ; 2 D       → Shift+LeftArrow  (modifier=2)
+                    //   ESC [ 1 ; 5 C       → Ctrl+RightArrow  (modifier=5)
+                    int paramBuf = code - (byte)'0';
+                    int modifier = 0;
+                    bool inSecondParam = false;
+                    byte finalByte = 0;
 
-                    if (extKey != 0)
+                    while (UnixBufCount > 0)
                     {
-                        keyEvent = new ConsoleKeyInfo('\0', extKey, false, false, false);
-                        return 2;
+                        byte b = BufAt(0);
+                        UnixBufConsume(1);
+
+                        if (b == (byte)';')
+                        {
+                            inSecondParam = true;
+                            modifier = 0;
+                        }
+                        else if (b >= (byte)'0' && b <= (byte)'9')
+                        {
+                            if (inSecondParam)
+                                modifier = modifier * 10 + (b - (byte)'0');
+                            else
+                                paramBuf = paramBuf * 10 + (b - (byte)'0');
+                        }
+                        else
+                        {
+                            finalByte = b;
+                            break;
+                        }
                     }
+
+                    bool isShiftMod = (modifier & 0x01) != 0;  // modifier 2 = shift (bit 0 of modifier-1)
+
+                    if (finalByte == (byte)'~')
+                    {
+                        // Tilde-terminated: PageUp/Down, Insert, Delete, Home, End
+                        ConsoleKey extKey = paramBuf switch
+                        {
+                            5 => ConsoleKey.PageUp,
+                            6 => ConsoleKey.PageDown,
+                            2 => ConsoleKey.Insert,
+                            3 => ConsoleKey.Delete,
+                            1 => ConsoleKey.Home,
+                            4 => ConsoleKey.End,
+                            _ => 0
+                        };
+
+                        if (extKey != 0)
+                        {
+                            keyEvent = new ConsoleKeyInfo('\0', extKey, isShiftMod, false, false);
+                            return 2;
+                        }
+                    }
+                    else if (finalByte >= (byte)'A' && finalByte <= (byte)'Z')
+                    {
+                        // Letter-terminated: modified arrow keys (ESC [ 1 ; modifier A/B/C/D)
+                        ConsoleKey modArrowKey = finalByte switch
+                        {
+                            (byte)'A' => ConsoleKey.UpArrow,
+                            (byte)'B' => ConsoleKey.DownArrow,
+                            (byte)'C' => ConsoleKey.RightArrow,
+                            (byte)'D' => ConsoleKey.LeftArrow,
+                            (byte)'H' => ConsoleKey.Home,
+                            (byte)'F' => ConsoleKey.End,
+                            (byte)'Z' => ConsoleKey.Tab,
+                            _ => 0
+                        };
+
+                        if (modArrowKey != 0)
+                        {
+                            bool isShift = isShiftMod || finalByte == (byte)'Z';
+                            keyEvent = new ConsoleKeyInfo('\0', modArrowKey, isShift, false, false);
+                            return 2;
+                        }
+                    }
+
+                    // Unknown extended sequence — already consumed, just discard
+                    return 0;
                 }
 
                 // Unknown CSI sequence - discard remaining until we find a letter
@@ -638,7 +708,27 @@ internal static partial class MouseInput
             {
                 if (count >= 3)
                 {
+                    byte ssCode = BufAt(2);
                     UnixBufConsume(3);
+
+                    // SS3 (ESC O) sequences – Application Mode arrow keys & Home/End
+                    ConsoleKey ss3Key = ssCode switch
+                    {
+                        (byte)'A' => ConsoleKey.UpArrow,
+                        (byte)'B' => ConsoleKey.DownArrow,
+                        (byte)'C' => ConsoleKey.RightArrow,
+                        (byte)'D' => ConsoleKey.LeftArrow,
+                        (byte)'H' => ConsoleKey.Home,
+                        (byte)'F' => ConsoleKey.End,
+                        _ => 0
+                    };
+
+                    if (ss3Key != 0)
+                    {
+                        keyEvent = new ConsoleKeyInfo('\0', ss3Key, false, false, false);
+                        return 2;
+                    }
+
                     return 0;
                 }
                 return 0;

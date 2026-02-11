@@ -99,6 +99,26 @@ public class ProgressBar : IWidget
     public string PaddingBottom { get; set; } = "0ch";
 
     /// <summary>
+    /// Gets or sets the left margin.
+    /// </summary>
+    public string MarginLeft { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the top margin.
+    /// </summary>
+    public string MarginTop { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the right margin.
+    /// </summary>
+    public string MarginRight { get; set; } = "0ch";
+
+    /// <summary>
+    /// Gets or sets the bottom margin.
+    /// </summary>
+    public string MarginBottom { get; set; } = "0ch";
+
+    /// <summary>
     /// Gets or sets the X position.
     /// </summary>
     public string PositionX { get; set; } = "0ch";
@@ -188,7 +208,7 @@ public class ProgressBar : IWidget
         if (ShowPercentage)
         {
             int percentage = (int)(_value * 100);
-            percentText = $" {percentage}%";
+            percentText = $" {percentage,3}%";
             barWidth = Math.Max(1, width - percentText.Length);
         }
 
@@ -268,6 +288,10 @@ public class ProgressBar : IWidget
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,
             PaddingBottom = PaddingBottom,
+            MarginLeft = MarginLeft,
+            MarginTop = MarginTop,
+            MarginRight = MarginRight,
+            MarginBottom = MarginBottom,
             PositionX = PositionX,
             PositionY = PositionY,
             Visible = Visible,

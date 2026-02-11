@@ -32,6 +32,15 @@ public readonly struct MouseEventArgs
     /// <summary>The zero-based row (Y) position of the mouse in console coordinates.</summary>
     public int Y { get; init; }
 
+    /// <summary>The X position relative to the widget's top-left corner.</summary>
+    public int LocalX { get; init; }
+
+    /// <summary>The Y position relative to the widget's top-left corner.</summary>
+    public int LocalY { get; init; }
+
     /// <summary>The type of mouse event.</summary>
     public MouseEventType EventType { get; init; }
+
+    /// <summary>Whether the Shift key was held during the mouse event.</summary>
+    public bool Shift { get; init; }
 }
