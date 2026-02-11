@@ -113,8 +113,8 @@ try
         {
             if (string.IsNullOrWhiteSpace(newText))
             {
-                // Clear filter when text is cleared
-                fileExplorer.ClearSearchFilter();
+                // Clear filter when text is cleared, but don't steal focus from search input
+                fileExplorer.ClearSearchFilter(focusFileList: false);
             }
         };
     }

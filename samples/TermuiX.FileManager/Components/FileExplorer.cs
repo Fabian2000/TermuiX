@@ -821,11 +821,14 @@ public class FileExplorer
     /// <summary>
     /// Clears the search filter.
     /// </summary>
-    public void ClearSearchFilter()
+    public void ClearSearchFilter(bool focusFileList = true)
     {
         _filterText = null;
         RefreshFileList();
-        FocusFirstOrSpecificItem(null);
+        if (focusFileList)
+        {
+            FocusFirstOrSpecificItem(null);
+        }
     }
 
     /// <summary>
@@ -1086,6 +1089,8 @@ public class FileExplorer
         // if the item was NOT previously focused, this is the first click (just focus).
         if (_previousFocusedFilePath != itemPath)
         {
+            // First click: select the item (blue highlight) but don't activate
+            SelectCurrentItem();
             return;
         }
 
@@ -1660,6 +1665,13 @@ public class FileExplorer
     {
         if (_contextMenu is null)
             return;
+
+        // Select the right-clicked item (blue highlight)
+        _selectedItems.Clear();
+        _selectedItems.Add(targetPath);
+        _lastFocusedFilePath = targetPath;
+        UpdateSelectionColors();
+        UpdateActionButtons();
 
         _contextMenuTargetPath = targetPath;
 
