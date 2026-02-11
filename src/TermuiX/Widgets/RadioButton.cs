@@ -161,9 +161,14 @@ public class RadioButton : IWidget
     public bool CanFocus => true;
 
     /// <summary>
-    /// Gets a value indicating whether the radio button is scrollable.
+    /// Gets a value indicating whether horizontal scrolling is enabled.
     /// </summary>
-    public bool Scrollable => false;
+    public bool ScrollX => false;
+
+    /// <summary>
+    /// Gets a value indicating whether vertical scrolling is enabled.
+    /// </summary>
+    public bool ScrollY => false;
 
     IWidget? IWidget.Parent { get; set; }
     List<IWidget> IWidget.Children => [];

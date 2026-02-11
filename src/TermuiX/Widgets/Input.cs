@@ -207,9 +207,14 @@ public class Input : IWidget
     public bool CanFocus => !Disabled;
 
     /// <summary>
-    /// Gets a value indicating whether the input is scrollable.
+    /// Gets a value indicating whether horizontal scrolling is enabled.
     /// </summary>
-    public bool Scrollable => false;
+    public bool ScrollX => false;
+
+    /// <summary>
+    /// Gets a value indicating whether vertical scrolling is enabled.
+    /// </summary>
+    public bool ScrollY => false;
 
     /// <summary>
     /// Occurs when the user submits the input (presses Enter in single-line mode).

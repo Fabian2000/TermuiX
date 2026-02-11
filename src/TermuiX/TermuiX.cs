@@ -440,46 +440,40 @@ public sealed class TermuiX
 
     private void ScrollToWidget(IWidget widget)
     {
-        IWidget? scrollTarget = widget.Parent;
+        // Find nearest Y-scrollable ancestor
+        IWidget? scrollTargetY = widget.Parent;
+        while (scrollTargetY is not null && !scrollTargetY.ScrollY)
+            scrollTargetY = scrollTargetY.Parent;
 
-        while (scrollTarget is not null && !scrollTarget.Scrollable)
+        if (scrollTargetY is not null)
         {
-            scrollTarget = scrollTarget.Parent;
+            int contentHeight = CalculateContentHeight(scrollTargetY);
+            int widgetPosY = ParseSize(widget.PositionY, contentHeight);
+            int widgetHeight = ParseSize(widget.Height, contentHeight);
+
+            long currentScrollY = scrollTargetY.ScrollOffsetY;
+            if (widgetPosY < currentScrollY)
+                scrollTargetY.ScrollOffsetY = widgetPosY;
+            else if (widgetPosY + widgetHeight > currentScrollY + contentHeight)
+                scrollTargetY.ScrollOffsetY = widgetPosY + widgetHeight - contentHeight;
         }
 
-        if (scrollTarget is null)
+        // Find nearest X-scrollable ancestor
+        IWidget? scrollTargetX = widget.Parent;
+        while (scrollTargetX is not null && !scrollTargetX.ScrollX)
+            scrollTargetX = scrollTargetX.Parent;
+
+        if (scrollTargetX is not null)
         {
-            return;
-        }
+            int contentWidth = CalculateContentWidth(scrollTargetX);
+            int widgetPosX = ParseSize(widget.PositionX, contentWidth);
+            int widgetWidth = ParseSize(widget.Width, contentWidth);
 
-        int contentHeight = CalculateContentHeight(scrollTarget);
-        int contentWidth = CalculateContentWidth(scrollTarget);
-
-        int widgetPosY = ParseSize(widget.PositionY, contentHeight);
-        int widgetHeight = ParseSize(widget.Height, contentHeight);
-        int widgetPosX = ParseSize(widget.PositionX, contentWidth);
-        int widgetWidth = ParseSize(widget.Width, contentWidth);
-
-        long currentScrollY = scrollTarget.ScrollOffsetY;
-
-        if (widgetPosY < currentScrollY)
-        {
-            scrollTarget.ScrollOffsetY = widgetPosY;
-        }
-        else if (widgetPosY + widgetHeight > currentScrollY + contentHeight)
-        {
-            scrollTarget.ScrollOffsetY = widgetPosY + widgetHeight - contentHeight;
-        }
-
-        long currentScrollX = scrollTarget.ScrollOffsetX;
-
-        if (widgetPosX < currentScrollX)
-        {
-            scrollTarget.ScrollOffsetX = widgetPosX;
-        }
-        else if (widgetPosX + widgetWidth > currentScrollX + contentWidth)
-        {
-            scrollTarget.ScrollOffsetX = widgetPosX + widgetWidth - contentWidth;
+            long currentScrollX = scrollTargetX.ScrollOffsetX;
+            if (widgetPosX < currentScrollX)
+                scrollTargetX.ScrollOffsetX = widgetPosX;
+            else if (widgetPosX + widgetWidth > currentScrollX + contentWidth)
+                scrollTargetX.ScrollOffsetX = widgetPosX + widgetWidth - contentWidth;
         }
     }
 
@@ -492,7 +486,7 @@ public sealed class TermuiX
 
         IWidget? scrollTarget = _focusedWidget;
 
-        while (scrollTarget is not null && !scrollTarget.Scrollable)
+        while (scrollTarget is not null && !scrollTarget.ScrollX)
         {
             scrollTarget = scrollTarget.Parent;
         }
@@ -589,7 +583,7 @@ public sealed class TermuiX
 
         IWidget? scrollTarget = _focusedWidget;
 
-        while (scrollTarget is not null && !scrollTarget.Scrollable)
+        while (scrollTarget is not null && !scrollTarget.ScrollY)
         {
             scrollTarget = scrollTarget.Parent;
         }

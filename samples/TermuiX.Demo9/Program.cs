@@ -36,16 +36,16 @@ var xml = """
 
     </StackPanel>
 
-    <!-- RIGHT HALF: Testing scroll on both axes -->
+    <!-- RIGHT HALF: Testing scroll axes -->
     <StackPanel Direction="Vertical" Width="50%" Height="100%" BackgroundColor="Black">
 
-        <Text ForegroundColor="Yellow" Style="Bold">Right: Wrap+Scroll Tests</Text>
+        <Text ForegroundColor="Yellow" Style="Bold">Right: Scroll Axis Tests</Text>
 
-        <!-- Top: Wrap=true + Scrollable Y — many items that wrap and overflow vertically -->
+        <!-- Scrollable="true" (both axes) + Wrap — overflow vertically -->
         <StackPanel Direction="Horizontal" Wrap="true" Scrollable="true"
-                    Width="100%" Height="12ch"
+                    Width="100%" Height="8ch"
                     BackgroundColor="DarkCyan" BorderStyle="Single">
-            <Text ForegroundColor="Yellow" Width="100%"> Wrap + Scroll Y (PageUp/Down)</Text>
+            <Text ForegroundColor="Yellow" Width="100%"> Scrollable (both)</Text>
             <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C1</Button>
             <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C2</Button>
             <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C3</Button>
@@ -58,29 +58,38 @@ var xml = """
             <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C10</Button>
             <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C11</Button>
             <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C12</Button>
-            <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C13</Button>
-            <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C14</Button>
-            <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C15</Button>
-            <Button BackgroundColor="DarkCyan" FocusBackgroundColor="Gray" RoundedCorners="true">C16</Button>
         </StackPanel>
 
-        <!-- Bottom: No wrap + Scrollable X — many items that overflow horizontally -->
-        <StackPanel Direction="Horizontal" Wrap="false" Scrollable="true"
-                    Width="100%" Height="6ch"
+        <!-- ScrollY only — vertical overflow, no horizontal scroll -->
+        <StackPanel Direction="Vertical" ScrollY="true"
+                    Width="100%" Height="8ch"
+                    BackgroundColor="DarkGreen" BorderStyle="Single">
+            <Text ForegroundColor="Yellow" Width="100%"> ScrollY only</Text>
+            <Button BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">E1</Button>
+            <Button BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">E2</Button>
+            <Button BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">E3</Button>
+            <Button BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">E4</Button>
+            <Button BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">E5</Button>
+            <Button BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">E6</Button>
+            <Button BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">E7</Button>
+            <Button BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">E8</Button>
+        </StackPanel>
+
+        <!-- ScrollX only — horizontal overflow, no vertical scroll -->
+        <StackPanel Direction="Horizontal" ScrollX="true"
+                    Width="100%" Height="5ch"
                     BackgroundColor="DarkYellow" BorderStyle="Single">
-            <Text ForegroundColor="Yellow" Width="100%"> No Wrap + Scroll X (Ctrl+PgUp/PgDn)</Text>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D1</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D2</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D3</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D4</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D5</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D6</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D7</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D8</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D9</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D10</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D11</Button>
-            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">D12</Button>
+            <Text ForegroundColor="Yellow"> ScrollX only</Text>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F1</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F2</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F3</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F4</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F5</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F6</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F7</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F8</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F9</Button>
+            <Button BackgroundColor="DarkYellow" FocusBackgroundColor="Gray" RoundedCorners="true">F10</Button>
         </StackPanel>
 
     </StackPanel>

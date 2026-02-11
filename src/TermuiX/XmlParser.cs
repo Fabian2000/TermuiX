@@ -564,6 +564,12 @@ internal static class XmlParser
             case "scrollable":
                 container.Scrollable = bool.Parse(value);
                 break;
+            case "scrollx":
+                container.ScrollX = bool.Parse(value);
+                break;
+            case "scrolly":
+                container.ScrollY = bool.Parse(value);
+                break;
             case "borderstyle":
                 container.BorderStyle = Enum.Parse<BorderStyle>(value, ignoreCase: true);
                 break;

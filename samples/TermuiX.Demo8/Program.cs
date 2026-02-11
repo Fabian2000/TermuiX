@@ -14,7 +14,7 @@ var xml = """
                 PositionX="0ch" PositionY="3ch"
                 BackgroundColor="DarkBlue">
         <Button Width="60%" BackgroundColor="DarkGreen" FocusBackgroundColor="Gray" RoundedCorners="true">60%</Button>
-        <Button Width="40%" BackgroundColor="DarkRed" FocusBackgroundColor="Gray" RoundedCorners="true">40%</Button>
+        <Button Width="40%" MarginLeft="1ch" BackgroundColor="DarkRed" FocusBackgroundColor="Gray" RoundedCorners="true">40% + MarginLeft=1ch</Button>
     </StackPanel>
 
     <!-- Percentage sizing: 33% + 33% + 34% = 100% -->

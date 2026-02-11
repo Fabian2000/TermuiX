@@ -174,9 +174,14 @@ namespace TermuiX
         ConsoleColor DisabledForegroundColor { get; set; }
 
         /// <summary>
-        /// Gets a value indicating whether the widget is scrollable.
+        /// Gets a value indicating whether horizontal scrolling is enabled.
         /// </summary>
-        bool Scrollable { get; }
+        bool ScrollX { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether vertical scrolling is enabled.
+        /// </summary>
+        bool ScrollY { get; }
 
         /// <summary>
         /// Gets or sets the horizontal scroll offset.
