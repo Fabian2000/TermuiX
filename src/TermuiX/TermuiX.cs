@@ -303,9 +303,17 @@ public sealed class TermuiX
 
     private static void FindWidgetsByGroup<T>(IWidget widget, string group, List<T> results) where T : class, IWidget
     {
-        if (widget.Group == group && widget is T typedWidget)
+        if (widget.Group != null && widget is T typedWidget)
         {
-            results.Add(typedWidget);
+            var groups = widget.Group.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var g in groups)
+            {
+                if (g.Equals(group, StringComparison.OrdinalIgnoreCase))
+                {
+                    results.Add(typedWidget);
+                    break;
+                }
+            }
         }
 
         foreach (var child in widget.Children)
@@ -995,7 +1003,7 @@ public sealed class TermuiX
         // Build entire frame into a reusable char[] buffer using ANSI escape codes.
         // Single Console.Out.Write() call per frame — no per-character I/O overhead.
         // The char[] is reused across frames (only reallocated when terminal grows).
-        int requiredSize = width * height * 16; // worst case: ~16 chars per cell (escape + rune)
+        int requiredSize = width * height * 40; // worst case: ~40 chars per cell (RGB escape + rune)
         if (_renderBuf.Length < requiredSize)
         {
             _renderBuf = new char[requiredSize];
@@ -1006,8 +1014,9 @@ public sealed class TermuiX
         WriteAnsi(ref pos, "\x1b[H");
 
         Span<char> runeChars = stackalloc char[2];
-        ConsoleColor prevFg = (ConsoleColor)(-1);
-        ConsoleColor prevBg = (ConsoleColor)(-1);
+        Color prevFg = default;
+        Color prevBg = default;
+        bool firstColor = true;
 
         for (int y = 0; y < chars.Length; y++)
         {
@@ -1030,14 +1039,10 @@ public sealed class TermuiX
                 // Only emit color escape when color actually changes
                 var fg = fgColors[y][x];
                 var bg = bgColors[y][x];
-                if (fg != prevFg || bg != prevBg)
+                if (firstColor || fg != prevFg || bg != prevBg)
                 {
-                    _renderBuf[pos++] = '\x1b';
-                    _renderBuf[pos++] = '[';
-                    WriteAnsiCode(ref pos, AnsiFg[(int)fg]);
-                    _renderBuf[pos++] = ';';
-                    WriteAnsiCode(ref pos, AnsiBg[(int)bg]);
-                    _renderBuf[pos++] = 'm';
+                    firstColor = false;
+                    WriteColorEscape(ref pos, fg, bg);
                     prevFg = fg;
                     prevBg = bg;
                 }
@@ -1078,10 +1083,73 @@ public sealed class TermuiX
             _renderBuf[pos++] = s[i];
     }
 
-    private void WriteAnsiCode(ref int pos, string code)
+    // Writes ESC[<fg>;<bg>m for a pair of Color values.
+    // Supports both 16-color (ConsoleColor) and 24-bit TrueColor (RGB).
+    private void WriteColorEscape(ref int pos, Color fg, Color bg)
     {
-        for (int i = 0; i < code.Length; i++)
-            _renderBuf[pos++] = code[i];
+        _renderBuf[pos++] = '\x1b';
+        _renderBuf[pos++] = '[';
+
+        // Foreground
+        if (fg.IsRgb)
+        {
+            // ESC[38;2;R;G;B
+            WriteAnsiLiteral(ref pos, "38;2;");
+            WriteInt(ref pos, fg.R);
+            _renderBuf[pos++] = ';';
+            WriteInt(ref pos, fg.G);
+            _renderBuf[pos++] = ';';
+            WriteInt(ref pos, fg.B);
+        }
+        else
+        {
+            WriteAnsiLiteral(ref pos, AnsiFg[(int)fg.ConsoleColor]);
+        }
+
+        _renderBuf[pos++] = ';';
+
+        // Background
+        if (bg.IsRgb)
+        {
+            // ESC[48;2;R;G;B
+            WriteAnsiLiteral(ref pos, "48;2;");
+            WriteInt(ref pos, bg.R);
+            _renderBuf[pos++] = ';';
+            WriteInt(ref pos, bg.G);
+            _renderBuf[pos++] = ';';
+            WriteInt(ref pos, bg.B);
+        }
+        else
+        {
+            WriteAnsiLiteral(ref pos, AnsiBg[(int)bg.ConsoleColor]);
+        }
+
+        _renderBuf[pos++] = 'm';
+    }
+
+    private void WriteAnsiLiteral(ref int pos, string s)
+    {
+        for (int i = 0; i < s.Length; i++)
+            _renderBuf[pos++] = s[i];
+    }
+
+    private void WriteInt(ref int pos, int value)
+    {
+        if (value >= 100)
+        {
+            _renderBuf[pos++] = (char)('0' + value / 100);
+            _renderBuf[pos++] = (char)('0' + (value / 10) % 10);
+            _renderBuf[pos++] = (char)('0' + value % 10);
+        }
+        else if (value >= 10)
+        {
+            _renderBuf[pos++] = (char)('0' + value / 10);
+            _renderBuf[pos++] = (char)('0' + value % 10);
+        }
+        else
+        {
+            _renderBuf[pos++] = (char)('0' + value);
+        }
     }
 
     // Pre-computed ANSI SGR codes for all 16 ConsoleColors × fg/bg.

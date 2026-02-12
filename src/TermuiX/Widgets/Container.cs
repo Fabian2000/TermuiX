@@ -30,6 +30,26 @@ public class Container : IWidget
     public string Height { get; set; } = "100%";
 
     /// <summary>
+    /// Gets or sets the minimum width constraint.
+    /// </summary>
+    public string MinWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum width constraint.
+    /// </summary>
+    public string MaxWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the minimum height constraint.
+    /// </summary>
+    public string MinHeight { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum height constraint.
+    /// </summary>
+    public string MaxHeight { get; set; } = "";
+
+    /// <summary>
     /// Gets or sets the left padding of the container.
     /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
@@ -92,22 +112,22 @@ public class Container : IWidget
     /// <summary>
     /// Gets or sets the background color of the container.
     /// </summary>
-    public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
 
     /// <summary>
     /// Gets or sets the foreground color of the container.
     /// </summary>
-    public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets a value indicating whether the container can receive focus.
@@ -161,8 +181,8 @@ public class Container : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
     bool IWidget.Disabled { get; set; }
-    ConsoleColor? IWidget.DisabledBackgroundColor { get; set; }
-    ConsoleColor IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+    Color? IWidget.DisabledBackgroundColor { get; set; }
+    Color IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Adds a child widget to the container.
@@ -247,13 +267,19 @@ public class Container : IWidget
 
     Rune[][] IWidget.GetRaw()
     {
-        // When size is "auto", the Renderer pre-computes and stores the values
-        int actualWidth = Width.Equals("auto", StringComparison.OrdinalIgnoreCase)
-            ? ((IWidget)this).ComputedWidth
-            : CalculateSize(Width, ((IWidget)this).Parent, true);
-        int actualHeight = Height.Equals("auto", StringComparison.OrdinalIgnoreCase)
-            ? ((IWidget)this).ComputedHeight
-            : CalculateSize(Height, ((IWidget)this).Parent, false);
+        // Use ComputedWidth/Height when set by the Renderer (includes Min/Max constraints).
+        // Fall back to CalculateSize for "auto" or when no computed value is available.
+        int computedW = ((IWidget)this).ComputedWidth;
+        int actualWidth = computedW > 0 ? computedW
+            : Width.Equals("auto", StringComparison.OrdinalIgnoreCase)
+                ? 0
+                : CalculateSize(Width, ((IWidget)this).Parent, true);
+
+        int computedH = ((IWidget)this).ComputedHeight;
+        int actualHeight = computedH > 0 ? computedH
+            : Height.Equals("auto", StringComparison.OrdinalIgnoreCase)
+                ? 0
+                : CalculateSize(Height, ((IWidget)this).Parent, false);
 
         // Store computed values
         ((IWidget)this).ComputedWidth = actualWidth;
@@ -436,6 +462,10 @@ public class Container : IWidget
             Group = Group,
             Width = Width,
             Height = Height,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
             PaddingLeft = PaddingLeft,
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,

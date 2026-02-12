@@ -8,8 +8,8 @@ namespace TermuiX.Widgets;
 public class Checkbox : IWidget
 {
     private bool _checked = false;
-    private ConsoleColor _backgroundColor = ConsoleColor.Black;
-    private ConsoleColor _foregroundColor = ConsoleColor.White;
+    private Color _backgroundColor = ConsoleColor.Black;
+    private Color _foregroundColor = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets a value indicating whether the checkbox is checked.
@@ -46,6 +46,26 @@ public class Checkbox : IWidget
     /// Gets or sets the height of the checkbox.
     /// </summary>
     public string Height { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the minimum width constraint.
+    /// </summary>
+    public string MinWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum width constraint.
+    /// </summary>
+    public string MaxWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the minimum height constraint.
+    /// </summary>
+    public string MinHeight { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum height constraint.
+    /// </summary>
+    public string MaxHeight { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the left padding.
@@ -110,7 +130,7 @@ public class Checkbox : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor
+    public Color BackgroundColor
     {
         get => Disabled && DisabledBackgroundColor.HasValue ? DisabledBackgroundColor.Value : _backgroundColor;
         set => _backgroundColor = value;
@@ -119,7 +139,7 @@ public class Checkbox : IWidget
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor
+    public Color ForegroundColor
     {
         get => Disabled ? DisabledForegroundColor : _foregroundColor;
         set => _foregroundColor = value;
@@ -128,12 +148,12 @@ public class Checkbox : IWidget
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets a value indicating whether the checkbox is disabled.
@@ -143,12 +163,12 @@ public class Checkbox : IWidget
     /// <summary>
     /// Gets or sets the background color when disabled.
     /// </summary>
-    public ConsoleColor? DisabledBackgroundColor { get; set; }
+    public Color? DisabledBackgroundColor { get; set; }
 
     /// <summary>
     /// Gets or sets the foreground color when disabled.
     /// </summary>
-    public ConsoleColor DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets a value indicating whether the checkbox can receive focus.
@@ -232,6 +252,10 @@ public class Checkbox : IWidget
             Group = Group,
             Width = Width,
             Height = Height,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
             PaddingLeft = PaddingLeft,
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,

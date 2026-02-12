@@ -63,6 +63,26 @@ public class Text : IWidget
     public string Height { get; set; } = "100%";
 
     /// <summary>
+    /// Gets or sets the minimum width constraint.
+    /// </summary>
+    public string MinWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum width constraint.
+    /// </summary>
+    public string MaxWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the minimum height constraint.
+    /// </summary>
+    public string MinHeight { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum height constraint.
+    /// </summary>
+    public string MaxHeight { get; set; } = "";
+
+    /// <summary>
     /// Gets or sets the left padding.
     /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
@@ -125,22 +145,22 @@ public class Text : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color FocusBackgroundColor { get; set; } = ConsoleColor.Black;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets a value indicating whether the text widget can receive focus.
@@ -169,8 +189,8 @@ public class Text : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
     bool IWidget.Disabled { get; set; }
-    ConsoleColor? IWidget.DisabledBackgroundColor { get; set; }
-    ConsoleColor IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+    Color? IWidget.DisabledBackgroundColor { get; set; }
+    Color IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     Rune[][] IWidget.GetRaw()
     {
@@ -206,31 +226,101 @@ public class Text : IWidget
             return result;
         }
 
-        // Apply text styling using Unicode transformation
-        var lines = _text.Split('\n');
+        // Build wrapped lines: split by \n first, then word-wrap if AllowWrapping
+        var sourceLines = _text.Split('\n');
+        var wrappedLines = new List<List<Rune>>();
 
-        for (int i = 0; i < lines.Length && i < actualHeight; i++)
+        foreach (var sourceLine in sourceLines)
         {
-            string line = lines[i];
-
-            // Convert line to Runes with styling and calculate display width
-            var displayRunes = new List<Rune>();
-            int totalDisplayWidth = 0;
-
-            foreach (Rune rune in line.EnumerateRunes())
+            if (!AllowWrapping)
             {
-                Rune styledRune = ApplyTextStyleToRune(rune, Style);
-                int runeWidth = GetRuneDisplayWidth(styledRune);
-
-                // Check if adding this rune would exceed the width
-                if (totalDisplayWidth + runeWidth > actualWidth)
+                // No wrapping: single line, truncate at width
+                var lineRunes = new List<Rune>();
+                int lineWidth = 0;
+                foreach (Rune rune in sourceLine.EnumerateRunes())
                 {
-                    break;
+                    Rune styled = ApplyTextStyleToRune(rune, Style);
+                    int rw = GetRuneDisplayWidth(styled);
+                    if (lineWidth + rw > actualWidth) break;
+                    lineRunes.Add(styled);
+                    lineWidth += rw;
+                }
+                wrappedLines.Add(lineRunes);
+            }
+            else
+            {
+                // Word-wrap: break at spaces when a word would exceed the line
+                var words = SplitIntoWords(sourceLine);
+                var currentLine = new List<Rune>();
+                int currentWidth = 0;
+
+                foreach (var word in words)
+                {
+                    // Style and measure this word
+                    var wordRunes = new List<Rune>();
+                    int wordWidth = 0;
+                    foreach (Rune rune in word.EnumerateRunes())
+                    {
+                        Rune styled = ApplyTextStyleToRune(rune, Style);
+                        wordRunes.Add(styled);
+                        wordWidth += GetRuneDisplayWidth(styled);
+                    }
+
+                    // If the word alone exceeds a full line, break it character by character
+                    if (wordWidth > actualWidth)
+                    {
+                        foreach (var rune in wordRunes)
+                        {
+                            int rw = GetRuneDisplayWidth(rune);
+                            if (currentWidth + rw > actualWidth && currentLine.Count > 0)
+                            {
+                                wrappedLines.Add(currentLine);
+                                currentLine = new List<Rune>();
+                                currentWidth = 0;
+                            }
+                            currentLine.Add(rune);
+                            currentWidth += rw;
+                        }
+                        continue;
+                    }
+
+                    // Would this word fit on the current line?
+                    if (currentWidth + wordWidth > actualWidth && currentLine.Count > 0)
+                    {
+                        // Trim trailing space from current line
+                        while (currentLine.Count > 0 && currentLine[^1].Value == ' ')
+                            currentLine.RemoveAt(currentLine.Count - 1);
+                        wrappedLines.Add(currentLine);
+                        currentLine = new List<Rune>();
+                        currentWidth = 0;
+                        // Skip leading space on new line
+                        if (wordRunes.Count > 0 && wordRunes[0].Value == ' ')
+                        {
+                            wordRunes.RemoveAt(0);
+                            wordWidth -= 1;
+                        }
+                    }
+
+                    currentLine.AddRange(wordRunes);
+                    currentWidth += wordWidth;
                 }
 
-                displayRunes.Add(styledRune);
-                totalDisplayWidth += runeWidth;
+                if (currentLine.Count > 0)
+                    wrappedLines.Add(currentLine);
+
+                // Ensure at least one empty line per source line
+                if (wrappedLines.Count == 0 || (wrappedLines.Count > 0 && sourceLine.Length == 0))
+                    wrappedLines.Add(new List<Rune>());
             }
+        }
+
+        // Render wrapped lines into the result buffer
+        for (int i = 0; i < wrappedLines.Count && i < actualHeight; i++)
+        {
+            var displayRunes = wrappedLines[i];
+            int totalDisplayWidth = 0;
+            foreach (var r in displayRunes)
+                totalDisplayWidth += GetRuneDisplayWidth(r);
 
             int offset = TextAlign switch
             {
@@ -258,6 +348,30 @@ public class Text : IWidget
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Splits a string into words, keeping the whitespace attached to each word
+    /// so that spacing is preserved during word-wrap.
+    /// </summary>
+    private static List<string> SplitIntoWords(string text)
+    {
+        var words = new List<string>();
+        int start = 0;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] == ' ' && i + 1 < text.Length && text[i + 1] != ' ')
+            {
+                words.Add(text[start..(i + 1)]);
+                start = i + 1;
+            }
+        }
+
+        if (start < text.Length)
+            words.Add(text[start..]);
+
+        return words;
     }
 
     private int CalculateSize(string size, IWidget? parent, bool isWidth)
@@ -352,7 +466,7 @@ public class Text : IWidget
         return 0;
     }
 
-    private static int GetRuneDisplayWidth(Rune rune)
+    internal static int GetRuneDisplayWidth(Rune rune)
     {
         int value = rune.Value;
 
@@ -621,6 +735,10 @@ public class Text : IWidget
             Group = Group,
             Width = Width,
             Height = Height,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
             PaddingLeft = PaddingLeft,
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,

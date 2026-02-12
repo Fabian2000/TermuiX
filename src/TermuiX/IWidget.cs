@@ -38,6 +38,26 @@ namespace TermuiX
         string Height { get; set; }
 
         /// <summary>
+        /// Gets or sets the minimum width constraint (e.g., "10ch", "20%"). Empty means no constraint.
+        /// </summary>
+        string MinWidth { get; set; }
+
+        /// <summary>
+        /// Gets or sets the maximum width constraint (e.g., "50ch", "80%"). Empty means no constraint.
+        /// </summary>
+        string MaxWidth { get; set; }
+
+        /// <summary>
+        /// Gets or sets the minimum height constraint (e.g., "3ch", "10%"). Empty means no constraint.
+        /// </summary>
+        string MinHeight { get; set; }
+
+        /// <summary>
+        /// Gets or sets the maximum height constraint (e.g., "20ch", "50%"). Empty means no constraint.
+        /// </summary>
+        string MaxHeight { get; set; }
+
+        /// <summary>
         /// Gets the computed width of the widget in characters after percentage calculations.
         /// This is automatically calculated during rendering and should not be set manually.
         /// </summary>
@@ -124,22 +144,22 @@ namespace TermuiX
         /// <summary>
         /// Gets or sets the background color of the widget.
         /// </summary>
-        ConsoleColor BackgroundColor { get; set; }
+        Color BackgroundColor { get; set; }
 
         /// <summary>
         /// Gets or sets the foreground color of the widget.
         /// </summary>
-        ConsoleColor ForegroundColor { get; set; }
+        Color ForegroundColor { get; set; }
 
         /// <summary>
         /// Gets or sets the background color when the widget is focused.
         /// </summary>
-        ConsoleColor FocusBackgroundColor { get; set; }
+        Color FocusBackgroundColor { get; set; }
 
         /// <summary>
         /// Gets or sets the foreground color when the widget is focused.
         /// </summary>
-        ConsoleColor FocusForegroundColor { get; set; }
+        Color FocusForegroundColor { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the widget is currently focused.
@@ -165,13 +185,13 @@ namespace TermuiX
         /// Gets or sets the background color when the widget is disabled.
         /// If null, the normal background color is used.
         /// </summary>
-        ConsoleColor? DisabledBackgroundColor { get; set; }
+        Color? DisabledBackgroundColor { get; set; }
 
         /// <summary>
         /// Gets or sets the foreground color when the widget is disabled.
         /// Defaults to DarkGray for better visual distinction.
         /// </summary>
-        ConsoleColor DisabledForegroundColor { get; set; }
+        Color DisabledForegroundColor { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether horizontal scrolling is enabled.
@@ -198,6 +218,13 @@ namespace TermuiX
         /// </summary>
         /// <returns>A 2D array of Runes where each Rune represents one Unicode scalar value.</returns>
         Rune[][] GetRaw();
+
+        /// <summary>
+        /// Gets optional per-cell foreground and background colors for the raw content.
+        /// Returns null by default — the renderer uses the widget's flat colors.
+        /// Widgets that need per-cell coloring (e.g. TreeView selection highlighting) override this.
+        /// </summary>
+        (Color[][] fg, Color[][] bg)? GetRawColors() => null;
 
         /// <summary>
         /// Handles keyboard input when the widget is focused.

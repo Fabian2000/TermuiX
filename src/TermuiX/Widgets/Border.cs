@@ -79,6 +79,10 @@ public class Border : IWidget
     /// Gets or sets the height of the border.
     /// </summary>
     public string Height { get; set; } = "100%";
+    public string MinWidth { get; set; } = "";
+    public string MaxWidth { get; set; } = "";
+    public string MinHeight { get; set; } = "";
+    public string MaxHeight { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the left padding.
@@ -143,22 +147,22 @@ public class Border : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color FocusBackgroundColor { get; set; } = ConsoleColor.Black;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets a value indicating whether the border can receive focus.
@@ -186,8 +190,8 @@ public class Border : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
     bool IWidget.Disabled { get; set; }
-    ConsoleColor? IWidget.DisabledBackgroundColor { get; set; }
-    ConsoleColor IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+    Color? IWidget.DisabledBackgroundColor { get; set; }
+    Color IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     Rune[][] IWidget.GetRaw()
     {
@@ -228,6 +232,10 @@ public class Border : IWidget
             Group = Group,
             Width = Width,
             Height = Height,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
             PaddingLeft = PaddingLeft,
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,

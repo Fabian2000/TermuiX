@@ -34,7 +34,57 @@ internal static class XmlParser
         var doc = XDocument.Parse(xml);
         var root = doc.Root ?? throw new InvalidOperationException("XML document has no root element");
 
-        return ParseElement(root);
+        var styles = new List<(string? name, string? group, Dictionary<string, string> properties)>();
+        var widget = ParseElement(root, styles);
+        ApplyStyles(widget, styles);
+        return widget;
+    }
+
+    private static void ApplyStyles(IWidget root, List<(string? name, string? group, Dictionary<string, string> properties)> styles)
+    {
+        foreach (var (name, group, properties) in styles)
+        {
+            ApplyStyleToTree(root, name, group, properties);
+        }
+    }
+
+    private static void ApplyStyleToTree(IWidget widget, string? name, string? group, Dictionary<string, string> properties)
+    {
+        bool matches = false;
+
+        // Match by Name (like CSS #id)
+        if (name != null && widget.Name != null &&
+            widget.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+        {
+            matches = true;
+        }
+
+        // Match by Group (like CSS .class) — widget can have multiple space-separated groups
+        if (group != null && widget.Group != null)
+        {
+            var widgetGroups = widget.Group.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var wg in widgetGroups)
+            {
+                if (wg.Equals(group, StringComparison.OrdinalIgnoreCase))
+                {
+                    matches = true;
+                    break;
+                }
+            }
+        }
+
+        if (matches)
+        {
+            foreach (var (propName, propValue) in properties)
+            {
+                SetWidgetProperty(widget, propName, propValue);
+            }
+        }
+
+        foreach (var child in widget.Children)
+        {
+            ApplyStyleToTree(child, name, group, properties);
+        }
     }
 
     private static int CalculateDisplayWidth(string text)
@@ -210,7 +260,7 @@ internal static class XmlParser
         return 1;
     }
 
-    private static IWidget ParseElement(XElement element)
+    private static IWidget ParseElement(XElement element, List<(string? name, string? group, Dictionary<string, string> properties)>? styles = null)
     {
         // Extract attributes into a dictionary
         var attributes = element.Attributes()
@@ -237,7 +287,7 @@ internal static class XmlParser
             {
                 foreach (var childElement in element.Elements())
                 {
-                    var childWidget = ParseElement(childElement);
+                    var childWidget = ParseElement(childElement, styles);
                     customContainer.Add(childWidget);
                 }
             }
@@ -256,6 +306,7 @@ internal static class XmlParser
             "progressbar" => new ProgressBar(),
             "chart" => new Chart(),
             "slider" => new Slider(),
+            "treeview" => new TreeView(),
             "line" => new Line(),
             "table" => new Table(),
             "stackpanel" => new StackPanel(),
@@ -337,7 +388,21 @@ internal static class XmlParser
         {
             foreach (var childElement in element.Elements())
             {
-                var childWidget = ParseElement(childElement);
+                if (childElement.Name.LocalName.Equals("Style", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (styles != null)
+                    {
+                        var styleAttrs = childElement.Attributes()
+                            .ToDictionary(a => a.Name.LocalName, a => a.Value, StringComparer.OrdinalIgnoreCase);
+                        styleAttrs.TryGetValue("Name", out var styleName);
+                        styleAttrs.TryGetValue("Group", out var styleGroup);
+                        styleAttrs.Remove("Name");
+                        styleAttrs.Remove("Group");
+                        styles.Add((styleName, styleGroup, styleAttrs));
+                    }
+                    continue;
+                }
+                var childWidget = ParseElement(childElement, styles);
                 container.Add(childWidget);
             }
         }
@@ -352,8 +417,42 @@ internal static class XmlParser
                 }
             }
         }
+        else if (widget is TreeView treeView)
+        {
+            foreach (var childElement in element.Elements())
+            {
+                if (childElement.Name.LocalName.Equals("TreeNode", StringComparison.OrdinalIgnoreCase))
+                {
+                    var node = ParseTreeNode(childElement);
+                    treeView.Root.AddChild(node);
+                }
+            }
+        }
 
         return widget;
+    }
+
+    private static TreeNode ParseTreeNode(XElement element)
+    {
+        string text = element.Attributes()
+            .FirstOrDefault(a => a.Name.LocalName.Equals("Text", StringComparison.OrdinalIgnoreCase))?.Value
+            ?? element.Value.Trim();
+
+        bool expanded = element.Attributes()
+            .Any(a => a.Name.LocalName.Equals("Expanded", StringComparison.OrdinalIgnoreCase)
+                && bool.Parse(a.Value));
+
+        var node = new TreeNode(text) { IsExpanded = expanded };
+
+        foreach (var childElement in element.Elements())
+        {
+            if (childElement.Name.LocalName.Equals("TreeNode", StringComparison.OrdinalIgnoreCase))
+            {
+                node.AddChild(ParseTreeNode(childElement));
+            }
+        }
+
+        return node;
     }
 
     private static TableRow ParseTableRow(XElement element)
@@ -403,10 +502,10 @@ internal static class XmlParser
                 cell.Text = value;
                 break;
             case "backgroundcolor":
-                cell.BackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                cell.BackgroundColor = Color.Parse(value);
                 break;
             case "foregroundcolor":
-                cell.ForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                cell.ForegroundColor = Color.Parse(value);
                 break;
             case "style":
                 cell.Style = Enum.Parse<TextStyle>(value, ignoreCase: true);
@@ -433,6 +532,18 @@ internal static class XmlParser
             case "height":
                 widget.Height = value;
                 break;
+            case "minwidth":
+                widget.MinWidth = value;
+                break;
+            case "maxwidth":
+                widget.MaxWidth = value;
+                break;
+            case "minheight":
+                widget.MinHeight = value;
+                break;
+            case "maxheight":
+                widget.MaxHeight = value;
+                break;
             case "positionx":
                 widget.PositionX = value;
                 break;
@@ -446,16 +557,16 @@ internal static class XmlParser
                 widget.AllowWrapping = bool.Parse(value);
                 break;
             case "backgroundcolor":
-                widget.BackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                widget.BackgroundColor = Color.Parse(value);
                 break;
             case "foregroundcolor":
-                widget.ForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                widget.ForegroundColor = Color.Parse(value);
                 break;
             case "focusbackgroundcolor":
-                widget.FocusBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                widget.FocusBackgroundColor = Color.Parse(value);
                 break;
             case "focusforegroundcolor":
-                widget.FocusForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                widget.FocusForegroundColor = Color.Parse(value);
                 break;
             case "paddingleft":
                 widget.PaddingLeft = value;
@@ -609,16 +720,16 @@ internal static class XmlParser
                 button.RoundedCorners = bool.Parse(value);
                 break;
             case "bordercolor":
-                button.BorderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                button.BorderColor = Color.Parse(value);
                 break;
             case "textcolor":
-                button.TextColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                button.TextColor = Color.Parse(value);
                 break;
             case "focusbordercolor":
-                button.FocusBorderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                button.FocusBorderColor = Color.Parse(value);
                 break;
             case "focustextcolor":
-                button.FocusTextColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                button.FocusTextColor = Color.Parse(value);
                 break;
             case "textstyle":
                 button.TextStyle = Enum.Parse<TextStyle>(value, ignoreCase: true);
@@ -630,10 +741,10 @@ internal static class XmlParser
                 button.Disabled = bool.Parse(value);
                 break;
             case "disabledbackgroundcolor":
-                button.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                button.DisabledBackgroundColor = Color.Parse(value);
                 break;
             case "disabledforegroundcolor":
-                button.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                button.DisabledForegroundColor = Color.Parse(value);
                 break;
         }
     }
@@ -655,25 +766,25 @@ internal static class XmlParser
                 input.Placeholder = value;
                 break;
             case "bordercolor":
-                input.BorderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                input.BorderColor = Color.Parse(value);
                 break;
             case "focusbordercolor":
-                input.FocusBorderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                input.FocusBorderColor = Color.Parse(value);
                 break;
             case "placeholdercolor":
-                input.PlaceholderColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                input.PlaceholderColor = Color.Parse(value);
                 break;
             case "cursorcolor":
-                input.CursorColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                input.CursorColor = Color.Parse(value);
                 break;
             case "disabled":
                 input.Disabled = bool.Parse(value);
                 break;
             case "disabledbackgroundcolor":
-                input.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                input.DisabledBackgroundColor = Color.Parse(value);
                 break;
             case "disabledforegroundcolor":
-                input.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                input.DisabledForegroundColor = Color.Parse(value);
                 break;
         }
     }
@@ -689,10 +800,10 @@ internal static class XmlParser
                 checkbox.Disabled = bool.Parse(value);
                 break;
             case "disabledbackgroundcolor":
-                checkbox.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                checkbox.DisabledBackgroundColor = Color.Parse(value);
                 break;
             case "disabledforegroundcolor":
-                checkbox.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                checkbox.DisabledForegroundColor = Color.Parse(value);
                 break;
         }
     }
@@ -708,10 +819,10 @@ internal static class XmlParser
                 radioButton.Disabled = bool.Parse(value);
                 break;
             case "disabledbackgroundcolor":
-                radioButton.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                radioButton.DisabledBackgroundColor = Color.Parse(value);
                 break;
             case "disabledforegroundcolor":
-                radioButton.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                radioButton.DisabledForegroundColor = Color.Parse(value);
                 break;
         }
     }
@@ -754,10 +865,10 @@ internal static class XmlParser
                 slider.Disabled = bool.Parse(value);
                 break;
             case "disabledbackgroundcolor":
-                slider.DisabledBackgroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                slider.DisabledBackgroundColor = Color.Parse(value);
                 break;
             case "disabledforegroundcolor":
-                slider.DisabledForegroundColor = Enum.Parse<ConsoleColor>(value, ignoreCase: true);
+                slider.DisabledForegroundColor = Color.Parse(value);
                 break;
         }
     }
@@ -779,4 +890,5 @@ internal static class XmlParser
     {
         // Table has no additional properties beyond IWidget
     }
+
 }
