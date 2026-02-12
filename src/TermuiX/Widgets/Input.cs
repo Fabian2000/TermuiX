@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text;
 
 namespace TermuiX.Widgets;
@@ -65,6 +64,26 @@ public class Input : IWidget
     public string Height { get; set; } = "3ch";
 
     /// <summary>
+    /// Gets or sets the minimum width constraint.
+    /// </summary>
+    public string MinWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum width constraint.
+    /// </summary>
+    public string MaxWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the minimum height constraint.
+    /// </summary>
+    public string MinHeight { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum height constraint.
+    /// </summary>
+    public string MaxHeight { get; set; } = "";
+
+    /// <summary>
     /// Gets or sets the left padding.
     /// </summary>
     public string PaddingLeft { get; set; } = "1ch";
@@ -124,15 +143,15 @@ public class Input : IWidget
     /// </summary>
     public bool AllowWrapping { get; set; } = true;
 
-    private ConsoleColor _backgroundColor = ConsoleColor.DarkGray;
-    private ConsoleColor _foregroundColor = ConsoleColor.White;
-    private ConsoleColor _focusBackgroundColor = ConsoleColor.Gray;
-    private ConsoleColor _focusForegroundColor = ConsoleColor.White;
+    private Color _backgroundColor = ConsoleColor.DarkGray;
+    private Color _foregroundColor = ConsoleColor.White;
+    private Color _focusBackgroundColor = ConsoleColor.Gray;
+    private Color _focusForegroundColor = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor
+    public Color BackgroundColor
     {
         get => _backgroundColor;
         set => _backgroundColor = value;
@@ -141,7 +160,7 @@ public class Input : IWidget
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor
+    public Color ForegroundColor
     {
         get => _foregroundColor;
         set => _foregroundColor = value;
@@ -150,7 +169,7 @@ public class Input : IWidget
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor
+    public Color FocusBackgroundColor
     {
         get => _focusBackgroundColor;
         set => _focusBackgroundColor = value;
@@ -159,7 +178,7 @@ public class Input : IWidget
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor
+    public Color FocusForegroundColor
     {
         get => _focusForegroundColor;
         set => _focusForegroundColor = value;
@@ -168,22 +187,22 @@ public class Input : IWidget
     /// <summary>
     /// Gets or sets the border color.
     /// </summary>
-    public ConsoleColor BorderColor { get; set; } = ConsoleColor.DarkGray;
+    public Color BorderColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets or sets the border color when focused.
     /// </summary>
-    public ConsoleColor FocusBorderColor { get; set; } = ConsoleColor.White;
+    public Color FocusBorderColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets the placeholder text color.
     /// </summary>
-    public ConsoleColor PlaceholderColor { get; set; } = ConsoleColor.DarkGray;
+    public Color PlaceholderColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets or sets the cursor color.
     /// </summary>
-    public ConsoleColor CursorColor { get; set; } = ConsoleColor.White;
+    public Color CursorColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets a value indicating whether the input is disabled.
@@ -194,12 +213,12 @@ public class Input : IWidget
     /// Gets or sets the background color when disabled.
     /// If null, the normal background color is used.
     /// </summary>
-    public ConsoleColor? DisabledBackgroundColor { get; set; }
+    public Color? DisabledBackgroundColor { get; set; }
 
     /// <summary>
     /// Gets or sets the foreground color when disabled.
     /// </summary>
-    public ConsoleColor DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets a value indicating whether the input can receive focus.
@@ -266,10 +285,10 @@ public class Input : IWidget
         if (width <= 0 || height <= 0) return [];
 
         // Temporarily override colors if disabled
-        ConsoleColor originalBg = _backgroundColor;
-        ConsoleColor originalFg = _foregroundColor;
-        ConsoleColor originalFocusBg = _focusBackgroundColor;
-        ConsoleColor originalFocusFg = _focusForegroundColor;
+        Color originalBg = _backgroundColor;
+        Color originalFg = _foregroundColor;
+        Color originalFocusBg = _focusBackgroundColor;
+        Color originalFocusFg = _focusForegroundColor;
 
         if (Disabled)
         {
@@ -408,26 +427,6 @@ public class Input : IWidget
                 MoveCursorVertical(1);
             }
         }
-        else if (keyInfo.Key == ConsoleKey.V && keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
-        {
-            // Paste from clipboard
-            try
-            {
-                string? clipboardText = GetClipboardText();
-                if (!string.IsNullOrEmpty(clipboardText))
-                {
-                    if (!Multiline)
-                    {
-                        clipboardText = clipboardText.Replace("\r\n", " ").Replace("\n", " ");
-                    }
-                    InsertText(clipboardText);
-                }
-            }
-            catch
-            {
-                // Clipboard access failed, ignore
-            }
-        }
         else if (!char.IsControl(keyInfo.KeyChar))
         {
             // Handle surrogate pairs (emojis, etc.)
@@ -518,35 +517,6 @@ public class Input : IWidget
         newPosition += targetCol;
 
         _cursorPosition = newPosition;
-    }
-
-    private string? GetClipboardText()
-    {
-        // Try to get clipboard text using various methods
-        try
-        {
-            // For Linux with xclip
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "xclip",
-                    Arguments = "-selection clipboard -o",
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-            process.Start();
-            string result = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            return result;
-        }
-        catch
-        {
-            // Clipboard not available
-            return null;
-        }
     }
 
     /// <summary>
@@ -1079,6 +1049,10 @@ public class Input : IWidget
             Group = Group,
             Width = Width,
             Height = Height,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
             PaddingLeft = PaddingLeft,
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,

@@ -87,6 +87,26 @@ public class Table : IWidget
     }
 
     /// <summary>
+    /// Gets or sets the minimum width constraint.
+    /// </summary>
+    public string MinWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum width constraint.
+    /// </summary>
+    public string MaxWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the minimum height constraint.
+    /// </summary>
+    public string MinHeight { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum height constraint.
+    /// </summary>
+    public string MaxHeight { get; set; } = "";
+
+    /// <summary>
     /// Gets or sets the left padding.
     /// </summary>
     public string PaddingLeft { get; set; } = "0ch";
@@ -144,27 +164,27 @@ public class Table : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets the border color.
     /// </summary>
-    public ConsoleColor BorderColor { get; set; } = ConsoleColor.White;
+    public Color BorderColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.Gray;
+    public Color FocusBackgroundColor { get; set; } = ConsoleColor.Gray;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets a value indicating whether the table widget can receive focus.
@@ -194,8 +214,8 @@ public class Table : IWidget
     long IWidget.ScrollOffsetX { get; set; }
     long IWidget.ScrollOffsetY { get; set; }
     bool IWidget.Disabled { get; set; }
-    ConsoleColor? IWidget.DisabledBackgroundColor { get; set; }
-    ConsoleColor IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+    Color? IWidget.DisabledBackgroundColor { get; set; }
+    Color IWidget.DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Adds a row to the table.
@@ -562,6 +582,10 @@ public class Table : IWidget
             Group = Group,
             _width = _width,
             _height = _height,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
             PaddingLeft = PaddingLeft,
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,

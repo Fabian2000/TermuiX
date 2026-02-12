@@ -8,8 +8,8 @@ namespace TermuiX.Widgets;
 public class RadioButton : IWidget
 {
     private bool _selected = false;
-    private ConsoleColor _backgroundColor = ConsoleColor.Black;
-    private ConsoleColor _foregroundColor = ConsoleColor.White;
+    private Color _backgroundColor = ConsoleColor.Black;
+    private Color _foregroundColor = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets a value indicating whether the radio button is selected.
@@ -51,6 +51,26 @@ public class RadioButton : IWidget
     /// Gets or sets the height of the radio button.
     /// </summary>
     public string Height { get; set; } = "1ch";
+
+    /// <summary>
+    /// Gets or sets the minimum width constraint.
+    /// </summary>
+    public string MinWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum width constraint.
+    /// </summary>
+    public string MaxWidth { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the minimum height constraint.
+    /// </summary>
+    public string MinHeight { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the maximum height constraint.
+    /// </summary>
+    public string MaxHeight { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the left padding.
@@ -115,7 +135,7 @@ public class RadioButton : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor
+    public Color BackgroundColor
     {
         get => Disabled && DisabledBackgroundColor.HasValue ? DisabledBackgroundColor.Value : _backgroundColor;
         set => _backgroundColor = value;
@@ -124,7 +144,7 @@ public class RadioButton : IWidget
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor
+    public Color ForegroundColor
     {
         get => Disabled ? DisabledForegroundColor : _foregroundColor;
         set => _foregroundColor = value;
@@ -133,12 +153,12 @@ public class RadioButton : IWidget
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
     /// Gets or sets a value indicating whether the radio button is disabled.
@@ -148,12 +168,12 @@ public class RadioButton : IWidget
     /// <summary>
     /// Gets or sets the background color when disabled.
     /// </summary>
-    public ConsoleColor? DisabledBackgroundColor { get; set; }
+    public Color? DisabledBackgroundColor { get; set; }
 
     /// <summary>
     /// Gets or sets the foreground color when disabled.
     /// </summary>
-    public ConsoleColor DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets a value indicating whether the radio button can receive focus.
@@ -253,6 +273,10 @@ public class RadioButton : IWidget
             Group = Group,
             Width = Width,
             Height = Height,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
             PaddingLeft = PaddingLeft,
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,

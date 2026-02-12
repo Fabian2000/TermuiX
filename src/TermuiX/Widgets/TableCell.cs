@@ -26,12 +26,12 @@ public class TableCell
     /// <summary>
     /// Gets or sets the foreground color of the cell.
     /// </summary>
-    public ConsoleColor? ForegroundColor { get; set; }
+    public Color? ForegroundColor { get; set; }
 
     /// <summary>
     /// Gets or sets the background color of the cell.
     /// </summary>
-    public ConsoleColor? BackgroundColor { get; set; }
+    public Color? BackgroundColor { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TableCell"/> class.

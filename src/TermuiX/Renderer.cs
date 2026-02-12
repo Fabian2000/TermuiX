@@ -12,8 +12,8 @@ namespace TermuiX
 
         // Cached frame buffers — reused across frames when size stays the same
         private Rune[][]? _cachedOutput;
-        private ConsoleColor[][]? _cachedFg;
-        private ConsoleColor[][]? _cachedBg;
+        private Color[][]? _cachedFg;
+        private Color[][]? _cachedBg;
         private int _cachedWidth;
         private int _cachedHeight;
 
@@ -23,7 +23,7 @@ namespace TermuiX
             _height = height;
         }
 
-        internal (Rune[][] chars, ConsoleColor[][] fg, ConsoleColor[][] bg) Render(IWidget widget, HitTestMap? hitTestMap = null, bool focusVisible = true)
+        internal (Rune[][] chars, Color[][] fg, Color[][] bg) Render(IWidget widget, HitTestMap? hitTestMap = null, bool focusVisible = true)
         {
             if (_width == 0 || _height == 0)
             {
@@ -34,14 +34,14 @@ namespace TermuiX
             if (_cachedOutput == null || _cachedWidth != _width || _cachedHeight != _height)
             {
                 _cachedOutput = new Rune[_height][];
-                _cachedFg = new ConsoleColor[_height][];
-                _cachedBg = new ConsoleColor[_height][];
+                _cachedFg = new Color[_height][];
+                _cachedBg = new Color[_height][];
 
                 for (int i = 0; i < _height; i++)
                 {
                     _cachedOutput[i] = new Rune[_width];
-                    _cachedFg[i] = new ConsoleColor[_width];
-                    _cachedBg[i] = new ConsoleColor[_width];
+                    _cachedFg[i] = new Color[_width];
+                    _cachedBg[i] = new Color[_width];
                 }
 
                 _cachedWidth = _width;
@@ -66,7 +66,7 @@ namespace TermuiX
             return (output, fgColors, bgColors);
         }
 
-        private static void RenderWidget(Rune[][] output, ConsoleColor[][] fgColors, ConsoleColor[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY, HitTestMap? hitTestMap, bool focusVisible)
+        private static void RenderWidget(Rune[][] output, Color[][] fgColors, Color[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY, HitTestMap? hitTestMap, bool focusVisible)
         {
             // Skip invisible widgets and their children
             if (!widget.Visible)
@@ -92,6 +92,16 @@ namespace TermuiX
                 if (widget.ComputedWidth > 0) width = widget.ComputedWidth;
                 if (widget.ComputedHeight > 0) height = widget.ComputedHeight;
             }
+
+            // Apply min/max constraints
+            if (!string.IsNullOrEmpty(widget.MinWidth))
+                width = Math.Max(width, ParseSize(widget.MinWidth, parentWidth));
+            if (!string.IsNullOrEmpty(widget.MaxWidth))
+                width = Math.Min(width, ParseSize(widget.MaxWidth, parentWidth));
+            if (!string.IsNullOrEmpty(widget.MinHeight))
+                height = Math.Max(height, ParseSize(widget.MinHeight, parentHeight));
+            if (!string.IsNullOrEmpty(widget.MaxHeight))
+                height = Math.Min(height, ParseSize(widget.MaxHeight, parentHeight));
 
             int posX = ParseSize(widget.PositionX, parentWidth);
             int posY = ParseSize(widget.PositionY, parentHeight);
@@ -119,6 +129,27 @@ namespace TermuiX
             int absX = parentX + posX + marginLeft;
             int absY = parentY + posY + marginTop;
 
+            // Set constrained size BEFORE GetRaw() so widgets (Container, Button)
+            // can render borders/content at the correct Min/Max-constrained size.
+            widget.ComputedWidth = width;
+            widget.ComputedHeight = height;
+
+            var raw = widget.GetRaw();
+
+            // After GetRaw(), self-sizing widgets (not inside a StackPanel) may report
+            // content larger than their declared size (e.g. TreeView inside a scroll container).
+            // Expand width/height so the parent scroll container can see the full content.
+            if (raw?.Length > 0 && !(widget is Widgets.StackPanel) && !(widget.Parent is Widgets.StackPanel))
+            {
+                int rawH = raw.Length;
+                int rawW = 0;
+                for (int i = 0; i < raw.Length; i++)
+                    if (raw[i] != null && raw[i].Length > rawW) rawW = raw[i].Length;
+
+                if (rawW > width) width = rawW;
+                if (rawH > height) height = rawH;
+            }
+
             hitTestMap?.Set(absX, absY, width, height, widget, parentX, parentY, parentWidth, parentHeight);
 
             if (absX >= parentX + parentWidth || absY >= parentY + parentHeight)
@@ -130,8 +161,6 @@ namespace TermuiX
             {
                 return;
             }
-
-            var raw = widget.GetRaw();
 
             int contentWidth = Math.Max(0, width - padLeft - padRight);
             int contentHeight = Math.Max(0, height - padTop - padBottom);
@@ -161,6 +190,8 @@ namespace TermuiX
 
             if (raw?.Length > 0)
             {
+                var rawColors = widget.GetRawColors();
+
                 // First render the raw content WITHOUT scroll (for borders, static content)
                 for (int y = 0; y < raw.Length && y < height; y++)
                 {
@@ -177,6 +208,11 @@ namespace TermuiX
                             targetX < parentX + parentWidth && targetY < parentY + parentHeight)
                         {
                             output[targetY][targetX] = raw[y][x];
+                            if (rawColors.HasValue)
+                            {
+                                fgColors[targetY][targetX] = rawColors.Value.fg[y][x];
+                                bgColors[targetY][targetX] = rawColors.Value.bg[y][x];
+                            }
                         }
                     }
                 }
@@ -244,11 +280,41 @@ namespace TermuiX
                         ? (child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, contentWidth))
                         : (child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, contentHeight));
 
-                    // Store corrected sizes
+                    // Apply min/max constraints to layout sizes
                     if (isVertical)
-                        child.ComputedHeight = mainChildSize;
+                    {
+                        if (!string.IsNullOrEmpty(child.MinHeight))
+                            mainChildSize = Math.Max(mainChildSize, ParseSize(child.MinHeight, contentHeight));
+                        if (!string.IsNullOrEmpty(child.MaxHeight))
+                            mainChildSize = Math.Min(mainChildSize, ParseSize(child.MaxHeight, contentHeight));
+                        if (!string.IsNullOrEmpty(child.MinWidth))
+                            crossChildSize = Math.Max(crossChildSize, ParseSize(child.MinWidth, contentWidth));
+                        if (!string.IsNullOrEmpty(child.MaxWidth))
+                            crossChildSize = Math.Min(crossChildSize, ParseSize(child.MaxWidth, contentWidth));
+                    }
                     else
+                    {
+                        if (!string.IsNullOrEmpty(child.MinWidth))
+                            mainChildSize = Math.Max(mainChildSize, ParseSize(child.MinWidth, contentWidth));
+                        if (!string.IsNullOrEmpty(child.MaxWidth))
+                            mainChildSize = Math.Min(mainChildSize, ParseSize(child.MaxWidth, contentWidth));
+                        if (!string.IsNullOrEmpty(child.MinHeight))
+                            crossChildSize = Math.Max(crossChildSize, ParseSize(child.MinHeight, contentHeight));
+                        if (!string.IsNullOrEmpty(child.MaxHeight))
+                            crossChildSize = Math.Min(crossChildSize, ParseSize(child.MaxHeight, contentHeight));
+                    }
+
+                    // Store corrected sizes for BOTH axes
+                    if (isVertical)
+                    {
+                        child.ComputedHeight = mainChildSize;
+                        child.ComputedWidth = crossChildSize;
+                    }
+                    else
+                    {
                         child.ComputedWidth = mainChildSize;
+                        child.ComputedHeight = crossChildSize;
+                    }
 
                     measured.Add((child, mainChildSize, crossChildSize, mMain0, mMain1, mCross0, mCross1));
                 }
@@ -605,6 +671,16 @@ namespace TermuiX
                     cw = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, parentWidth);
                 if (ch == 0)
                     ch = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, parentHeight);
+
+                // Apply min/max constraints
+                if (!string.IsNullOrEmpty(child.MinWidth))
+                    cw = Math.Max(cw, ParseSize(child.MinWidth, parentWidth));
+                if (!string.IsNullOrEmpty(child.MaxWidth))
+                    cw = Math.Min(cw, ParseSize(child.MaxWidth, parentWidth));
+                if (!string.IsNullOrEmpty(child.MinHeight))
+                    ch = Math.Max(ch, ParseSize(child.MinHeight, parentHeight));
+                if (!string.IsNullOrEmpty(child.MaxHeight))
+                    ch = Math.Min(ch, ParseSize(child.MaxHeight, parentHeight));
 
                 child.ComputedWidth = cw;
                 child.ComputedHeight = ch;

@@ -71,7 +71,7 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the border color.
     /// </summary>
-    public ConsoleColor BorderColor
+    public Color BorderColor
     {
         get => _container.ForegroundColor;
         set => _container.ForegroundColor = value;
@@ -80,7 +80,7 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the text color.
     /// </summary>
-    public ConsoleColor TextColor
+    public Color TextColor
     {
         get => _textWidget.ForegroundColor;
         set => _textWidget.ForegroundColor = value;
@@ -89,7 +89,7 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the border color when focused.
     /// </summary>
-    public ConsoleColor FocusBorderColor
+    public Color FocusBorderColor
     {
         get => _container.FocusForegroundColor;
         set => _container.FocusForegroundColor = value;
@@ -98,7 +98,7 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the text color when focused.
     /// </summary>
-    public ConsoleColor FocusTextColor
+    public Color FocusTextColor
     {
         get => _textWidget.FocusForegroundColor;
         set
@@ -153,6 +153,10 @@ public class Button : IWidget
         get => _container.Height;
         set => _container.Height = value;
     }
+    public string MinWidth { get; set; } = "";
+    public string MaxWidth { get; set; } = "";
+    public string MinHeight { get; set; } = "";
+    public string MaxHeight { get; set; } = "";
 
     /// <summary>
     /// Gets or sets the left padding.
@@ -249,7 +253,7 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public ConsoleColor BackgroundColor
+    public Color BackgroundColor
     {
         get => _container.BackgroundColor;
         set
@@ -262,7 +266,7 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public ConsoleColor ForegroundColor
+    public Color ForegroundColor
     {
         get => _container.ForegroundColor;
         set => _container.ForegroundColor = value;
@@ -271,7 +275,7 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public ConsoleColor FocusBackgroundColor
+    public Color FocusBackgroundColor
     {
         get => _container.FocusBackgroundColor;
         set
@@ -284,7 +288,7 @@ public class Button : IWidget
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public ConsoleColor FocusForegroundColor
+    public Color FocusForegroundColor
     {
         get => _container.FocusForegroundColor;
         set => _container.FocusForegroundColor = value;
@@ -299,12 +303,12 @@ public class Button : IWidget
     /// Gets or sets the background color when disabled.
     /// If null, the normal background color is used.
     /// </summary>
-    public ConsoleColor? DisabledBackgroundColor { get; set; }
+    public Color? DisabledBackgroundColor { get; set; }
 
     /// <summary>
     /// Gets or sets the foreground color when disabled.
     /// </summary>
-    public ConsoleColor DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
     /// Gets a value indicating whether the button can receive focus.
@@ -366,12 +370,17 @@ public class Button : IWidget
         // Set container's parent to this widget's parent for proper size calculation
         ((IWidget)_container).Parent = ((IWidget)this).Parent;
 
-        // If the StackPanel measurement pass already computed our size, use that
-        // instead of letting the inner container recalculate from parent %
+        // Propagate constrained size to internal container so it renders at the correct size
         if (((IWidget)this).ComputedWidth > 0)
+        {
             _container.Width = $"{((IWidget)this).ComputedWidth}ch";
+            ((IWidget)_container).ComputedWidth = ((IWidget)this).ComputedWidth;
+        }
         if (((IWidget)this).ComputedHeight > 0)
+        {
             _container.Height = $"{((IWidget)this).ComputedHeight}ch";
+            ((IWidget)_container).ComputedHeight = ((IWidget)this).ComputedHeight;
+        }
 
         // Propagate disabled state to inner widgets so they render with disabled colors
         ((IWidget)_container).Disabled = Disabled;
@@ -450,6 +459,10 @@ public class Button : IWidget
             Group = Group,
             Width = Width,
             Height = Height,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
             PaddingLeft = PaddingLeft,
             PaddingTop = PaddingTop,
             PaddingRight = PaddingRight,
