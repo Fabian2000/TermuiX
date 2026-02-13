@@ -9,8 +9,8 @@ public class TreeView : IWidget
 {
     private readonly TreeNode _root = new("Root") { IsExpanded = true };
     private int _selectedIndex = 0;
-    private Color _backgroundColor = ConsoleColor.Black;
-    private Color _foregroundColor = ConsoleColor.White;
+    private Color _backgroundColor = Color.Inherit;
+    private Color _foregroundColor = Color.Inherit;
     private Color[][]? _rawFg;
     private Color[][]? _rawBg;
 
@@ -153,12 +153,12 @@ public class TreeView : IWidget
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the highlight color for the selected node.

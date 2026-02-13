@@ -3,6 +3,17 @@ using System.Text;
 namespace TermuiX.Widgets;
 
 /// <summary>
+/// Determines which key combination submits a multiline input.
+/// </summary>
+public enum SubmitKeyMode
+{
+    /// <summary>Enter submits, Ctrl+Enter inserts a newline.</summary>
+    Enter,
+    /// <summary>Ctrl+Enter submits, Enter inserts a newline (editor-style).</summary>
+    CtrlEnter
+}
+
+/// <summary>
 /// A text input widget that supports single-line and multi-line text entry.
 /// </summary>
 public class Input : IWidget
@@ -32,6 +43,14 @@ public class Input : IWidget
     /// Gets or sets a value indicating whether multi-line input is enabled.
     /// </summary>
     public bool Multiline { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the key used to submit the input.
+    /// CtrlEnter (default): Ctrl+Enter submits, Enter inserts a newline.
+    /// Enter: Enter submits, Ctrl+Enter inserts a newline (chat-style).
+    /// Only affects behavior when Multiline is true; singleline always submits on Enter.
+    /// </summary>
+    public SubmitKeyMode SubmitKey { get; set; } = SubmitKeyMode.CtrlEnter;
 
     /// <summary>
     /// Gets or sets a value indicating whether the input displays as a password (masked with asterisks).
@@ -143,10 +162,10 @@ public class Input : IWidget
     /// </summary>
     public bool AllowWrapping { get; set; } = true;
 
-    private Color _backgroundColor = ConsoleColor.DarkGray;
-    private Color _foregroundColor = ConsoleColor.White;
-    private Color _focusBackgroundColor = ConsoleColor.Gray;
-    private Color _focusForegroundColor = ConsoleColor.White;
+    private Color _backgroundColor = Color.Inherit;
+    private Color _foregroundColor = Color.Inherit;
+    private Color _focusBackgroundColor = Color.Inherit;
+    private Color _focusForegroundColor = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the background color.
@@ -221,9 +240,10 @@ public class Input : IWidget
     public Color DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
-    /// Gets a value indicating whether the input can receive focus.
+    /// Gets or sets a value indicating whether the input can receive focus.
+    /// When Disabled is true, the input cannot receive focus regardless of this value.
     /// </summary>
-    public bool CanFocus => !Disabled;
+    public bool CanFocus { get; set; } = true;
 
     /// <summary>
     /// Gets a value indicating whether horizontal scrolling is enabled.
@@ -236,9 +256,14 @@ public class Input : IWidget
     public bool ScrollY => false;
 
     /// <summary>
-    /// Occurs when the user submits the input (presses Enter in single-line mode).
+    /// Occurs when the user presses Enter.
     /// </summary>
     public event EventHandler<string>? EnterPressed;
+
+    /// <summary>
+    /// Occurs when the user presses Escape.
+    /// </summary>
+    public event EventHandler? EscapePressed;
 
     /// <summary>
     /// Occurs when the text value changes.
@@ -274,9 +299,14 @@ public class Input : IWidget
             _cursorVisible = false;
         }
 
-        // Calculate size
-        int width = CalculateSize(Width, ((IWidget)this).Parent, true);
-        int height = Multiline ? CalculateSize(Height, ((IWidget)this).Parent, false) : 1;
+        // Use ComputedWidth/Height when set by the Renderer/StackPanel layout.
+        // Fall back to CalculateSize when no computed value is available.
+        int computedW = ((IWidget)this).ComputedWidth;
+        int width = computedW > 0 ? computedW : CalculateSize(Width, ((IWidget)this).Parent, true);
+
+        int computedH = ((IWidget)this).ComputedHeight;
+        int height = computedH > 0 ? computedH
+            : (Multiline ? CalculateSize(Height, ((IWidget)this).Parent, false) : 1);
 
         // Store computed values
         ((IWidget)this).ComputedWidth = width;
@@ -357,17 +387,35 @@ public class Input : IWidget
         }
 
         // Handle special keys
-        if (keyInfo.Key == ConsoleKey.Enter)
+        if (keyInfo.Key == ConsoleKey.Escape)
         {
-            if (Multiline)
+            EscapePressed?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+        else if (keyInfo.Key == ConsoleKey.Enter)
+        {
+            bool hasCtrl = (keyInfo.Modifiers & ConsoleModifiers.Control) != 0;
+
+            if (!Multiline)
             {
-                // Multiline: Enter adds new line
-                InsertChar('\n');
+                // Singleline always submits on Enter
+                OnSubmit();
+            }
+            else if (SubmitKey == SubmitKeyMode.CtrlEnter)
+            {
+                // Editor-style: Enter = newline, Ctrl+Enter = submit
+                if (hasCtrl)
+                    OnSubmit();
+                else
+                    InsertChar('\n');
             }
             else
             {
-                // Single-line: Enter submits
-                OnSubmit();
+                // Chat-style (default): Enter = submit, Ctrl+Enter = newline
+                if (hasCtrl)
+                    InsertChar('\n');
+                else
+                    OnSubmit();
             }
         }
         else if (keyInfo.Key == ConsoleKey.Backspace)
@@ -544,6 +592,15 @@ public class Input : IWidget
 
         size = size.Trim();
 
+        if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parent == null)
+                return isWidth ? Console.WindowWidth : Console.WindowHeight;
+            return isWidth ?
+                (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
+                (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
+        }
+
         if (size.EndsWith("ch"))
         {
             var value = size[..^2].Trim();
@@ -570,6 +627,7 @@ public class Input : IWidget
                     (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
 
                 // Subtract padding from parent's available space
+                // Note: border is already accounted for by the Renderer's padding adjustment
                 if (isWidth)
                 {
                     int padLeft = ParsePadding(parent.PaddingLeft);
@@ -640,7 +698,7 @@ public class Input : IWidget
         int cursorDisplayPos = 0;
         for (int i = 0; i < _cursorPosition && i < runes.Count; i++)
         {
-            cursorDisplayPos += GetRuneDisplayWidth(runes[i]);
+            cursorDisplayPos += Text.GetRuneDisplayWidth(runes[i]);
         }
 
         // Calculate horizontal scroll offset (in runes) to keep cursor visible
@@ -657,7 +715,7 @@ public class Input : IWidget
                     scrollOffsetRunes = i;
                     break;
                 }
-                accumulatedWidth += GetRuneDisplayWidth(runes[i]);
+                accumulatedWidth += Text.GetRuneDisplayWidth(runes[i]);
             }
         }
 
@@ -668,7 +726,7 @@ public class Input : IWidget
         while (runeIdx < runes.Count && displayX < width)
         {
             Rune rune = runes[runeIdx];
-            int runeWidth = GetRuneDisplayWidth(rune);
+            int runeWidth = Text.GetRuneDisplayWidth(rune);
 
             // Check if this would exceed width
             if (displayX + runeWidth > width)
@@ -714,152 +772,6 @@ public class Input : IWidget
         }
     }
 
-    private static int GetRuneDisplayWidth(Rune rune)
-    {
-        int value = rune.Value;
-
-        // Control characters
-        if (value == 0 || Rune.IsControl(rune))
-            return 0;
-
-        // Explicit zero-width characters
-        if (value == 0x200B ||                          // Zero-Width Space
-            value == 0x200C ||                          // Zero-Width Non-Joiner
-            value == 0x200D ||                          // Zero-Width Joiner
-            value == 0x2060 ||                          // Word Joiner
-            value == 0xFEFF ||                          // Zero-Width No-Break Space (BOM)
-            (value >= 0xFE00 && value <= 0xFE0F) ||     // Variation Selectors
-            (value >= 0xE0100 && value <= 0xE01EF) ||   // Variation Selectors Supplement
-            (value >= 0xE0000 && value <= 0xE007F))     // Tags Block
-        {
-            return 0;
-        }
-
-        // Hangul Jungseong/Jongseong (combining vowels/finals in Korean syllables)
-        if ((value >= 0x1160 && value <= 0x11FF) ||
-            (value >= 0xD7B0 && value <= 0xD7C6) ||
-            (value >= 0xD7CB && value <= 0xD7FB))
-        {
-            return 0;
-        }
-
-        // Combining marks and format characters
-        var runeCategory = Rune.GetUnicodeCategory(rune);
-        if (runeCategory == System.Globalization.UnicodeCategory.NonSpacingMark ||
-            runeCategory == System.Globalization.UnicodeCategory.EnclosingMark ||
-            runeCategory == System.Globalization.UnicodeCategory.Format)
-        {
-            return 0;
-        }
-
-        if ((value >= 0x1100 && value <= 0x115F) ||
-            (value >= 0x231A && value <= 0x231B) ||
-            (value >= 0x2329 && value <= 0x232A) ||
-            (value >= 0x23E9 && value <= 0x23EC) ||
-            value == 0x23F0 || value == 0x23F3 ||
-            (value >= 0x25FD && value <= 0x25FE) ||
-            (value >= 0x2614 && value <= 0x2615) ||
-            (value >= 0x2648 && value <= 0x2653) ||
-            value == 0x267F || value == 0x2693 || value == 0x26A1 ||
-            (value >= 0x26AA && value <= 0x26AB) ||
-            (value >= 0x26BD && value <= 0x26BE) ||
-            (value >= 0x26C4 && value <= 0x26C5) ||
-            value == 0x26CE || value == 0x26D4 || value == 0x26EA ||
-            (value >= 0x26F2 && value <= 0x26F3) ||
-            value == 0x26F5 || value == 0x26FA || value == 0x26FD ||
-            value == 0x2705 ||
-            (value >= 0x270A && value <= 0x270B) ||
-            value == 0x2728 || value == 0x274C || value == 0x274E ||
-            (value >= 0x2753 && value <= 0x2755) ||
-            value == 0x2757 ||
-            (value >= 0x2795 && value <= 0x2797) ||
-            value == 0x27B0 || value == 0x27BF ||
-            (value >= 0x2B1B && value <= 0x2B1C) ||
-            value == 0x2B50 || value == 0x2B55 ||
-            (value >= 0x2E80 && value <= 0x9FFF) ||
-            (value >= 0xA000 && value <= 0xA4C6) ||
-            (value >= 0xA960 && value <= 0xA97C) ||
-            (value >= 0xAC00 && value <= 0xD7A3) ||
-            (value >= 0xF900 && value <= 0xFAFF) ||
-            (value >= 0xFE10 && value <= 0xFE19) ||
-            (value >= 0xFE30 && value <= 0xFE6B) ||
-            (value >= 0xFF00 && value <= 0xFF60) ||
-            (value >= 0xFFE0 && value <= 0xFFE6))
-        {
-            return 2;
-        }
-
-        if (value == 0x1F004 || value == 0x1F0CF || value == 0x1F18E ||
-            (value >= 0x1F191 && value <= 0x1F19A) ||
-            (value >= 0x1F200 && value <= 0x1F202) ||
-            (value >= 0x1F210 && value <= 0x1F23B) ||
-            (value >= 0x1F240 && value <= 0x1F248) ||
-            (value >= 0x1F250 && value <= 0x1F251) ||
-            (value >= 0x1F260 && value <= 0x1F265) ||
-            (value >= 0x1F300 && value <= 0x1F320) ||
-            (value >= 0x1F32D && value <= 0x1F335) ||
-            (value >= 0x1F337 && value <= 0x1F37C) ||
-            (value >= 0x1F37E && value <= 0x1F393) ||
-            (value >= 0x1F3A0 && value <= 0x1F3CA) ||
-            (value >= 0x1F3CF && value <= 0x1F3D3) ||
-            (value >= 0x1F3E0 && value <= 0x1F3F0) ||
-            value == 0x1F3F4 ||
-            (value >= 0x1F3F8 && value <= 0x1F43E) ||
-            value == 0x1F440 ||
-            (value >= 0x1F442 && value <= 0x1F4FC) ||
-            (value >= 0x1F4FF && value <= 0x1F53D) ||
-            (value >= 0x1F54B && value <= 0x1F54E) ||
-            (value >= 0x1F550 && value <= 0x1F567) ||
-            value == 0x1F57A ||
-            (value >= 0x1F595 && value <= 0x1F596) ||
-            value == 0x1F5A4 ||
-            (value >= 0x1F5FB && value <= 0x1F64F) ||
-            (value >= 0x1F680 && value <= 0x1F6C5) ||
-            value == 0x1F6CC ||
-            (value >= 0x1F6D0 && value <= 0x1F6D2) ||
-            (value >= 0x1F6D5 && value <= 0x1F6D7) ||
-            (value >= 0x1F6DC && value <= 0x1F6DF) ||
-            (value >= 0x1F6EB && value <= 0x1F6EC) ||
-            (value >= 0x1F6F4 && value <= 0x1F6FC) ||
-            (value >= 0x1F7E0 && value <= 0x1F7EB) ||
-            value == 0x1F7F0 ||
-            (value >= 0x1F90C && value <= 0x1F93A) ||
-            (value >= 0x1F93C && value <= 0x1F945) ||
-            (value >= 0x1F947 && value <= 0x1F9FF) ||
-            (value >= 0x1FA70 && value <= 0x1FA7C) ||
-            (value >= 0x1FA80 && value <= 0x1FA88) ||
-            (value >= 0x1FA90 && value <= 0x1FABD) ||
-            (value >= 0x1FABF && value <= 0x1FAC5) ||
-            (value >= 0x1FACE && value <= 0x1FADB) ||
-            (value >= 0x1FAE0 && value <= 0x1FAE8) ||
-            (value >= 0x1FAF0 && value <= 0x1FAF8))
-        {
-            return 2;
-        }
-
-        if ((value >= 0x16FE0 && value <= 0x16FE3) ||
-            (value >= 0x16FF0 && value <= 0x16FF1) ||
-            (value >= 0x17000 && value <= 0x187F7) ||
-            (value >= 0x18800 && value <= 0x18CD5) ||
-            (value >= 0x18D00 && value <= 0x18D08) ||
-            (value >= 0x1AFF0 && value <= 0x1AFF3) ||
-            (value >= 0x1AFF5 && value <= 0x1AFFB) ||
-            (value >= 0x1AFFD && value <= 0x1AFFE) ||
-            (value >= 0x1B000 && value <= 0x1B122) ||
-            value == 0x1B132 ||
-            (value >= 0x1B150 && value <= 0x1B152) ||
-            value == 0x1B155 ||
-            (value >= 0x1B164 && value <= 0x1B167) ||
-            (value >= 0x1B170 && value <= 0x1B2FB) ||
-            (value >= 0x20000 && value <= 0x2FA1D) ||
-            (value >= 0x30000 && value <= 0x3FFFD))
-        {
-            return 2;
-        }
-
-        return 1;
-    }
-
     private void RenderMultiline(Rune[][] result, string displayText, int width, int height)
     {
         // Convert to runes and wrap based on display width
@@ -892,7 +804,7 @@ public class Input : IWidget
 
             foreach (var rune in lineRunes)
             {
-                int runeWidth = GetRuneDisplayWidth(rune);
+                int runeWidth = Text.GetRuneDisplayWidth(rune);
 
                 if (currentDisplayWidth + runeWidth > width && currentLine.Count > 0)
                 {
@@ -984,7 +896,7 @@ public class Input : IWidget
             while (runeIdx < lineRunes.Count && displayX < width)
             {
                 Rune rune = lineRunes[runeIdx];
-                int runeWidth = GetRuneDisplayWidth(rune);
+                int runeWidth = Text.GetRuneDisplayWidth(rune);
 
                 if (displayX + runeWidth > width)
                 {
@@ -1043,6 +955,7 @@ public class Input : IWidget
             _cursorPosition = _cursorPosition,
             Value = Value,
             Multiline = Multiline,
+            SubmitKey = SubmitKey,
             IsPassword = IsPassword,
             Placeholder = Placeholder,
             Name = Name,

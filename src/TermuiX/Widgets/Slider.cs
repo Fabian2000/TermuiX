@@ -10,8 +10,8 @@ public class Slider : IWidget
     private double _value = 0;
     private double _min = 0;
     private double _max = 100;
-    private Color _backgroundColor = ConsoleColor.Black;
-    private Color _foregroundColor = ConsoleColor.White;
+    private Color _backgroundColor = Color.Inherit;
+    private Color _foregroundColor = Color.Inherit;
     private int _lastTrackWidth = 0;
 
     /// <summary>
@@ -194,12 +194,12 @@ public class Slider : IWidget
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.Gray;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets a value indicating whether the slider is disabled.

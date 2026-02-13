@@ -345,10 +345,13 @@ internal static partial class MouseInput
         public fixed byte _rest[128];
     }
 
-    // termios flags
+    // termios c_lflag flags
     private const uint ICANON = 0x0002; // Canonical mode (line buffering)
     private const uint ECHO = 0x0008;   // Echo input
     private const uint ISIG = 0x0001;   // Signal generation (Ctrl+C etc.)
+
+    // termios c_iflag flags
+    private const uint ICRNL = 0x0100;  // Translate CR to NL (masks Ctrl+Enter vs Enter!)
 
     private static unsafe Termios _originalTermios;
     private static bool _termiosModified;
@@ -378,6 +381,7 @@ internal static partial class MouseInput
 
                 raw.c_lflag &= ~ICANON; // Disable canonical mode (no line buffering)
                 raw.c_lflag &= ~ECHO;   // Disable echo (terminal already handles display)
+                raw.c_iflag &= ~ICRNL;  // Don't translate CR→NL (so Enter=0x0D, Ctrl+Enter=0x0A)
 
                 Tcsetattr(0, TCSANOW, &raw);
             }
@@ -385,14 +389,16 @@ internal static partial class MouseInput
 
         // 1003 = Any event tracking (press/release/wheel + all mouse movement)
         // 1006 = SGR extended coordinates (supports large terminals, distinguishes press vs release)
-        Console.Write("\x1b[?1003h\x1b[?1006h");
+        // >1u  = Extended keyboard mode / CSI u (kitty protocol)
+        // >4;1m = modifyOtherKeys mode 1 (xterm-style, used by Windows Terminal)
+        Console.Write("\x1b[?1003h\x1b[?1006h\x1b[>1u\x1b[>4;1m");
         Console.Out.Flush();
     }
 
     [UnsupportedOSPlatform("windows")]
     private static void DisableUnix()
     {
-        Console.Write("\x1b[?1006l\x1b[?1003l");
+        Console.Write("\x1b[?1006l\x1b[?1003l\x1b[>0u\x1b[>4;0m");
         Console.Out.Flush();
 
         // Restore original terminal settings
@@ -614,12 +620,14 @@ internal static partial class MouseInput
                 {
                     // Collect remaining parameter bytes and find the terminator
                     // Format examples:
-                    //   ESC [ 5 ~           → PageUp
-                    //   ESC [ 1 ; 2 D       → Shift+LeftArrow  (modifier=2)
-                    //   ESC [ 1 ; 5 C       → Ctrl+RightArrow  (modifier=5)
+                    //   ESC [ 5 ~              → PageUp
+                    //   ESC [ 1 ; 2 D          → Shift+LeftArrow  (modifier=2)
+                    //   ESC [ 1 ; 5 C          → Ctrl+RightArrow  (modifier=5)
+                    //   ESC [ 27 ; 5 ; 13 ~    → modifyOtherKeys: Ctrl+Enter (param3=keycode)
                     int paramBuf = code - (byte)'0';
                     int modifier = 0;
-                    bool inSecondParam = false;
+                    int param3 = 0;
+                    int paramIndex = 0; // 0=paramBuf, 1=modifier, 2=param3
                     byte finalByte = 0;
 
                     while (UnixBufCount > 0)
@@ -629,15 +637,17 @@ internal static partial class MouseInput
 
                         if (b == (byte)';')
                         {
-                            inSecondParam = true;
-                            modifier = 0;
+                            paramIndex++;
                         }
                         else if (b >= (byte)'0' && b <= (byte)'9')
                         {
-                            if (inSecondParam)
-                                modifier = modifier * 10 + (b - (byte)'0');
+                            int digit = b - (byte)'0';
+                            if (paramIndex == 0)
+                                paramBuf = paramBuf * 10 + digit;
+                            else if (paramIndex == 1)
+                                modifier = modifier * 10 + digit;
                             else
-                                paramBuf = paramBuf * 10 + (b - (byte)'0');
+                                param3 = param3 * 10 + digit;
                         }
                         else
                         {
@@ -650,6 +660,35 @@ internal static partial class MouseInput
 
                     if (finalByte == (byte)'~')
                     {
+                        // modifyOtherKeys: ESC [ 27 ; modifier ; keycode ~
+                        if (paramBuf == 27 && param3 > 0)
+                        {
+                            int modBits = modifier > 0 ? modifier - 1 : 0;
+                            bool isShift = (modBits & 0x01) != 0;
+                            bool isAlt = (modBits & 0x02) != 0;
+                            bool isCtrl = (modBits & 0x04) != 0;
+
+                            ConsoleKey mokKey = param3 switch
+                            {
+                                13 => ConsoleKey.Enter,
+                                9 => ConsoleKey.Tab,
+                                27 => ConsoleKey.Escape,
+                                127 => ConsoleKey.Backspace,
+                                32 => ConsoleKey.Spacebar,
+                                _ when param3 >= 'a' && param3 <= 'z' => ConsoleKey.A + (param3 - 'a'),
+                                _ when param3 >= 'A' && param3 <= 'Z' => ConsoleKey.A + (param3 - 'A'),
+                                _ when param3 >= '0' && param3 <= '9' => ConsoleKey.D0 + (param3 - '0'),
+                                _ => 0
+                            };
+
+                            if (mokKey != 0)
+                            {
+                                char mokChar = param3 < 128 ? (char)param3 : '\0';
+                                keyEvent = new ConsoleKeyInfo(mokChar, mokKey, isShift, isAlt, isCtrl);
+                                return 2;
+                            }
+                        }
+
                         // Tilde-terminated: PageUp/Down, Insert, Delete, Home, End
                         ConsoleKey extKey = paramBuf switch
                         {
@@ -687,6 +726,35 @@ internal static partial class MouseInput
                         {
                             bool isShift = isShiftMod || finalByte == (byte)'Z';
                             keyEvent = new ConsoleKeyInfo('\0', modArrowKey, isShift, false, false);
+                            return 2;
+                        }
+                    }
+                    else if (finalByte == (byte)'u')
+                    {
+                        // Extended keyboard mode: ESC [ keycode ; modifier u
+                        // modifier-1 bitmask: bit0=Shift, bit1=Alt, bit2=Ctrl
+                        int modBits = modifier > 0 ? modifier - 1 : 0;
+                        bool isShift = (modBits & 0x01) != 0;
+                        bool isAlt = (modBits & 0x02) != 0;
+                        bool isCtrl = (modBits & 0x04) != 0;
+
+                        ConsoleKey uKey = paramBuf switch
+                        {
+                            13 => ConsoleKey.Enter,
+                            9 => ConsoleKey.Tab,
+                            27 => ConsoleKey.Escape,
+                            127 => ConsoleKey.Backspace,
+                            32 => ConsoleKey.Spacebar,
+                            _ when paramBuf >= 'a' && paramBuf <= 'z' => ConsoleKey.A + (paramBuf - 'a'),
+                            _ when paramBuf >= 'A' && paramBuf <= 'Z' => ConsoleKey.A + (paramBuf - 'A'),
+                            _ when paramBuf >= '0' && paramBuf <= '9' => ConsoleKey.D0 + (paramBuf - '0'),
+                            _ => 0
+                        };
+
+                        if (uKey != 0)
+                        {
+                            char uChar = paramBuf < 128 ? (char)paramBuf : '\0';
+                            keyEvent = new ConsoleKeyInfo(uChar, uKey, isShift, isAlt, isCtrl);
                             return 2;
                         }
                     }
@@ -788,9 +856,18 @@ internal static partial class MouseInput
         UnixBufConsume(1);
 
         char character = (char)ch;
+
+        // With ICRNL disabled: Enter sends 0x0D (CR), Ctrl+Enter sends 0x0A (LF)
+        if (ch == 0x0A)
+        {
+            // LF = Ctrl+Enter
+            keyEvent = new ConsoleKeyInfo('\n', ConsoleKey.Enter, false, false, true);
+            return 2;
+        }
+
         ConsoleKey consoleKey = character switch
         {
-            '\r' or '\n' => ConsoleKey.Enter,
+            '\r' => ConsoleKey.Enter,
             '\t' => ConsoleKey.Tab,
             ' ' => ConsoleKey.Spacebar,
             '\x7f' => ConsoleKey.Backspace,

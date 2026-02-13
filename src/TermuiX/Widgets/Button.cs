@@ -311,9 +311,10 @@ public class Button : IWidget
     public Color DisabledForegroundColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
-    /// Gets a value indicating whether the button can receive focus.
+    /// Gets or sets a value indicating whether the button can receive focus.
+    /// When Disabled is true, the button cannot receive focus regardless of this value.
     /// </summary>
-    public bool CanFocus => !Disabled;
+    public bool CanFocus { get; set; } = true;
 
     /// <summary>
     /// Gets a value indicating whether horizontal scrolling is enabled.
@@ -370,15 +371,15 @@ public class Button : IWidget
         // Set container's parent to this widget's parent for proper size calculation
         ((IWidget)_container).Parent = ((IWidget)this).Parent;
 
-        // Propagate constrained size to internal container so it renders at the correct size
+        // Propagate constrained size to internal container so it renders at the correct size.
+        // Only set ComputedWidth/Height, NOT Width/Height, to preserve the declared size
+        // (e.g. "100%") for future recalculations when the parent size changes.
         if (((IWidget)this).ComputedWidth > 0)
         {
-            _container.Width = $"{((IWidget)this).ComputedWidth}ch";
             ((IWidget)_container).ComputedWidth = ((IWidget)this).ComputedWidth;
         }
         if (((IWidget)this).ComputedHeight > 0)
         {
-            _container.Height = $"{((IWidget)this).ComputedHeight}ch";
             ((IWidget)_container).ComputedHeight = ((IWidget)this).ComputedHeight;
         }
 

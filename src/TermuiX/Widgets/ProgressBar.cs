@@ -161,22 +161,22 @@ public class ProgressBar : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public Color ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets a value indicating whether the progress bar can receive focus.

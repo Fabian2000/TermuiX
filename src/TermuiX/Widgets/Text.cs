@@ -145,22 +145,22 @@ public class Text : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public Color ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets a value indicating whether the text widget can receive focus.
@@ -202,8 +202,25 @@ public class Text : IWidget
             return [];
         }
 
-        int actualWidth = CalculateSize(Width, ((IWidget)this).Parent, true);
-        int actualHeight = CalculateSize(Height, ((IWidget)this).Parent, false);
+        // Use ComputedWidth/Height when set by the Renderer/StackPanel layout.
+        // Fall back to CalculateSize when no computed value is available.
+        int computedW = ((IWidget)this).ComputedWidth;
+        int actualWidth = computedW > 0 ? computedW : CalculateSize(Width, ((IWidget)this).Parent, true);
+
+        // For Height="auto": always recompute from wrapping — start with 1 line
+        // and let the expansion logic determine the actual height. Never reuse the
+        // cached ComputedHeight because resize changes wrapping and line count.
+        bool autoHeight = Height.Equals("auto", StringComparison.OrdinalIgnoreCase);
+        int computedH = ((IWidget)this).ComputedHeight;
+        int actualHeight;
+        if (autoHeight && actualWidth > 0 && !string.IsNullOrEmpty(_text))
+        {
+            actualHeight = 1; // Will be expanded after wrapping
+        }
+        else
+        {
+            actualHeight = computedH > 0 ? computedH : CalculateSize(Height, ((IWidget)this).Parent, false);
+        }
 
         // Store computed values
         ((IWidget)this).ComputedWidth = actualWidth;
@@ -314,6 +331,22 @@ public class Text : IWidget
             }
         }
 
+        // If height was not explicitly set (auto-sized parent), expand to fit wrapped content
+        if (wrappedLines.Count > actualHeight)
+        {
+            actualHeight = wrappedLines.Count;
+            ((IWidget)this).ComputedHeight = actualHeight;
+        }
+
+        // Rebuild result buffer with correct height
+        var result2 = new Rune[actualHeight][];
+        for (int i = 0; i < actualHeight; i++)
+        {
+            result2[i] = new Rune[actualWidth];
+            Array.Fill(result2[i], new Rune(' '));
+        }
+        result = result2;
+
         // Render wrapped lines into the result buffer
         for (int i = 0; i < wrappedLines.Count && i < actualHeight; i++)
         {
@@ -336,14 +369,14 @@ public class Text : IWidget
                 result[i][currentX] = rune;
 
                 int runeWidth = GetRuneDisplayWidth(rune);
-                currentX += runeWidth;
 
-                // Fill additional cells for wide characters (emojis)
-                for (int k = 1; k < runeWidth && currentX < actualWidth; k++)
+                // Fill placeholder cells for wide characters (emojis)
+                for (int k = 1; k < runeWidth && currentX + k < actualWidth; k++)
                 {
-                    result[i][currentX] = new Rune(' ');
-                    currentX++;
+                    result[i][currentX + k] = new Rune(' ');
                 }
+
+                currentX += runeWidth;
             }
         }
 
@@ -383,6 +416,15 @@ public class Text : IWidget
 
         size = size.Trim();
 
+        if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parent == null)
+                return isWidth ? Console.WindowWidth : Console.WindowHeight;
+            return isWidth ?
+                (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
+                (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
+        }
+
         if (size.EndsWith("ch"))
         {
             var value = size[..^2].Trim();
@@ -409,6 +451,7 @@ public class Text : IWidget
                     (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
 
                 // Subtract padding from parent's available space
+                // Note: border is already accounted for by the Renderer's padding adjustment
                 if (isWidth)
                 {
                     int padLeft = ParsePadding(parent.PaddingLeft);
@@ -466,7 +509,7 @@ public class Text : IWidget
         return 0;
     }
 
-    internal static int GetRuneDisplayWidth(Rune rune)
+    public static int GetRuneDisplayWidth(Rune rune)
     {
         int value = rune.Value;
 
@@ -511,6 +554,7 @@ public class Text : IWidget
             value == 0x23F0 || value == 0x23F3 ||
             (value >= 0x25FD && value <= 0x25FE) ||
             (value >= 0x2614 && value <= 0x2615) ||
+            (value >= 0x2630 && value <= 0x2637) ||   // ☰-☷ I Ching trigrams
             (value >= 0x2648 && value <= 0x2653) ||
             value == 0x267F || value == 0x2693 || value == 0x26A1 ||
             (value >= 0x26AA && value <= 0x26AB) ||

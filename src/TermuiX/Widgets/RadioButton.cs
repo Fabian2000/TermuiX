@@ -8,8 +8,8 @@ namespace TermuiX.Widgets;
 public class RadioButton : IWidget
 {
     private bool _selected = false;
-    private Color _backgroundColor = ConsoleColor.Black;
-    private Color _foregroundColor = ConsoleColor.White;
+    private Color _backgroundColor = Color.Inherit;
+    private Color _foregroundColor = Color.Inherit;
 
     /// <summary>
     /// Gets or sets a value indicating whether the radio button is selected.
@@ -153,12 +153,12 @@ public class RadioButton : IWidget
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets a value indicating whether the radio button is disabled.
