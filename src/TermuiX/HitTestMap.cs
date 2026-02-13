@@ -106,7 +106,7 @@ internal class HitTestMap
         IWidget? target = innermost;
         while (target != null)
         {
-            if (target.CanFocus)
+            if (target.CanFocus && !target.Disabled)
                 return target;
             target = target.Parent;
         }
@@ -117,7 +117,7 @@ internal class HitTestMap
         // Search the render stack directly (outermost widgets rendered first).
         for (int i = list.Count - 2; i >= 0; i--)
         {
-            if (list[i].CanFocus)
+            if (list[i].CanFocus && !list[i].Disabled)
                 return list[i];
         }
 

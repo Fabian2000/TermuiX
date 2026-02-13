@@ -164,27 +164,27 @@ public class Table : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public Color ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the border color.
     /// </summary>
-    public Color BorderColor { get; set; } = ConsoleColor.White;
+    public Color BorderColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.Gray;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets a value indicating whether the table widget can receive focus.

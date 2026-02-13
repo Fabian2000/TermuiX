@@ -133,22 +133,22 @@ public class Line : IWidget
     /// <summary>
     /// Gets or sets the background color.
     /// </summary>
-    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color.
     /// </summary>
-    public Color ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets a value indicating whether the line widget can receive focus.
@@ -188,15 +188,17 @@ public class Line : IWidget
 
         if (Orientation == LineOrientation.Horizontal)
         {
-            // Horizontal line: use specified width, but force height to 1
-            actualWidth = CalculateSize(Width, ((IWidget)this).Parent, true);
+            // Use ComputedWidth when set by the Renderer/StackPanel layout
+            int computedW = ((IWidget)this).ComputedWidth;
+            actualWidth = computedW > 0 ? computedW : CalculateSize(Width, ((IWidget)this).Parent, true);
             actualHeight = 1;
         }
         else // Vertical
         {
-            // Vertical line: force width to 1, use specified height
             actualWidth = 1;
-            actualHeight = CalculateSize(Height, ((IWidget)this).Parent, false);
+            // Use ComputedHeight when set by the Renderer/StackPanel layout
+            int computedH = ((IWidget)this).ComputedHeight;
+            actualHeight = computedH > 0 ? computedH : CalculateSize(Height, ((IWidget)this).Parent, false);
         }
 
         // Store computed values
@@ -268,6 +270,15 @@ public class Line : IWidget
 
         size = size.Trim();
 
+        if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parent == null)
+                return isWidth ? Console.WindowWidth : Console.WindowHeight;
+            return isWidth ?
+                (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
+                (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
+        }
+
         if (size.EndsWith("ch"))
         {
             var value = size[..^2].Trim();
@@ -294,6 +305,7 @@ public class Line : IWidget
                     (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
 
                 // Subtract padding from parent's available space
+                // Note: border is already accounted for by the Renderer's padding adjustment
                 if (isWidth)
                 {
                     int padLeft = ParsePadding(parent.PaddingLeft);

@@ -119,7 +119,7 @@ public class StackPanel : Container
     /// <summary>
     /// Creates a deep or shallow copy of the stack panel.
     /// </summary>
-    public new IWidget Clone(bool deep = true)
+    public override IWidget Clone(bool deep = true)
     {
         var clone = new StackPanel
         {

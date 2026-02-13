@@ -8,8 +8,8 @@ namespace TermuiX.Widgets;
 public class Checkbox : IWidget
 {
     private bool _checked = false;
-    private Color _backgroundColor = ConsoleColor.Black;
-    private Color _foregroundColor = ConsoleColor.White;
+    private Color _backgroundColor = Color.Inherit;
+    private Color _foregroundColor = Color.Inherit;
 
     /// <summary>
     /// Gets or sets a value indicating whether the checkbox is checked.
@@ -148,12 +148,12 @@ public class Checkbox : IWidget
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets a value indicating whether the checkbox is disabled.

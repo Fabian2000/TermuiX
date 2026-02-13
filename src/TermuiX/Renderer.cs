@@ -61,12 +61,12 @@ namespace TermuiX
             }
 
             hitTestMap?.Reset(_width, _height);
-            RenderWidget(output, fgColors, bgColors, widget, 0, 0, _width, _height, 0, 0, hitTestMap, focusVisible);
+            RenderWidget(output, fgColors, bgColors, widget, 0, 0, _width, _height, 0, 0, hitTestMap, focusVisible, Color.Black, Color.White);
 
             return (output, fgColors, bgColors);
         }
 
-        private static void RenderWidget(Rune[][] output, Color[][] fgColors, Color[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY, HitTestMap? hitTestMap, bool focusVisible)
+        private static void RenderWidget(Rune[][] output, Color[][] fgColors, Color[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY, HitTestMap? hitTestMap, bool focusVisible, Color inheritedBg, Color inheritedFg)
         {
             // Skip invisible widgets and their children
             if (!widget.Visible)
@@ -77,6 +77,15 @@ namespace TermuiX
             int width = ParseSize(widget.Width, parentWidth);
             int height = ParseSize(widget.Height, parentHeight);
 
+            // For children inside a StackPanel, save layout-pass main-axis value
+            // before ResolveAutoSize runs (it may overwrite with a stale value that
+            // doesn't account for margins).
+            bool isInStackPanel = widget.Parent is Widgets.StackPanel;
+            bool parentIsVert = isInStackPanel && widget.Parent is Widgets.StackPanel sp3 && sp3.Direction == Widgets.StackDirection.Vertical;
+            int layoutMain = 0;
+            if (isInStackPanel)
+                layoutMain = parentIsVert ? widget.ComputedHeight : widget.ComputedWidth;
+
             // StackPanel auto-size: compute size from children when Width/Height is "auto"
             if (widget is Widgets.StackPanel autoStack)
             {
@@ -85,12 +94,21 @@ namespace TermuiX
                 if (autoH > 0) height = autoH;
             }
 
-            // For children inside a StackPanel, use ComputedWidth/Height from GetRaw()
-            // instead of ParseSize("100%", parentWidth) which would give the full parent width.
-            if (widget.Parent is Widgets.StackPanel)
+            // For children inside a StackPanel, use ComputedWidth/Height.
+            // Cross-axis: read AFTER ResolveAutoSize (it produces correct shrink-wrap).
+            // Main-axis: use saved layout-pass value (ResolveAutoSize may miss margins).
+            if (isInStackPanel)
             {
-                if (widget.ComputedWidth > 0) width = widget.ComputedWidth;
-                if (widget.ComputedHeight > 0) height = widget.ComputedHeight;
+                if (parentIsVert)
+                {
+                    if (widget.ComputedWidth > 0) width = widget.ComputedWidth;
+                    if (layoutMain > 0) height = layoutMain;
+                }
+                else
+                {
+                    if (layoutMain > 0) width = layoutMain;
+                    if (widget.ComputedHeight > 0) height = widget.ComputedHeight;
+                }
             }
 
             // Apply min/max constraints
@@ -170,11 +188,17 @@ namespace TermuiX
             int scrollX = widget.ScrollX ? (int)widget.ScrollOffsetX : 0;
             int scrollY = widget.ScrollY ? (int)widget.ScrollOffsetY : 0;
 
+            // Resolve inherited colors
+            var resolvedBg = widget.BackgroundColor.IsInherit ? inheritedBg : widget.BackgroundColor;
+            var resolvedFg = widget.ForegroundColor.IsInherit ? inheritedFg : widget.ForegroundColor;
+            var resolvedFocusBg = widget.FocusBackgroundColor.IsInherit ? inheritedBg : widget.FocusBackgroundColor;
+            var resolvedFocusFg = widget.FocusForegroundColor.IsInherit ? inheritedFg : widget.FocusForegroundColor;
+
             bool highlighted = (widget.Focussed && focusVisible) || widget.Hovered;
             var bgColor = widget.Disabled && widget.DisabledBackgroundColor.HasValue ? widget.DisabledBackgroundColor.Value :
-                          (highlighted ? widget.FocusBackgroundColor : widget.BackgroundColor);
+                          (highlighted ? resolvedFocusBg : resolvedBg);
             var fgColor = widget.Disabled ? widget.DisabledForegroundColor :
-                          (highlighted ? widget.FocusForegroundColor : widget.ForegroundColor);
+                          (highlighted ? resolvedFocusFg : resolvedFg);
             for (int y = 0; y < height && absY + y < output.Length; y++)
             {
                 for (int x = 0; x < width && absX + x < output[0].Length; x++)
@@ -238,15 +262,79 @@ namespace TermuiX
                 int mainAxisSize = isVertical ? contentHeight : contentWidth;
                 int crossAxisSize = isVertical ? contentWidth : contentHeight;
 
-                // Measure all visible children with cumulative % rounding
+                // Measure all visible children with cumulative % rounding.
+                // Two-pass approach: first measure non-fill children, then distribute remaining space to fill children.
                 var measured = new List<(IWidget child, int mainSize, int crossSize, int mMain0, int mMain1, int mCross0, int mCross1)>();
                 float cumulativePercent = 0f;
                 int cumulativePixels = 0;
 
+                // Pass 1: measure non-fill children, count fill children
+                int usedMainSpace = 0;
+                int fillCount = 0;
+                var fillIndices = new List<int>();
+
+                int childIndex = 0;
                 foreach (var child in widget.Children)
                 {
                     if (!child.Visible) continue;
-                    child.GetRaw();
+
+                    // Pre-set ComputedWidth/Height from MaxWidth/MaxHeight constraints
+                    // so nested widgets (e.g. Text inside a MaxWidth StackPanel) can
+                    // calculate wrapping correctly during GetRaw().
+                    // Use as upper bound — don't override a smaller value already set
+                    // by ResolveAutoSize (shrink-wrap).
+                    if (isVertical)
+                    {
+                        if (!string.IsNullOrEmpty(child.MaxWidth))
+                        {
+                            int maxW = Math.Min(ParseSize(child.MaxWidth, contentWidth), crossAxisSize);
+                            if (child.ComputedWidth == 0 || child.ComputedWidth > maxW)
+                                child.ComputedWidth = maxW;
+                        }
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(child.MaxHeight))
+                        {
+                            int maxH = Math.Min(ParseSize(child.MaxHeight, contentHeight), crossAxisSize);
+                            if (child.ComputedHeight == 0 || child.ComputedHeight > maxH)
+                                child.ComputedHeight = maxH;
+                        }
+                    }
+
+                    // For auto-height containers WITH a cross-axis constraint (MaxWidth/MaxHeight),
+                    // clear stale ComputedHeight from ResolveAutoSize so GetRaw() returns []
+                    // and we fall through to MeasureChildrenMainAxis (which uses the correct
+                    // layout-pass widths). Only needed when MaxWidth changes the effective width.
+                    string mainStr = isVertical ? child.Height : child.Width;
+                    bool mainIsAuto = string.IsNullOrEmpty(mainStr) || mainStr.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase);
+                    bool hasCrossConstraint = isVertical ? !string.IsNullOrEmpty(child.MaxWidth) : !string.IsNullOrEmpty(child.MaxHeight);
+                    if (mainIsAuto && child is Widgets.StackPanel && hasCrossConstraint)
+                    {
+                        if (isVertical) child.ComputedHeight = 0;
+                        else child.ComputedWidth = 0;
+                    }
+
+                    var rawContent = child.GetRaw();
+
+                    // Capture intrinsic size from GetRaw() before resetting.
+                    // Used as fallback for children without an explicit main-axis size.
+                    int intrinsicWidth = child.ComputedWidth;
+                    int intrinsicHeight = child.ComputedHeight;
+                    if (intrinsicWidth == 0 && rawContent.Length > 0 && rawContent[0].Length > 0)
+                    {
+                        intrinsicWidth = rawContent[0].Length;
+                    }
+                    if (intrinsicHeight == 0 && rawContent.Length > 0)
+                    {
+                        intrinsicHeight = rawContent.Length;
+                    }
+
+                    // Reset computed sizes so StackPanel layout uses declared sizes, not
+                    // values that GetRaw() may have set (e.g. Button's internal container
+                    // computing 100% of parent height instead of the declared "3ch").
+                    child.ComputedWidth = 0;
+                    child.ComputedHeight = 0;
 
                     int mLeft = ParseSize(child.MarginLeft, contentWidth);
                     int mTop = ParseSize(child.MarginTop, contentHeight);
@@ -259,11 +347,42 @@ namespace TermuiX
                     int mCross1 = isVertical ? mRight : mBottom;
 
                     string sizeStr = isVertical ? child.Height : child.Width;
+                    bool isFill = sizeStr.Trim().Equals("fill", StringComparison.OrdinalIgnoreCase);
+                    bool isAutoSize = string.IsNullOrEmpty(sizeStr) || sizeStr.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase);
                     int mainChildSize;
 
-                    // Cumulative rounding for %-based sizes
-                    if (sizeStr.TrimEnd().EndsWith('%') && float.TryParse(sizeStr.TrimEnd()[..^1].Trim(), out float pct))
+                    if (isFill)
                     {
+                        // Placeholder — will be resolved in pass 2
+                        mainChildSize = 0;
+                        fillCount++;
+                        fillIndices.Add(measured.Count);
+                    }
+                    else if (isAutoSize)
+                    {
+                        int intrinsic = isVertical ? intrinsicHeight : intrinsicWidth;
+                        if (child.Children.Count > 0)
+                        {
+                            int fromMeasure = MeasureChildrenMainAxis(child, isVertical, contentWidth, contentHeight, crossAxisSize);
+                            // MeasureChildrenMainAxis returns content size only.
+                            // If GetRaw() was empty (no intrinsic), add this container's
+                            // own border + padding on the main axis.
+                            if (rawContent.Length == 0 && fromMeasure > 0 && child is Widgets.Container childContainer)
+                            {
+                                if (childContainer.HasBorder)
+                                    fromMeasure += 2;
+                                fromMeasure += isVertical
+                                    ? ParseSize(child.PaddingTop, 0) + ParseSize(child.PaddingBottom, 0)
+                                    : ParseSize(child.PaddingLeft, 0) + ParseSize(child.PaddingRight, 0);
+                            }
+                            if (fromMeasure > intrinsic)
+                                intrinsic = fromMeasure;
+                        }
+                        mainChildSize = intrinsic;
+                    }
+                    else if (sizeStr.TrimEnd().EndsWith('%') && float.TryParse(sizeStr.TrimEnd()[..^1].Trim(), out float pct))
+                    {
+                        // Cumulative rounding for %-based sizes
                         cumulativePercent += pct;
                         int newCumulative = (int)(mainAxisSize * cumulativePercent / 100.0f);
                         mainChildSize = newCumulative - cumulativePixels;
@@ -274,19 +393,53 @@ namespace TermuiX
                         mainChildSize = isVertical
                             ? (child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, contentHeight))
                             : (child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, contentWidth));
+
+                        // Text widgets with wrapping: GetRaw() may expand height beyond the
+                        // initial declared value (XmlParser sets "1ch" for single-line text,
+                        // but wrapping can produce multiple lines). Use the actual rendered
+                        // height from GetRaw() when it exceeds the declared size.
+                        if (child is Widgets.Text)
+                        {
+                            int intrinsicMain = isVertical ? rawContent.Length : (rawContent.Length > 0 ? rawContent[0].Length : 0);
+                            if (intrinsicMain > mainChildSize)
+                                mainChildSize = intrinsicMain;
+                        }
                     }
 
-                    int crossChildSize = isVertical
-                        ? (child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, contentWidth))
-                        : (child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, contentHeight));
+                    // Cross-axis: "fill" means full cross axis size; otherwise clamp to available space
+                    string crossStr = isVertical ? child.Width : child.Height;
+                    int crossChildSize;
+                    bool isCrossAuto = string.IsNullOrEmpty(crossStr) || crossStr.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase);
+                    if (crossStr.Trim().Equals("fill", StringComparison.OrdinalIgnoreCase))
+                    {
+                        crossChildSize = crossAxisSize;
+                    }
+                    else if (isCrossAuto)
+                    {
+                        crossChildSize = isVertical ? intrinsicWidth : intrinsicHeight;
+                        crossChildSize = Math.Min(crossChildSize, crossAxisSize);
+                    }
+                    else
+                    {
+                        // For explicit sizes (e.g. "80%", "30ch"), always use ParseSize.
+                        // Do NOT prefer ComputedWidth/Height here — those may be stale
+                        // from ResolveAutoSize running with different parent dimensions.
+                        crossChildSize = isVertical
+                            ? ParseSize(child.Width, contentWidth)
+                            : ParseSize(child.Height, contentHeight);
+                        crossChildSize = Math.Min(crossChildSize, crossAxisSize);
+                    }
 
                     // Apply min/max constraints to layout sizes
                     if (isVertical)
                     {
-                        if (!string.IsNullOrEmpty(child.MinHeight))
-                            mainChildSize = Math.Max(mainChildSize, ParseSize(child.MinHeight, contentHeight));
-                        if (!string.IsNullOrEmpty(child.MaxHeight))
-                            mainChildSize = Math.Min(mainChildSize, ParseSize(child.MaxHeight, contentHeight));
+                        if (!isFill)
+                        {
+                            if (!string.IsNullOrEmpty(child.MinHeight))
+                                mainChildSize = Math.Max(mainChildSize, ParseSize(child.MinHeight, contentHeight));
+                            if (!string.IsNullOrEmpty(child.MaxHeight))
+                                mainChildSize = Math.Min(mainChildSize, ParseSize(child.MaxHeight, contentHeight));
+                        }
                         if (!string.IsNullOrEmpty(child.MinWidth))
                             crossChildSize = Math.Max(crossChildSize, ParseSize(child.MinWidth, contentWidth));
                         if (!string.IsNullOrEmpty(child.MaxWidth))
@@ -294,29 +447,73 @@ namespace TermuiX
                     }
                     else
                     {
-                        if (!string.IsNullOrEmpty(child.MinWidth))
-                            mainChildSize = Math.Max(mainChildSize, ParseSize(child.MinWidth, contentWidth));
-                        if (!string.IsNullOrEmpty(child.MaxWidth))
-                            mainChildSize = Math.Min(mainChildSize, ParseSize(child.MaxWidth, contentWidth));
+                        if (!isFill)
+                        {
+                            if (!string.IsNullOrEmpty(child.MinWidth))
+                                mainChildSize = Math.Max(mainChildSize, ParseSize(child.MinWidth, contentWidth));
+                            if (!string.IsNullOrEmpty(child.MaxWidth))
+                                mainChildSize = Math.Min(mainChildSize, ParseSize(child.MaxWidth, contentWidth));
+                        }
                         if (!string.IsNullOrEmpty(child.MinHeight))
                             crossChildSize = Math.Max(crossChildSize, ParseSize(child.MinHeight, contentHeight));
                         if (!string.IsNullOrEmpty(child.MaxHeight))
                             crossChildSize = Math.Min(crossChildSize, ParseSize(child.MaxHeight, contentHeight));
                     }
 
-                    // Store corrected sizes for BOTH axes
+                    if (!isFill)
+                        usedMainSpace += mMain0 + mainChildSize + mMain1;
+
+                    measured.Add((child, mainChildSize, crossChildSize, mMain0, mMain1, mCross0, mCross1));
+                    childIndex++;
+                }
+
+                // Pass 2: distribute remaining space to fill children
+                if (fillCount > 0)
+                {
+                    int remaining = Math.Max(0, mainAxisSize - usedMainSpace);
+                    int perFill = remaining / fillCount;
+                    int extra = remaining % fillCount;
+
+                    for (int fi = 0; fi < fillIndices.Count; fi++)
+                    {
+                        int idx = fillIndices[fi];
+                        var m = measured[idx];
+                        int fillSize = perFill + (fi < extra ? 1 : 0);
+
+                        // Apply min/max constraints to fill size
+                        if (isVertical)
+                        {
+                            if (!string.IsNullOrEmpty(m.child.MinHeight))
+                                fillSize = Math.Max(fillSize, ParseSize(m.child.MinHeight, contentHeight));
+                            if (!string.IsNullOrEmpty(m.child.MaxHeight))
+                                fillSize = Math.Min(fillSize, ParseSize(m.child.MaxHeight, contentHeight));
+                        }
+                        else
+                        {
+                            if (!string.IsNullOrEmpty(m.child.MinWidth))
+                                fillSize = Math.Max(fillSize, ParseSize(m.child.MinWidth, contentWidth));
+                            if (!string.IsNullOrEmpty(m.child.MaxWidth))
+                                fillSize = Math.Min(fillSize, ParseSize(m.child.MaxWidth, contentWidth));
+                        }
+
+                        measured[idx] = (m.child, fillSize, m.crossSize, m.mMain0, m.mMain1, m.mCross0, m.mCross1);
+                    }
+                }
+
+                // Store computed sizes for all children
+                for (int i = 0; i < measured.Count; i++)
+                {
+                    var m = measured[i];
                     if (isVertical)
                     {
-                        child.ComputedHeight = mainChildSize;
-                        child.ComputedWidth = crossChildSize;
+                        m.child.ComputedHeight = m.mainSize;
+                        m.child.ComputedWidth = m.crossSize;
                     }
                     else
                     {
-                        child.ComputedWidth = mainChildSize;
-                        child.ComputedHeight = crossChildSize;
+                        m.child.ComputedWidth = m.mainSize;
+                        m.child.ComputedHeight = m.crossSize;
                     }
-
-                    measured.Add((child, mainChildSize, crossChildSize, mMain0, mMain1, mCross0, mCross1));
                 }
 
                 // Split into lines (wrap) or single line (no wrap)
@@ -522,7 +719,7 @@ namespace TermuiX
 
             foreach (var child in widget.Children)
             {
-                RenderWidget(output, fgColors, bgColors, child, childClipX, childClipY, childClipWidth, childClipHeight, childScrollX, childScrollY, hitTestMap, focusVisible);
+                RenderWidget(output, fgColors, bgColors, child, childClipX, childClipY, childClipWidth, childClipHeight, childScrollX, childScrollY, hitTestMap, focusVisible, resolvedBg, resolvedFg);
             }
 
             // Render scrollbars AFTER children so they're always on top
@@ -641,16 +838,58 @@ namespace TermuiX
             bool isVert = stack.Direction == Widgets.StackDirection.Vertical;
             bool doWrap = stack.Wrap;
 
+            // Compute effective available cross-axis size for children,
+            // respecting MaxWidth/MaxHeight, border, and padding on this stack.
+            int availCrossWidth = parentWidth;
+            int availCrossHeight = parentHeight;
+            if (!string.IsNullOrEmpty(stack.MaxWidth))
+                availCrossWidth = Math.Min(availCrossWidth, ParseSize(stack.MaxWidth, parentWidth));
+            if (!string.IsNullOrEmpty(stack.MaxHeight))
+                availCrossHeight = Math.Min(availCrossHeight, ParseSize(stack.MaxHeight, parentHeight));
+            int borderSize = stack.HasBorder ? 2 : 0;
+            int innerWidth = availCrossWidth - borderSize - ParseSize(stack.PaddingLeft, 0) - ParseSize(stack.PaddingRight, 0);
+            int innerHeight = availCrossHeight - borderSize - ParseSize(stack.PaddingTop, 0) - ParseSize(stack.PaddingBottom, 0);
+            if (innerWidth < 0) innerWidth = 0;
+            if (innerHeight < 0) innerHeight = 0;
+
             // Measure all visible children
             var items = new List<(int mainSize, int crossSize)>();
             foreach (var child in ((IWidget)stack).Children)
             {
                 if (!child.Visible) continue;
 
+                // Pre-set cross-axis ComputedWidth/Height only when the child has a
+                // %-based size (needs parent as reference) or a MaxWidth/MaxHeight constraint.
+                // Do NOT set for auto, fill, or fixed ch — those self-size from content.
+                if (isVert)
+                {
+                    bool needsParentW = (!string.IsNullOrEmpty(child.Width) && child.Width.TrimEnd().EndsWith('%'))
+                        || !string.IsNullOrEmpty(child.MaxWidth);
+                    if (needsParentW)
+                    {
+                        int childCross = innerWidth;
+                        if (!string.IsNullOrEmpty(child.MaxWidth))
+                            childCross = Math.Min(childCross, ParseSize(child.MaxWidth, innerWidth));
+                        if (childCross > 0) child.ComputedWidth = childCross;
+                    }
+                }
+                else
+                {
+                    bool needsParentH = (!string.IsNullOrEmpty(child.Height) && child.Height.TrimEnd().EndsWith('%'))
+                        || !string.IsNullOrEmpty(child.MaxHeight);
+                    if (needsParentH)
+                    {
+                        int childCross = innerHeight;
+                        if (!string.IsNullOrEmpty(child.MaxHeight))
+                            childCross = Math.Min(childCross, ParseSize(child.MaxHeight, innerHeight));
+                        if (childCross > 0) child.ComputedHeight = childCross;
+                    }
+                }
+
                 // Recursively resolve nested auto-sized StackPanels first
                 if (child is Widgets.StackPanel childStack)
                 {
-                    var (cAutoW, cAutoH) = ResolveAutoSize(childStack, parentWidth, parentHeight);
+                    var (cAutoW, cAutoH) = ResolveAutoSize(childStack, innerWidth, innerHeight);
                     if (cAutoW > 0) child.ComputedWidth = cAutoW;
                     if (cAutoH > 0) child.ComputedHeight = cAutoH;
                 }
@@ -661,26 +900,42 @@ namespace TermuiX
                 if (childRaw != null && childRaw.Length > 0)
                 {
                     ch = childRaw.Length;
-                    for (int i = 0; i < childRaw.Length; i++)
+                    if (child is Widgets.Text)
                     {
-                        if (childRaw[i] != null && childRaw[i].Length > cw)
-                            cw = childRaw[i].Length;
+                        // For Text: measure actual content width (excluding trailing spaces)
+                        // so auto-sized parent StackPanels can shrink-wrap around short text.
+                        for (int i = 0; i < childRaw.Length; i++)
+                        {
+                            if (childRaw[i] == null) continue;
+                            int lineW = childRaw[i].Length;
+                            while (lineW > 0 && childRaw[i][lineW - 1].Value == ' ')
+                                lineW--;
+                            if (lineW > cw) cw = lineW;
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < childRaw.Length; i++)
+                        {
+                            if (childRaw[i] != null && childRaw[i].Length > cw)
+                                cw = childRaw[i].Length;
+                        }
                     }
                 }
                 if (cw == 0)
-                    cw = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, parentWidth);
+                    cw = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, innerWidth);
                 if (ch == 0)
-                    ch = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, parentHeight);
+                    ch = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, innerHeight);
 
                 // Apply min/max constraints
                 if (!string.IsNullOrEmpty(child.MinWidth))
-                    cw = Math.Max(cw, ParseSize(child.MinWidth, parentWidth));
+                    cw = Math.Max(cw, ParseSize(child.MinWidth, innerWidth));
                 if (!string.IsNullOrEmpty(child.MaxWidth))
-                    cw = Math.Min(cw, ParseSize(child.MaxWidth, parentWidth));
+                    cw = Math.Min(cw, ParseSize(child.MaxWidth, innerWidth));
                 if (!string.IsNullOrEmpty(child.MinHeight))
-                    ch = Math.Max(ch, ParseSize(child.MinHeight, parentHeight));
+                    ch = Math.Max(ch, ParseSize(child.MinHeight, innerHeight));
                 if (!string.IsNullOrEmpty(child.MaxHeight))
-                    ch = Math.Min(ch, ParseSize(child.MaxHeight, parentHeight));
+                    ch = Math.Min(ch, ParseSize(child.MaxHeight, innerHeight));
 
                 child.ComputedWidth = cw;
                 child.ComputedHeight = ch;
@@ -767,6 +1022,121 @@ namespace TermuiX
             return (width, height);
         }
 
+        /// <summary>
+        /// Recursively measures the main-axis size of a widget's children.
+        /// Propagates MaxWidth/MaxHeight constraints so nested Text widgets
+        /// can calculate wrapping correctly during GetRaw().
+        /// </summary>
+        private static int MeasureChildrenMainAxis(IWidget parent, bool parentIsVertical, int contentWidth, int contentHeight, int crossAxisSize)
+        {
+            int intrinsic = 0;
+            bool childIsHoriz = parent is Widgets.StackPanel sp2 && sp2.Direction == Widgets.StackDirection.Horizontal;
+
+            // Determine effective cross-axis size for children (respecting parent MaxWidth/MaxHeight)
+            int childCrossSize = crossAxisSize;
+            if (parentIsVertical && !string.IsNullOrEmpty(parent.MaxWidth))
+                childCrossSize = Math.Min(ParseSize(parent.MaxWidth, contentWidth), crossAxisSize);
+            else if (!parentIsVertical && !string.IsNullOrEmpty(parent.MaxHeight))
+                childCrossSize = Math.Min(ParseSize(parent.MaxHeight, contentHeight), crossAxisSize);
+
+            // Account for border + padding reducing available space
+            if (parent is Widgets.Container containerParent && containerParent.HasBorder)
+                childCrossSize -= 2;
+            int padCross = parentIsVertical
+                ? ParseSize(parent.PaddingLeft, 0) + ParseSize(parent.PaddingRight, 0)
+                : ParseSize(parent.PaddingTop, 0) + ParseSize(parent.PaddingBottom, 0);
+            childCrossSize -= padCross;
+            if (childCrossSize < 0) childCrossSize = 0;
+
+            // Set parent's ComputedWidth/Height so children querying parent size
+            // (e.g. Text with Width="100%" calling CalculateSize) get the correct value.
+            if (parentIsVertical && childCrossSize > 0)
+                parent.ComputedWidth = childCrossSize;
+            else if (!parentIsVertical && childCrossSize > 0)
+                parent.ComputedHeight = childCrossSize;
+
+            foreach (var gc in parent.Children)
+            {
+                if (!gc.Visible) continue;
+
+                // Pre-set ComputedWidth/Height so nested GetRaw() can wrap correctly.
+                // Respect MaxWidth/MaxHeight constraints on the child.
+                int gcCross = childCrossSize;
+                if (parentIsVertical && !string.IsNullOrEmpty(gc.MaxWidth))
+                    gcCross = Math.Min(gcCross, ParseSize(gc.MaxWidth, childCrossSize));
+                else if (!parentIsVertical && !string.IsNullOrEmpty(gc.MaxHeight))
+                    gcCross = Math.Min(gcCross, ParseSize(gc.MaxHeight, childCrossSize));
+                if (parentIsVertical && gcCross > 0)
+                    gc.ComputedWidth = gcCross;
+                else if (!parentIsVertical && gcCross > 0)
+                    gc.ComputedHeight = gcCross;
+
+                // Clear stale main-axis size for auto-sized containers WITH a cross-axis
+                // constraint (MaxWidth/MaxHeight) so GetRaw() returns [] and we measure
+                // recursively with the correct cross-axis width.
+                string gcMainStr = parentIsVertical ? gc.Height : gc.Width;
+                bool gcMainIsAuto = string.IsNullOrEmpty(gcMainStr) || gcMainStr.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase);
+                bool gcHasCrossConstraint = parentIsVertical ? !string.IsNullOrEmpty(gc.MaxWidth) : !string.IsNullOrEmpty(gc.MaxHeight);
+                if (gcMainIsAuto && gc is Widgets.StackPanel && gcHasCrossConstraint)
+                {
+                    if (parentIsVertical) gc.ComputedHeight = 0;
+                    else gc.ComputedWidth = 0;
+                }
+
+                var gcRaw = gc.GetRaw();
+
+                // In an auto-sized parent, use intrinsic size from GetRaw() as the
+                // primary measurement. The declared size may be a static initial value
+                // (e.g. XmlParser sets "1ch" for single-line text) that becomes stale
+                // after wrapping expands the widget. Percentage sizes are meaningless
+                // in auto-sized contexts and are skipped entirely.
+                int gcMainSize = 0;
+                if (gcRaw.Length > 0)
+                {
+                    gcMainSize = parentIsVertical ? gcRaw.Length : (gcRaw[0].Length);
+                }
+                if (gcMainSize == 0)
+                {
+                    gcMainSize = parentIsVertical ? gc.ComputedHeight : gc.ComputedWidth;
+                }
+                if (gcMainSize == 0)
+                {
+                    string gcSize = parentIsVertical ? gc.Height : gc.Width;
+                    if (!gcSize.TrimEnd().EndsWith('%'))
+                    {
+                        gcMainSize = ParseSize(gcSize, parentIsVertical ? contentHeight : contentWidth);
+                    }
+                }
+
+                // If still 0 and has children, measure recursively
+                if (gcMainSize == 0 && gc.Children.Count > 0)
+                    gcMainSize = MeasureChildrenMainAxis(gc, parentIsVertical, contentWidth, contentHeight, gcCross);
+
+                // Add border + padding of the child container itself on the main axis.
+                // MeasureChildrenMainAxis and recursive calls measure inner content only;
+                // the container's own border/padding must be added on top.
+                if (gcMainSize > 0 && gcRaw.Length == 0 && gc is Widgets.Container gcContainer)
+                {
+                    if (gcContainer.HasBorder)
+                        gcMainSize += 2;
+                    gcMainSize += parentIsVertical
+                        ? ParseSize(gc.PaddingTop, 0) + ParseSize(gc.PaddingBottom, 0)
+                        : ParseSize(gc.PaddingLeft, 0) + ParseSize(gc.PaddingRight, 0);
+                }
+
+                // Account for margins on the main axis (same as layout pass)
+                int gcMMain0 = parentIsVertical ? ParseSize(gc.MarginTop, contentHeight) : ParseSize(gc.MarginLeft, contentWidth);
+                int gcMMain1 = parentIsVertical ? ParseSize(gc.MarginBottom, contentHeight) : ParseSize(gc.MarginRight, contentWidth);
+
+                if (childIsHoriz == !parentIsVertical)
+                    intrinsic += gcMMain0 + gcMainSize + gcMMain1;
+                else
+                    intrinsic = Math.Max(intrinsic, gcMMain0 + gcMainSize + gcMMain1);
+            }
+
+            return intrinsic;
+        }
+
         private static int ParseSize(string size, int parentSize)
         {
             if (string.IsNullOrEmpty(size))
@@ -779,6 +1149,13 @@ namespace TermuiX
             if (size.Equals("auto", StringComparison.OrdinalIgnoreCase))
             {
                 return 0;
+            }
+
+            if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
+            {
+                // In non-StackPanel contexts, fill behaves like 100%.
+                // StackPanel layout overrides this with the actual remaining space.
+                return parentSize;
             }
 
             if (size.EndsWith("ch"))
@@ -802,7 +1179,7 @@ namespace TermuiX
                 throw new FormatException($"Invalid size value: '{size}'. Expected format: '{{number}}%' (e.g., '50%')");
             }
 
-            throw new FormatException($"Invalid size value: '{size}'. Size must end with 'ch', '%', or be 'auto' (e.g., '10ch', '50%', 'auto')");
+            throw new FormatException($"Invalid size value: '{size}'. Size must end with 'ch', '%', or be 'auto'/'fill' (e.g., '10ch', '50%', 'auto', 'fill')");
         }
 
     }

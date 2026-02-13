@@ -112,22 +112,22 @@ public class Container : IWidget
     /// <summary>
     /// Gets or sets the background color of the container.
     /// </summary>
-    public Color BackgroundColor { get; set; } = ConsoleColor.Black;
+    public Color BackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color of the container.
     /// </summary>
-    public Color ForegroundColor { get; set; } = ConsoleColor.White;
+    public Color ForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the background color when focused.
     /// </summary>
-    public Color FocusBackgroundColor { get; set; } = ConsoleColor.DarkGray;
+    public Color FocusBackgroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets the foreground color when focused.
     /// </summary>
-    public Color FocusForegroundColor { get; set; } = ConsoleColor.White;
+    public Color FocusForegroundColor { get; set; } = Color.Inherit;
 
     /// <summary>
     /// Gets or sets a value indicating whether the container can receive focus.
@@ -340,6 +340,18 @@ public class Container : IWidget
             return 0;
         }
 
+        // "fill" in GetRaw context: behave like 100% (StackPanel layout will override via ComputedWidth/Height)
+        if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parent == null)
+                return isWidth ? Console.WindowWidth : Console.WindowHeight;
+
+            int parentSizeValue = isWidth ?
+                (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
+                (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
+            return parentSizeValue;
+        }
+
         if (size.EndsWith("ch"))
         {
             var value = size[..^2].Trim();
@@ -366,6 +378,7 @@ public class Container : IWidget
                     (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
 
                 // Subtract padding from parent's available space
+                // Note: border is already accounted for by the Renderer's padding adjustment
                 if (isWidth)
                 {
                     int padLeft = ParsePadding(parent.PaddingLeft);
@@ -454,7 +467,7 @@ public class Container : IWidget
     /// </summary>
     /// <param name="deep">If true, recursively clones all children. If false, children are not cloned.</param>
     /// <returns>A new container instance with copied properties and no parent reference.</returns>
-    public IWidget Clone(bool deep = true)
+    public virtual IWidget Clone(bool deep = true)
     {
         var clone = new Container
         {
