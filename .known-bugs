@@ -1,0 +1,16 @@
+# Known Behaviors
+
+## Button/Container: Width="auto" gives wrong size (by design)
+
+Container is a positioning widget, not a layout widget. When Width="auto", Container.GetRaw()
+returns an empty array (width=0) because it has no intrinsic size calculation. The Renderer's
+StackPanel layout then falls back to MeasureChildrenMainAxis which may produce an incorrect
+size (too small or too large depending on context).
+
+This is intentional and a consequence of backwards compatibility: Container was designed for
+absolute positioning with explicit sizes. StackPanel was later added as the layout widget with
+proper auto-sizing. The XmlParser compensates for Buttons specifically by pre-calculating
+width from text content when the Width attribute is omitted entirely.
+
+Rule: never set Width="auto" on Button/Container. Either omit Width (XmlParser calculates)
+or use an explicit value ("10ch", "100%", "fill").
