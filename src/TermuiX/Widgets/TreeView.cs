@@ -33,6 +33,20 @@ public class TreeView : IWidget
     }
 
     /// <summary>
+    /// Programmatically selects the given node (must be visible).
+    /// </summary>
+    public void SelectNode(TreeNode node)
+    {
+        var visible = GetVisibleNodes();
+        int index = visible.IndexOf(node);
+        if (index >= 0)
+        {
+            _selectedIndex = index;
+            ScrollParentToSelectedRow();
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the unique name.
     /// </summary>
     public string? Name { get; set; }

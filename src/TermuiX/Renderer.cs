@@ -474,7 +474,13 @@ namespace TermuiX
                     }
 
                     if (!isFill)
+                    {
                         usedMainSpace += mMain0 + mainChildSize + mMain1;
+                    }
+                    else
+                    {
+                        usedMainSpace += mMain0 + mMain1; // fill margins reduce available space
+                    }
 
                     measured.Add((child, mainChildSize, crossChildSize, mMain0, mMain1, mCross0, mCross1));
                     childIndex++;
