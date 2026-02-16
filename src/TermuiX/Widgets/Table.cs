@@ -8,6 +8,7 @@ namespace TermuiX.Widgets;
 public class Table : IWidget
 {
     private readonly List<TableRow> _rows = new List<TableRow>();
+    private TextStyle[][]? _rawStyles;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Table"/> class.
@@ -256,10 +257,12 @@ public class Table : IWidget
         }
 
         var result = new Rune[totalHeight][];
+        _rawStyles = new TextStyle[totalHeight][];
         for (int i = 0; i < totalHeight; i++)
         {
             result[i] = new Rune[totalWidth];
             Array.Fill(result[i], new Rune(' '));
+            _rawStyles[i] = new TextStyle[totalWidth];
         }
 
         // Render the table
@@ -460,10 +463,14 @@ public class Table : IWidget
         var lines = cell.Text.Split('\n');
         if (lineIndex < lines.Length)
         {
-            var styledText = ApplyTextStyle(lines[lineIndex], cell.Style);
-            for (int i = 0; i < Math.Min(contentWidth, styledText.Length); i++)
+            int charIdx = 0;
+            foreach (Rune rune in lines[lineIndex].EnumerateRunes())
             {
-                output[y][x + i] = styledText[i];
+                if (charIdx >= contentWidth) break;
+                output[y][x + charIdx] = rune;
+                if (cell.Style != TextStyle.Normal && _rawStyles != null)
+                    _rawStyles[y][x + charIdx] = cell.Style;
+                charIdx++;
             }
         }
         // Lines beyond text height remain as spaces
@@ -472,94 +479,7 @@ public class Table : IWidget
         output[y][x + contentWidth] = new Rune(' ');
     }
 
-    private Rune[] ApplyTextStyle(string text, TextStyle style)
-    {
-        var result = new List<Rune>();
-
-        foreach (char c in text)
-        {
-            Rune styledRune = ApplyTextStyleToChar(c, style);
-            result.Add(styledRune);
-        }
-
-        return result.ToArray();
-    }
-
-    private static Rune ApplyTextStyleToChar(char c, TextStyle style)
-    {
-        if (style == TextStyle.Normal)
-        {
-            return new Rune(c);
-        }
-
-        if (style == TextStyle.Bold)
-        {
-            return ConvertToBold(c);
-        }
-        else if (style == TextStyle.Italic)
-        {
-            return ConvertToItalic(c);
-        }
-        else if (style == TextStyle.BoldItalic)
-        {
-            return ConvertToBoldItalic(c);
-        }
-
-        return new Rune(c);
-    }
-
-    private static Rune ConvertToBold(char c)
-    {
-        if (c >= 'A' && c <= 'Z')
-        {
-            int codePoint = 0x1D400 + (c - 'A');
-            return new Rune(codePoint);
-        }
-        if (c >= 'a' && c <= 'z')
-        {
-            int codePoint = 0x1D41A + (c - 'a');
-            return new Rune(codePoint);
-        }
-        if (c >= '0' && c <= '9')
-        {
-            int codePoint = 0x1D7CE + (c - '0');
-            return new Rune(codePoint);
-        }
-
-        return new Rune(c);
-    }
-
-    private static Rune ConvertToItalic(char c)
-    {
-        if (c >= 'A' && c <= 'Z')
-        {
-            int codePoint = 0x1D434 + (c - 'A');
-            return new Rune(codePoint);
-        }
-        if (c >= 'a' && c <= 'z')
-        {
-            int codePoint = 0x1D44E + (c - 'a');
-            return new Rune(codePoint);
-        }
-
-        return new Rune(c);
-    }
-
-    private static Rune ConvertToBoldItalic(char c)
-    {
-        if (c >= 'A' && c <= 'Z')
-        {
-            int codePoint = 0x1D468 + (c - 'A');
-            return new Rune(codePoint);
-        }
-        if (c >= 'a' && c <= 'z')
-        {
-            int codePoint = 0x1D482 + (c - 'a');
-            return new Rune(codePoint);
-        }
-
-        return new Rune(c);
-    }
+    TextStyle[][]? IWidget.GetRawStyles() => _rawStyles;
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {

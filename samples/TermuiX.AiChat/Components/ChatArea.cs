@@ -1,3 +1,4 @@
+using System.Security;
 using TermuiX.Widgets;
 using TermuiXLib = TermuiX.TermuiX;
 
@@ -41,11 +42,12 @@ public class ChatArea
     private Text? _currentAssistantText;
     private string _currentAssistantContent = "";
     private bool _isStreaming;
+    private bool _isThinking;
     private int _msgCounter;
 
     public string SelectedModel => _selectedModel;
-    public bool IsModelDropdownOpen => _modelDropdown?.Visible == true;
-    public bool IsMenuDropdownOpen => _menuDropdown?.Visible == true;
+    public bool IsModelDropdownOpen => _modelDropdown?.Visible is true;
+    public bool IsMenuDropdownOpen => _menuDropdown?.Visible is true;
     public bool IsStreaming => _isStreaming;
 
     public event EventHandler<string>? ModelChanged;
@@ -181,7 +183,7 @@ public class ChatArea
         }
     }
 
-    public async Task LoadModelsAsync()
+    public async Task LoadModelsAsync(string? preferredModel = null)
     {
         var models = await _ollama.ListModelsAsync();
 
@@ -193,8 +195,12 @@ public class ChatArea
             return;
         }
 
-        // Select first model
-        _selectedModel = models[0];
+        // Use preferred model if available, otherwise fall back to first
+        if (preferredModel is not null && models.Contains(preferredModel))
+            _selectedModel = preferredModel;
+        else
+            _selectedModel = models[0];
+
         if (_modelButton is not null)
             _modelButton.Text = FormatModelName(_selectedModel);
 
@@ -203,7 +209,7 @@ public class ChatArea
 
         foreach (var model in models)
         {
-            var escaped = System.Security.SecurityElement.Escape(FormatModelName(model));
+            var escaped = SecurityElement.Escape(FormatModelName(model));
             var xml = $@"<Button Name='mdl_{model.Replace(':', '_').Replace('.', '_')}' Width='22ch' Height='1ch' BorderStyle='None'
                 PaddingLeft='1ch' PaddingRight='0ch' PaddingTop='0ch' PaddingBottom='0ch'
                 BackgroundColor='#313244' FocusBackgroundColor='#45475a'
@@ -252,7 +258,7 @@ public class ChatArea
             sidebarW += (sidebarLine as IWidget).ComputedWidth;
 
         // btnChatSidebar width (6ch if visible, 0 if not)
-        int btnOffset = (_sidebarButton?.Visible == true) ? 6 : 0;
+        int btnOffset = (_sidebarButton?.Visible is true) ? 6 : 0;
 
         _modelDropdown.PositionX = $"{sidebarW + btnOffset}ch";
         _modelDropdown.PositionY = "3ch";
@@ -309,21 +315,24 @@ public class ChatArea
         return model;
     }
 
-    public void AddUserMessage(string text)
+    public void AddUserMessage(string text, DateTime? timestamp = null, bool isLive = true)
     {
         if (_messagesInner is null) return;
 
         SetHasMessages(true);
-        _history.Add(new ChatMessage("user", text));
+        var ts = isLive ? (timestamp ?? DateTime.Now) : timestamp;
+        _history.Add(new ChatMessage("user", text, ts));
 
         var id = $"msg_{_msgCounter++}";
-        var escaped = System.Security.SecurityElement.Escape(text);
+        var escaped = SecurityElement.Escape(text);
+        var time = FormatTimestamp(ts);
         var xml = $@"<StackPanel Direction='Vertical' Width='100%' Align='End' MarginTop='1ch'>
             <StackPanel Direction='Vertical' MaxWidth='80%'
                 BackgroundColor='#313244' BorderStyle='Single' RoundedCorners='true'
                 ForegroundColor='#45475a' PaddingLeft='1ch' PaddingRight='1ch'>
                 <Text Name='{id}' Width='100%' BackgroundColor='#313244' ForegroundColor='#cdd6f4'>{escaped}</Text>
             </StackPanel>
+            <Text Width='auto' BackgroundColor='#1e1e2e' ForegroundColor='#585b70'>{time}</Text>
         </StackPanel>";
         _messagesInner.Add(xml);
         ScrollToBottom();
@@ -335,11 +344,12 @@ public class ChatArea
 
         bool wasAtBottom = IsAtBottom();
         _isStreaming = true;
+        _isThinking = false;
         _currentAssistantContent = "";
 
         var id = $"msg_{_msgCounter++}";
         var xml = $@"<StackPanel Direction='Vertical' Width='100%' MarginTop='1ch'>
-            <Text Name='{id}' Width='100%' BackgroundColor='#1e1e2e' ForegroundColor='#6c7086'>●●●</Text>
+            <Text Name='{id}' Width='100%' Height='auto' Markdown='true' BackgroundColor='#1e1e2e' ForegroundColor='#6c7086' CodeBackgroundColor='#313244' CodeForegroundColor='#f38ba8'>●●●</Text>
         </StackPanel>";
         _messagesInner.Add(xml);
 
@@ -356,11 +366,28 @@ public class ChatArea
         if (wasAtBottom) ScrollToBottom();
     }
 
+    public void AppendThinkingToken()
+    {
+        if (_currentAssistantText is null) return;
+        if (_isThinking) return;
+
+        _isThinking = true;
+        _currentAssistantText.Content = "*thinking...*";
+    }
+
     public void AppendAssistantToken(string token)
     {
         if (_currentAssistantText is null) return;
 
         bool wasAtBottom = IsAtBottom();
+
+        // Transition from thinking to content
+        if (_isThinking)
+        {
+            _isThinking = false;
+            _currentAssistantContent = "";
+            _currentAssistantText.ForegroundColor = global::TermuiX.Color.Parse("#cdd6f4");
+        }
 
         // On first real token, switch from indicator to content color
         if (_currentAssistantContent.Length == 0)
@@ -369,20 +396,6 @@ public class ChatArea
         _currentAssistantContent += token;
         _currentAssistantText.Content = _currentAssistantContent;
 
-        // Recalculate height based on wrapped line count
-        var w = (IWidget)_currentAssistantText;
-        int availableWidth = w.Parent?.ComputedWidth ?? 80;
-        if (availableWidth <= 0) availableWidth = 80;
-        int lines = 1;
-        int col = 0;
-        foreach (var rune in _currentAssistantContent.EnumerateRunes())
-        {
-            if (rune.Value == '\n') { lines++; col = 0; continue; }
-            int rw = Text.GetRuneDisplayWidth(rune);
-            if (col + rw > availableWidth) { lines++; col = 0; }
-            col += rw;
-        }
-        _currentAssistantText.Height = $"{lines}ch";
         if (wasAtBottom) ScrollToBottom();
     }
 
@@ -409,7 +422,7 @@ public class ChatArea
     {
         _isStreaming = false;
         if (_currentAssistantContent.Length > 0)
-            _history.Add(new ChatMessage("assistant", _currentAssistantContent));
+            _history.Add(new ChatMessage("assistant", _currentAssistantContent, DateTime.Now));
         _currentAssistantText = null;
         _currentAssistantContent = "";
 
@@ -424,17 +437,18 @@ public class ChatArea
         }
     }
 
-    public void AddAssistantMessage(string text)
+    public void AddAssistantMessage(string text, DateTime? timestamp = null, bool isLive = true)
     {
         if (_messagesInner is null) return;
 
         SetHasMessages(true);
-        _history.Add(new ChatMessage("assistant", text));
+        var ts = isLive ? (timestamp ?? DateTime.Now) : timestamp;
+        _history.Add(new ChatMessage("assistant", text, ts));
 
         var id = $"msg_{_msgCounter++}";
-        var escaped = System.Security.SecurityElement.Escape(text);
+        var escaped = SecurityElement.Escape(text);
         var xml = $@"<StackPanel Direction='Vertical' Width='100%' MarginTop='1ch'>
-            <Text Name='{id}' Width='100%' BackgroundColor='#1e1e2e' ForegroundColor='#cdd6f4'>{escaped}</Text>
+            <Text Name='{id}' Width='100%' Height='auto' Markdown='true' BackgroundColor='#1e1e2e' ForegroundColor='#cdd6f4' CodeBackgroundColor='#313244' CodeForegroundColor='#f38ba8'>{escaped}</Text>
         </StackPanel>";
         _messagesInner.Add(xml);
         ScrollToBottom();
@@ -446,14 +460,32 @@ public class ChatArea
         foreach (var msg in messages)
         {
             if (msg.Role == "user")
-                AddUserMessage(msg.Content);
+                AddUserMessage(msg.Content, msg.Timestamp, isLive: false);
             else if (msg.Role == "assistant")
-                AddAssistantMessage(msg.Content);
+                AddAssistantMessage(msg.Content, msg.Timestamp, isLive: false);
         }
     }
 
-    private static readonly ChatMessage SystemPrompt = new("system",
-        "Respond in plain text only. Do not use markdown, bullet points, headers, bold, italic, code blocks, or any formatting. Just write natural sentences.");
+    private static string FormatTimestamp(DateTime? ts)
+    {
+        if (ts is not { } when) return "";
+        var today = DateTime.Today;
+        if (when.Date == today)
+            return when.ToString("HH:mm");
+        if (when.Date == today.AddDays(-1))
+            return "Yesterday " + when.ToString("HH:mm");
+        if (when.Year != today.Year)
+            return when.ToString("dd.MM.yyyy HH:mm");
+        return when.ToString("dd.MM. HH:mm");
+    }
+
+    private static ChatMessage BuildSystemPrompt()
+    {
+        var now = DateTime.Now;
+        return new("system",
+            $"You are a helpful assistant. Current date: {now:dddd, d MMMM yyyy}. Current time: {now:HH:mm}. " +
+            "Use Markdown formatting in your responses: **bold** for emphasis, *italic* for terms, `code` for inline code, and fenced code blocks (```language) for code examples. Keep responses concise and well-structured.");
+    }
 
     public async Task SendAndStreamAsync(string userText)
     {
@@ -462,14 +494,17 @@ public class ChatArea
         AddUserMessage(userText);
         BeginAssistantMessage();
 
-        var messages = new List<ChatMessage> { SystemPrompt };
+        var messages = new List<ChatMessage> { BuildSystemPrompt() };
         messages.AddRange(_history);
 
         try
         {
             await foreach (var token in _ollama.ChatStreamAsync(_selectedModel, messages))
             {
-                AppendAssistantToken(token);
+                if (token.IsThinking)
+                    AppendThinkingToken();
+                else
+                    AppendAssistantToken(token.Text);
             }
         }
         finally
@@ -523,7 +558,6 @@ public class ChatArea
         if (_chatInput is not null)
             _termui.SetFocus(_chatInput);
     }
-
 
     public Button? GetSidebarButton() => _sidebarButton;
     public Button? GetModelButton() => _modelButton;

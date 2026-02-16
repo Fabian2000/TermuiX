@@ -14,7 +14,7 @@ public class ConfirmDialog
 
     private Action? _onConfirm;
 
-    public bool IsOpen => _overlay?.Visible == true;
+    public bool IsOpen => _overlay?.Visible is true;
 
     public ConfirmDialog(TermuiXLib termui)
     {

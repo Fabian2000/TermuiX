@@ -984,8 +984,11 @@ public sealed class TermuiX
 
     /// <summary>
     /// Renders the UI to the console and processes input.
+    /// When <paramref name="skipUnchanged"/> is true, the frame is still fully computed
+    /// but the Console.Out.Write() is skipped when the output buffer is identical to the
+    /// previous frame. This reduces I/O overhead on slow connections (e.g. SSH).
     /// </summary>
-    public void Render()
+    public void Render(bool skipUnchanged = false)
     {
         // Don't render if not initialized
         if (!_isInitialized)
@@ -1011,12 +1014,12 @@ public sealed class TermuiX
         }
 
         _renderer.Size(width, height);
-        var (chars, fgColors, bgColors) = _renderer.Render(_widget, _hitTestMap, _focusVisible);
+        var (chars, fgColors, bgColors, styles) = _renderer.Render(_widget, _hitTestMap, _focusVisible);
 
         // Build entire frame into a reusable char[] buffer using ANSI escape codes.
         // Single Console.Out.Write() call per frame — no per-character I/O overhead.
         // The char[] is reused across frames (only reallocated when terminal grows).
-        int requiredSize = width * height * 40; // worst case: ~40 chars per cell (RGB escape + rune)
+        int requiredSize = width * height * 50; // worst case: ~50 chars per cell (RGB escape + style SGR + rune)
         if (_renderBuf.Length < requiredSize)
         {
             _renderBuf = new char[requiredSize];
@@ -1030,6 +1033,7 @@ public sealed class TermuiX
         Color prevFg = default;
         Color prevBg = default;
         bool firstColor = true;
+        var prevStyle = Widgets.TextStyle.Normal;
 
         for (int y = 0; y < chars.Length; y++)
         {
@@ -1049,9 +1053,15 @@ public sealed class TermuiX
                     break;
                 }
 
-                // Only emit color escape when color actually changes
+                // Only emit escape sequences when color or style actually changes
                 var fg = fgColors[y][x];
                 var bg = bgColors[y][x];
+                var style = styles[y][x];
+                if (style != prevStyle)
+                {
+                    WriteStyleEscape(ref pos, style, prevStyle);
+                    prevStyle = style;
+                }
                 if (firstColor || fg != prevFg || bg != prevBg)
                 {
                     firstColor = false;
@@ -1083,12 +1093,29 @@ public sealed class TermuiX
         // Reset colors, move cursor to top-left (cursor stays hidden during TUI runtime)
         WriteAnsi(ref pos, "\x1b[0m\x1b[H");
 
+        // Skip I/O when frame is identical to previous (saves bandwidth on SSH)
+        if (skipUnchanged && pos == _prevFrameLen && _renderBuf.AsSpan(0, pos).SequenceEqual(_prevFrameBuf.AsSpan(0, pos)))
+        {
+            return;
+        }
+
         // Single write for entire frame — zero allocation
         Console.Out.Write(_renderBuf, 0, pos);
+
+        // Save current frame for next comparison
+        if (skipUnchanged)
+        {
+            if (_prevFrameBuf.Length < pos)
+                _prevFrameBuf = new char[pos];
+            _renderBuf.AsSpan(0, pos).CopyTo(_prevFrameBuf);
+            _prevFrameLen = pos;
+        }
     }
 
     // Reusable frame buffer — only grows, never shrinks. Zero allocation per frame.
     private char[] _renderBuf = new char[32768];
+    private char[] _prevFrameBuf = new char[32768];
+    private int _prevFrameLen;
 
     private void WriteAnsi(ref int pos, string s)
     {
@@ -1138,6 +1165,61 @@ public sealed class TermuiX
         }
 
         _renderBuf[pos++] = 'm';
+    }
+
+    private void WriteStyleEscape(ref int pos, Widgets.TextStyle newStyle, Widgets.TextStyle oldStyle)
+    {
+        // Turn off old style
+        if (oldStyle != Widgets.TextStyle.Normal)
+        {
+            _renderBuf[pos++] = '\x1b';
+            _renderBuf[pos++] = '[';
+            switch (oldStyle)
+            {
+                case Widgets.TextStyle.Bold:
+                    WriteAnsiLiteral(ref pos, "22");
+                    break;
+                case Widgets.TextStyle.Italic:
+                    WriteAnsiLiteral(ref pos, "23");
+                    break;
+                case Widgets.TextStyle.BoldItalic:
+                    WriteAnsiLiteral(ref pos, "22;23");
+                    break;
+                case Widgets.TextStyle.Underline:
+                    WriteAnsiLiteral(ref pos, "24");
+                    break;
+                case Widgets.TextStyle.Strikethrough:
+                    WriteAnsiLiteral(ref pos, "29");
+                    break;
+            }
+            _renderBuf[pos++] = 'm';
+        }
+
+        // Turn on new style
+        if (newStyle != Widgets.TextStyle.Normal)
+        {
+            _renderBuf[pos++] = '\x1b';
+            _renderBuf[pos++] = '[';
+            switch (newStyle)
+            {
+                case Widgets.TextStyle.Bold:
+                    WriteAnsiLiteral(ref pos, "1");
+                    break;
+                case Widgets.TextStyle.Italic:
+                    WriteAnsiLiteral(ref pos, "3");
+                    break;
+                case Widgets.TextStyle.BoldItalic:
+                    WriteAnsiLiteral(ref pos, "1;3");
+                    break;
+                case Widgets.TextStyle.Underline:
+                    WriteAnsiLiteral(ref pos, "4");
+                    break;
+                case Widgets.TextStyle.Strikethrough:
+                    WriteAnsiLiteral(ref pos, "9");
+                    break;
+            }
+            _renderBuf[pos++] = 'm';
+        }
     }
 
     private void WriteAnsiLiteral(ref int pos, string s)

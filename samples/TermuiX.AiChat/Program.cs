@@ -40,13 +40,14 @@ try
     chatArea.Initialize(); // Re-initialize to pick up dropdown widgets
     confirmDialog.Initialize();
 
-    // Load models from Ollama
-    _ = chatArea.LoadModelsAsync();
+    // Load models from Ollama (prefer last used model)
+    _ = chatArea.LoadModelsAsync(store.GetPreferredModel());
 
-    // Load persisted chats into sidebar
-    // Load persisted chats (skip empty ones)
-    foreach (var chat in store.ListChats())
+    // Load persisted chats into sidebar (oldest first so Insert(1,...) puts newest on top)
+    var chats = store.ListChats();
+    for (int i = chats.Count - 1; i >= 0; i--)
     {
+        var chat = chats[i];
         if (chat.Messages.Count == 0)
         {
             store.DeleteChat(chat.Id);
@@ -80,6 +81,9 @@ try
             ClosePopups();
     };
 
+    // Persist model preference when user switches model
+    chatArea.ModelChanged += (_, model) => store.SetPreferredModel(model);
+
     // Helper: save current chat to disk
     string? currentChatId = null;
 
@@ -109,6 +113,7 @@ try
             {
                 chatArea.ClearChat();
                 currentChatId = null;
+                sidebar.SetActiveChat(null);
             }
         });
     };
@@ -124,6 +129,7 @@ try
             store.DeleteChat(idToDelete);
             chatArea.ClearChat();
             currentChatId = null;
+            sidebar.SetActiveChat(null);
         });
     };
 
@@ -150,6 +156,7 @@ try
         {
             chatArea.LoadHistory(data.Messages);
             currentChatId = chatId;
+            sidebar.SetActiveChat(chatId);
             chatArea.FocusInput();
         }
     };
@@ -190,6 +197,7 @@ try
             var title = text.Length > 30 ? text[..29] + "…" : text;
             store.RenameChat(chatData.Id, title);
             sidebar.AddChat(chatData.Id, title);
+            sidebar.SetActiveChat(chatData.Id);
         }
         else
         {
@@ -212,6 +220,7 @@ try
             SaveCurrentChat();
             chatArea.ClearChat();
             currentChatId = null;
+            sidebar.SetActiveChat(null);
             chatArea.FocusInput();
         };
     }
@@ -220,7 +229,7 @@ try
 
     while (true)
     {
-        termui.Render();
+        termui.Render(skipUnchanged: true);
         await Task.Delay(16);
     }
 }

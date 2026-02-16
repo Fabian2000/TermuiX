@@ -1,7 +1,7 @@
 namespace TermuiX.Widgets;
 
 /// <summary>
-/// Specifies the visual style of text content using Unicode characters.
+/// Specifies the visual style of text content using ANSI SGR escape sequences.
 /// </summary>
 public enum TextStyle
 {
@@ -11,27 +11,27 @@ public enum TextStyle
     Normal,
 
     /// <summary>
-    /// Bold text using Unicode Mathematical Alphanumeric Symbols.
+    /// Bold text (ANSI SGR 1).
     /// </summary>
     Bold,
 
     /// <summary>
-    /// Italic text using Unicode Mathematical Alphanumeric Symbols.
+    /// Italic text (ANSI SGR 3).
     /// </summary>
     Italic,
 
     /// <summary>
-    /// Bold and italic text using Unicode Mathematical Alphanumeric Symbols.
+    /// Bold and italic text (ANSI SGR 1;3).
     /// </summary>
     BoldItalic,
 
     /// <summary>
-    /// Underlined text using combining underline character (U+0332).
+    /// Underlined text (ANSI SGR 4).
     /// </summary>
     Underline,
 
     /// <summary>
-    /// Strikethrough text using combining strikethrough character (U+0336).
+    /// Strikethrough text (ANSI SGR 9).
     /// </summary>
     Strikethrough
 }

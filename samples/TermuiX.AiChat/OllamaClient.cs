@@ -6,7 +6,8 @@ using System.Text.Json.Serialization;
 
 namespace TermuiX.AiChat;
 
-public record ChatMessage(string Role, string Content);
+public record ChatMessage(string Role, string Content, DateTime? Timestamp = null);
+public record StreamToken(string Text, bool IsThinking);
 
 public class OllamaClient : IDisposable
 {
@@ -26,7 +27,7 @@ public class OllamaClient : IDisposable
     {
         try
         {
-            var response = await _http.GetFromJsonAsync<TagsResponse>("/api/tags");
+            var response = await _http.GetFromJsonAsync("/api/tags", JsonCtx.Default.TagsResponse);
             if (response?.Models is null) return [];
             return response.Models.Select(m => m.Name).OrderBy(n => n).ToList();
         }
@@ -49,7 +50,7 @@ public class OllamaClient : IDisposable
         }
     }
 
-    public async IAsyncEnumerable<string> ChatStreamAsync(
+    public async IAsyncEnumerable<StreamToken> ChatStreamAsync(
         string model,
         List<ChatMessage> messages,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -92,7 +93,7 @@ public class OllamaClient : IDisposable
 
         if (connectionError is not null)
         {
-            yield return connectionError;
+            yield return new StreamToken(connectionError, false);
             yield break;
         }
 
@@ -127,8 +128,11 @@ public class OllamaClient : IDisposable
 
                 if (chunk is null) continue;
 
+                if (chunk.Message?.Thinking is { Length: > 0 } thinkText)
+                    yield return new StreamToken(thinkText, true);
+
                 if (chunk.Message?.Content is { Length: > 0 } tokenText)
-                    yield return tokenText;
+                    yield return new StreamToken(tokenText, false);
 
                 if (chunk.Done)
                     yield break;
@@ -207,6 +211,10 @@ class ApiMessage
 
     [JsonPropertyName("content")]
     public string Content { get; set; } = "";
+
+    [JsonPropertyName("thinking")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Thinking { get; set; }
 }
 
 class ChatStreamResponse

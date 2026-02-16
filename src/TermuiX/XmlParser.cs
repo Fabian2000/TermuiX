@@ -551,6 +551,15 @@ internal static class XmlParser
             case "style":
                 text.Style = Enum.Parse<TextStyle>(value, ignoreCase: true);
                 break;
+            case "markdown":
+                text.Markdown = bool.Parse(value);
+                break;
+            case "codebackgroundcolor":
+                text.CodeBackgroundColor = Color.Parse(value);
+                break;
+            case "codeforegroundcolor":
+                text.CodeForegroundColor = Color.Parse(value);
+                break;
         }
     }
 

@@ -1,3 +1,4 @@
+using System.Security;
 using TermuiX.Widgets;
 using TermuiXLib = TermuiX.TermuiX;
 
@@ -27,7 +28,10 @@ public class Sidebar
     private Container? _renameOverlay;
     private Input? _renameInput;
     private readonly Dictionary<string, string> _chatTitles = new();
-    public bool IsRenameOpen => _renameOverlay?.Visible == true;
+    public bool IsRenameOpen => _renameOverlay?.Visible is true;
+
+    // Active chat highlight
+    private string? _activeChatId;
 
     // Animation state
     public bool IsOpen { get; private set; } = true;
@@ -130,7 +134,7 @@ public class Sidebar
         var xml = $@"<Button Name='chat_{id}' Width='100%' Height='3ch' BorderStyle='None'
             PaddingLeft='1ch' PaddingRight='1ch' PaddingTop='1ch' PaddingBottom='0ch'
             BackgroundColor='#181825' FocusBackgroundColor='#313244'
-            TextColor='#a6adc8' FocusTextColor='#cdd6f4' TextAlign='Left'>{System.Security.SecurityElement.Escape(truncated)}</Button>";
+            TextColor='#a6adc8' FocusTextColor='#cdd6f4' TextAlign='Left'>{SecurityElement.Escape(truncated)}</Button>";
 
         // Insert after btnNewChat (index 1), so newest chats appear at top
         _chatList.Insert(1, xml);
@@ -172,7 +176,7 @@ public class Sidebar
 
         _contextMenuTargetId = chatId;
 
-        int menuW = 16, menuH = 4;
+        const int menuW = 16, menuH = 4;
         if (x + menuW > Console.WindowWidth) x = Console.WindowWidth - menuW;
         if (y + menuH > Console.WindowHeight) y = Console.WindowHeight - menuH;
 
@@ -190,7 +194,7 @@ public class Sidebar
         _contextMenu.Visible = false;
     }
 
-    public bool IsContextMenuOpen => _contextMenu?.Visible == true;
+    public bool IsContextMenuOpen => _contextMenu?.Visible is true;
 
     public bool ContainsContextMenuWidget(IWidget widget)
         => widget == _ctxRename || widget == _ctxDelete;
@@ -203,7 +207,7 @@ public class Sidebar
         if (button is null) return;
 
         // Find button index in chatListPanel children
-        int index = ((IWidget)_chatList).Children.IndexOf((IWidget)button);
+        int index = ((IWidget)_chatList).Children.IndexOf(button);
         if (index < 0) return;
 
         // Y = sidebar header (3ch) + index * button height (3ch) + 1 - scroll offset
@@ -275,6 +279,33 @@ public class Sidebar
 
     private static string TruncateTitle(string title)
         => title.Length > MaxTitleLength ? title[..(MaxTitleLength - 1)] + "…" : title;
+
+    public void SetActiveChat(string? id)
+    {
+        // Reset previous
+        if (_activeChatId is not null)
+        {
+            var prev = _termui.GetWidget<Button>($"chat_{_activeChatId}");
+            if (prev is not null)
+            {
+                prev.BackgroundColor = global::TermuiX.Color.Parse("#181825");
+                prev.TextColor = global::TermuiX.Color.Parse("#a6adc8");
+            }
+        }
+
+        _activeChatId = id;
+
+        // Highlight new
+        if (id is not null)
+        {
+            var btn = _termui.GetWidget<Button>($"chat_{id}");
+            if (btn is not null)
+            {
+                btn.BackgroundColor = global::TermuiX.Color.Parse("#313244");
+                btn.TextColor = global::TermuiX.Color.Parse("#cdd6f4");
+            }
+        }
+    }
 
     public Button? GetSidebarButton() => _sidebarButton;
     public Button? GetNewChatButton() => _newChatButton;
