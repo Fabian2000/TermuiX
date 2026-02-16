@@ -227,6 +227,12 @@ namespace TermuiX
         (Color[][] fg, Color[][] bg)? GetRawColors() => null;
 
         /// <summary>
+        /// Gets optional per-cell text style for the raw content.
+        /// Returns null by default — the renderer uses TextStyle.Normal.
+        /// </summary>
+        Widgets.TextStyle[][]? GetRawStyles() => null;
+
+        /// <summary>
         /// Handles keyboard input when the widget is focused.
         /// </summary>
         /// <param name="keyInfo">The key press information.</param>

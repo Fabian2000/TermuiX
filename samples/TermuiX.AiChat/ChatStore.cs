@@ -106,6 +106,20 @@ class ChatStore
         SaveChat(chat);
         return chat;
     }
+
+    public string? GetPreferredModel()
+    {
+        var path = Path.Combine(Path.GetDirectoryName(_chatsDir)!, "preferred_model");
+        if (!File.Exists(path)) return null;
+        var model = File.ReadAllText(path).Trim();
+        return string.IsNullOrEmpty(model) ? null : model;
+    }
+
+    public void SetPreferredModel(string model)
+    {
+        var path = Path.Combine(Path.GetDirectoryName(_chatsDir)!, "preferred_model");
+        File.WriteAllText(path, model);
+    }
 }
 
 [JsonSerializable(typeof(ChatData))]

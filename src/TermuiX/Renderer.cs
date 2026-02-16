@@ -14,6 +14,7 @@ namespace TermuiX
         private Rune[][]? _cachedOutput;
         private Color[][]? _cachedFg;
         private Color[][]? _cachedBg;
+        private Widgets.TextStyle[][]? _cachedStyles;
         private int _cachedWidth;
         private int _cachedHeight;
 
@@ -23,7 +24,7 @@ namespace TermuiX
             _height = height;
         }
 
-        internal (Rune[][] chars, Color[][] fg, Color[][] bg) Render(IWidget widget, HitTestMap? hitTestMap = null, bool focusVisible = true)
+        internal (Rune[][] chars, Color[][] fg, Color[][] bg, Widgets.TextStyle[][] styles) Render(IWidget widget, HitTestMap? hitTestMap = null, bool focusVisible = true)
         {
             if (_width == 0 || _height == 0)
             {
@@ -36,12 +37,14 @@ namespace TermuiX
                 _cachedOutput = new Rune[_height][];
                 _cachedFg = new Color[_height][];
                 _cachedBg = new Color[_height][];
+                _cachedStyles = new Widgets.TextStyle[_height][];
 
                 for (int i = 0; i < _height; i++)
                 {
                     _cachedOutput[i] = new Rune[_width];
                     _cachedFg[i] = new Color[_width];
                     _cachedBg[i] = new Color[_width];
+                    _cachedStyles[i] = new Widgets.TextStyle[_width];
                 }
 
                 _cachedWidth = _width;
@@ -51,6 +54,7 @@ namespace TermuiX
             var output = _cachedOutput;
             var fgColors = _cachedFg!;
             var bgColors = _cachedBg!;
+            var styleBuffer = _cachedStyles!;
 
             // Clear buffers for new frame
             for (int i = 0; i < _height; i++)
@@ -58,15 +62,16 @@ namespace TermuiX
                 Array.Fill(output[i], new Rune(' '));
                 Array.Fill(fgColors[i], ConsoleColor.White);
                 Array.Fill(bgColors[i], ConsoleColor.Black);
+                Array.Clear(styleBuffer[i]);
             }
 
             hitTestMap?.Reset(_width, _height);
-            RenderWidget(output, fgColors, bgColors, widget, 0, 0, _width, _height, 0, 0, hitTestMap, focusVisible, Color.Black, Color.White);
+            RenderWidget(output, fgColors, bgColors, styleBuffer, widget, 0, 0, _width, _height, 0, 0, hitTestMap, focusVisible, Color.Black, Color.White);
 
-            return (output, fgColors, bgColors);
+            return (output, fgColors, bgColors, styleBuffer);
         }
 
-        private static void RenderWidget(Rune[][] output, Color[][] fgColors, Color[][] bgColors, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY, HitTestMap? hitTestMap, bool focusVisible, Color inheritedBg, Color inheritedFg)
+        private static void RenderWidget(Rune[][] output, Color[][] fgColors, Color[][] bgColors, Widgets.TextStyle[][] styleBuffer, IWidget widget, int parentX, int parentY, int parentWidth, int parentHeight, int parentScrollX, int parentScrollY, HitTestMap? hitTestMap, bool focusVisible, Color inheritedBg, Color inheritedFg)
         {
             // Skip invisible widgets and their children
             if (!widget.Visible)
@@ -215,6 +220,7 @@ namespace TermuiX
             if (raw?.Length > 0)
             {
                 var rawColors = widget.GetRawColors();
+                var rawStyles = widget.GetRawStyles();
 
                 // First render the raw content WITHOUT scroll (for borders, static content)
                 for (int y = 0; y < raw.Length && y < height; y++)
@@ -234,8 +240,17 @@ namespace TermuiX
                             output[targetY][targetX] = raw[y][x];
                             if (rawColors.HasValue)
                             {
-                                fgColors[targetY][targetX] = rawColors.Value.fg[y][x];
-                                bgColors[targetY][targetX] = rawColors.Value.bg[y][x];
+                                var rcFg = rawColors.Value.fg[y][x];
+                                var rcBg = rawColors.Value.bg[y][x];
+                                // Only override cells that have an explicit color set.
+                                // default(Color) (= ConsoleColor.Black, value 0) means
+                                // "no override" — keep the widget's resolved color.
+                                if (rcFg != default) fgColors[targetY][targetX] = rcFg;
+                                if (rcBg != default) bgColors[targetY][targetX] = rcBg;
+                            }
+                            if (rawStyles != null && y < rawStyles.Length && x < rawStyles[y].Length)
+                            {
+                                styleBuffer[targetY][targetX] = rawStyles[y][x];
                             }
                         }
                     }
@@ -302,14 +317,12 @@ namespace TermuiX
                         }
                     }
 
-                    // For auto-height containers WITH a cross-axis constraint (MaxWidth/MaxHeight),
-                    // clear stale ComputedHeight from ResolveAutoSize so GetRaw() returns []
-                    // and we fall through to MeasureChildrenMainAxis (which uses the correct
-                    // layout-pass widths). Only needed when MaxWidth changes the effective width.
+                    // For auto-sized StackPanels, clear stale ComputedHeight/Width before
+                    // GetRaw() so the intrinsic size reflects current children, not a cached
+                    // value from a previous layout pass (e.g. after children were removed).
                     string mainStr = isVertical ? child.Height : child.Width;
                     bool mainIsAuto = string.IsNullOrEmpty(mainStr) || mainStr.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase);
-                    bool hasCrossConstraint = isVertical ? !string.IsNullOrEmpty(child.MaxWidth) : !string.IsNullOrEmpty(child.MaxHeight);
-                    if (mainIsAuto && child is Widgets.StackPanel && hasCrossConstraint)
+                    if (mainIsAuto && child is Widgets.StackPanel)
                     {
                         if (isVertical) child.ComputedHeight = 0;
                         else child.ComputedWidth = 0;
@@ -719,7 +732,7 @@ namespace TermuiX
 
             foreach (var child in widget.Children)
             {
-                RenderWidget(output, fgColors, bgColors, child, childClipX, childClipY, childClipWidth, childClipHeight, childScrollX, childScrollY, hitTestMap, focusVisible, resolvedBg, resolvedFg);
+                RenderWidget(output, fgColors, bgColors, styleBuffer, child, childClipX, childClipY, childClipWidth, childClipHeight, childScrollX, childScrollY, hitTestMap, focusVisible, resolvedBg, resolvedFg);
             }
 
             // Render scrollbars AFTER children so they're always on top

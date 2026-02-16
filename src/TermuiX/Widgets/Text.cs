@@ -43,6 +43,21 @@ public class Text : IWidget
     public TextStyle Style { get; set; } = TextStyle.Normal;
 
     /// <summary>
+    /// Enables inline Markdown rendering. When true, overrides the Style property.
+    /// Supports **bold**, *italic*, `code`, ~~strike~~, and fenced code blocks with syntax highlighting.
+    /// </summary>
+    public bool Markdown { get; set; } = false;
+
+    /// <summary>Background color for inline `code` and fenced code blocks.</summary>
+    public Color? CodeBackgroundColor { get; set; }
+
+    /// <summary>Foreground color for inline `code` text.</summary>
+    public Color? CodeForegroundColor { get; set; }
+
+    private TextStyle[][]? _rawStyles;
+    private (Color[][] fg, Color[][] bg)? _rawColors;
+
+    /// <summary>
     /// Gets or sets the unique name of the text widget.
     /// </summary>
     public string? Name { get; set; }
@@ -240,9 +255,21 @@ public class Text : IWidget
 
         if (string.IsNullOrEmpty(_text))
         {
+            _rawStyles = null;
+            _rawColors = null;
             return result;
         }
 
+        if (Markdown)
+        {
+            return RenderMarkdown(result, actualWidth, ref actualHeight);
+        }
+
+        return RenderPlainText(result, actualWidth, ref actualHeight);
+    }
+
+    private Rune[][] RenderPlainText(Rune[][] result, int actualWidth, ref int actualHeight)
+    {
         // Build wrapped lines: split by \n first, then word-wrap if AllowWrapping
         var sourceLines = _text.Split('\n');
         var wrappedLines = new List<List<Rune>>();
@@ -251,103 +278,289 @@ public class Text : IWidget
         {
             if (!AllowWrapping)
             {
-                // No wrapping: single line, truncate at width
                 var lineRunes = new List<Rune>();
                 int lineWidth = 0;
                 foreach (Rune rune in sourceLine.EnumerateRunes())
                 {
-                    Rune styled = ApplyTextStyleToRune(rune, Style);
-                    int rw = GetRuneDisplayWidth(styled);
+                    int rw = GetRuneDisplayWidth(rune);
                     if (lineWidth + rw > actualWidth) break;
-                    lineRunes.Add(styled);
+                    lineRunes.Add(rune);
                     lineWidth += rw;
                 }
                 wrappedLines.Add(lineRunes);
             }
             else
             {
-                // Word-wrap: break at spaces when a word would exceed the line
-                var words = SplitIntoWords(sourceLine);
-                var currentLine = new List<Rune>();
-                int currentWidth = 0;
-
-                foreach (var word in words)
-                {
-                    // Style and measure this word
-                    var wordRunes = new List<Rune>();
-                    int wordWidth = 0;
-                    foreach (Rune rune in word.EnumerateRunes())
-                    {
-                        Rune styled = ApplyTextStyleToRune(rune, Style);
-                        wordRunes.Add(styled);
-                        wordWidth += GetRuneDisplayWidth(styled);
-                    }
-
-                    // If the word alone exceeds a full line, break it character by character
-                    if (wordWidth > actualWidth)
-                    {
-                        foreach (var rune in wordRunes)
-                        {
-                            int rw = GetRuneDisplayWidth(rune);
-                            if (currentWidth + rw > actualWidth && currentLine.Count > 0)
-                            {
-                                wrappedLines.Add(currentLine);
-                                currentLine = new List<Rune>();
-                                currentWidth = 0;
-                            }
-                            currentLine.Add(rune);
-                            currentWidth += rw;
-                        }
-                        continue;
-                    }
-
-                    // Would this word fit on the current line?
-                    if (currentWidth + wordWidth > actualWidth && currentLine.Count > 0)
-                    {
-                        // Trim trailing space from current line
-                        while (currentLine.Count > 0 && currentLine[^1].Value == ' ')
-                            currentLine.RemoveAt(currentLine.Count - 1);
-                        wrappedLines.Add(currentLine);
-                        currentLine = new List<Rune>();
-                        currentWidth = 0;
-                        // Skip leading space on new line
-                        if (wordRunes.Count > 0 && wordRunes[0].Value == ' ')
-                        {
-                            wordRunes.RemoveAt(0);
-                            wordWidth -= 1;
-                        }
-                    }
-
-                    currentLine.AddRange(wordRunes);
-                    currentWidth += wordWidth;
-                }
-
-                if (currentLine.Count > 0)
-                    wrappedLines.Add(currentLine);
-
-                // Ensure at least one empty line per source line
-                if (wrappedLines.Count == 0 || (wrappedLines.Count > 0 && sourceLine.Length == 0))
-                    wrappedLines.Add(new List<Rune>());
+                WrapPlainLine(sourceLine, actualWidth, wrappedLines);
             }
         }
 
-        // If height was not explicitly set (auto-sized parent), expand to fit wrapped content
+        result = FinalizeLines(wrappedLines, actualWidth, ref actualHeight);
+
+        // Build per-cell style array for ANSI SGR rendering
+        if (Style != TextStyle.Normal)
+        {
+            _rawStyles = new TextStyle[actualHeight][];
+            for (int i = 0; i < actualHeight; i++)
+            {
+                _rawStyles[i] = new TextStyle[actualWidth];
+                Array.Fill(_rawStyles[i], Style);
+            }
+        }
+        else
+        {
+            _rawStyles = null;
+        }
+        _rawColors = null;
+
+        return result;
+    }
+
+    private Rune[][] RenderMarkdown(Rune[][] result, int actualWidth, ref int actualHeight)
+    {
+        var parsedLines = ParseMarkdown(_text);
+        var wrappedLines = new List<List<StyledRune>>();
+
+        foreach (var styledLine in parsedLines)
+        {
+            if (!AllowWrapping)
+            {
+                var lineOut = new List<StyledRune>();
+                int lineWidth = 0;
+                foreach (var sr in styledLine)
+                {
+                    int rw = GetRuneDisplayWidth(sr.Rune);
+                    if (lineWidth + rw > actualWidth) break;
+                    lineOut.Add(sr);
+                    lineWidth += rw;
+                }
+                wrappedLines.Add(lineOut);
+            }
+            else
+            {
+                WrapStyledLine(styledLine, actualWidth, wrappedLines);
+            }
+        }
+
+        // Expand height if needed
         if (wrappedLines.Count > actualHeight)
         {
             actualHeight = wrappedLines.Count;
             ((IWidget)this).ComputedHeight = actualHeight;
         }
 
-        // Rebuild result buffer with correct height
-        var result2 = new Rune[actualHeight][];
+        // Build result buffers
+        result = new Rune[actualHeight][];
+        _rawStyles = new TextStyle[actualHeight][];
+        var fgBuf = new Color[actualHeight][];
+        var bgBuf = new Color[actualHeight][];
+        bool hasColors = false;
+
         for (int i = 0; i < actualHeight; i++)
         {
-            result2[i] = new Rune[actualWidth];
-            Array.Fill(result2[i], new Rune(' '));
+            result[i] = new Rune[actualWidth];
+            Array.Fill(result[i], new Rune(' '));
+            _rawStyles[i] = new TextStyle[actualWidth];
+            fgBuf[i] = new Color[actualWidth];
+            bgBuf[i] = new Color[actualWidth];
         }
-        result = result2;
 
-        // Render wrapped lines into the result buffer
+        // Render styled wrapped lines
+        for (int i = 0; i < wrappedLines.Count && i < actualHeight; i++)
+        {
+            var line = wrappedLines[i];
+            int totalWidth = 0;
+            foreach (var sr in line)
+                totalWidth += GetRuneDisplayWidth(sr.Rune);
+
+            int offset = TextAlign switch
+            {
+                TextAlign.Center => Math.Max(0, (actualWidth - totalWidth) / 2),
+                TextAlign.Right => Math.Max(0, actualWidth - totalWidth),
+                _ => 0
+            };
+
+            int currentX = offset;
+            for (int j = 0; j < line.Count && currentX < actualWidth; j++)
+            {
+                var sr = line[j];
+                result[i][currentX] = sr.Rune;
+                _rawStyles[i][currentX] = sr.Style;
+
+                if (sr.Fg.HasValue)
+                {
+                    fgBuf[i][currentX] = sr.Fg.Value;
+                    hasColors = true;
+                }
+                if (sr.Bg.HasValue)
+                {
+                    bgBuf[i][currentX] = sr.Bg.Value;
+                    hasColors = true;
+                }
+
+                int runeWidth = GetRuneDisplayWidth(sr.Rune);
+                for (int k = 1; k < runeWidth && currentX + k < actualWidth; k++)
+                {
+                    result[i][currentX + k] = new Rune(' ');
+                    _rawStyles[i][currentX + k] = sr.Style;
+                    if (sr.Bg.HasValue)
+                        bgBuf[i][currentX + k] = sr.Bg.Value;
+                }
+                currentX += runeWidth;
+            }
+        }
+
+        _rawColors = hasColors ? (fgBuf, bgBuf) : null;
+        return result;
+    }
+
+    private void WrapPlainLine(string sourceLine, int actualWidth, List<List<Rune>> wrappedLines)
+    {
+        var words = SplitIntoWords(sourceLine);
+        var currentLine = new List<Rune>();
+        int currentWidth = 0;
+
+        foreach (var word in words)
+        {
+            var wordRunes = new List<Rune>();
+            int wordWidth = 0;
+            foreach (Rune rune in word.EnumerateRunes())
+            {
+                wordRunes.Add(rune);
+                wordWidth += GetRuneDisplayWidth(rune);
+            }
+
+            if (wordWidth > actualWidth)
+            {
+                foreach (var rune in wordRunes)
+                {
+                    int rw = GetRuneDisplayWidth(rune);
+                    if (currentWidth + rw > actualWidth && currentLine.Count > 0)
+                    {
+                        wrappedLines.Add(currentLine);
+                        currentLine = new List<Rune>();
+                        currentWidth = 0;
+                    }
+                    currentLine.Add(rune);
+                    currentWidth += rw;
+                }
+                continue;
+            }
+
+            if (currentWidth + wordWidth > actualWidth && currentLine.Count > 0)
+            {
+                while (currentLine.Count > 0 && currentLine[^1].Value == ' ')
+                    currentLine.RemoveAt(currentLine.Count - 1);
+                wrappedLines.Add(currentLine);
+                currentLine = new List<Rune>();
+                currentWidth = 0;
+                if (wordRunes.Count > 0 && wordRunes[0].Value == ' ')
+                {
+                    wordRunes.RemoveAt(0);
+                    wordWidth -= 1;
+                }
+            }
+
+            currentLine.AddRange(wordRunes);
+            currentWidth += wordWidth;
+        }
+
+        if (currentLine.Count > 0)
+            wrappedLines.Add(currentLine);
+
+        if (wrappedLines.Count == 0 || sourceLine.Length == 0)
+            wrappedLines.Add(new List<Rune>());
+    }
+
+    private static void WrapStyledLine(List<StyledRune> styledLine, int actualWidth, List<List<StyledRune>> wrappedLines)
+    {
+        // Split styled runes into "words" (space-delimited)
+        var currentLine = new List<StyledRune>();
+        int currentWidth = 0;
+        var wordBuf = new List<StyledRune>();
+        int wordWidth = 0;
+
+        for (int i = 0; i < styledLine.Count; i++)
+        {
+            var sr = styledLine[i];
+            int rw = GetRuneDisplayWidth(sr.Rune);
+            bool isSpace = sr.Rune.Value == ' ';
+
+            wordBuf.Add(sr);
+            wordWidth += rw;
+
+            // End of word: at space followed by non-space, or end of line
+            bool endOfWord = isSpace && i + 1 < styledLine.Count && styledLine[i + 1].Rune.Value != ' ';
+            bool endOfLine = i == styledLine.Count - 1;
+
+            if (endOfWord || endOfLine)
+            {
+                if (wordWidth > actualWidth)
+                {
+                    // Word too long — break char by char
+                    foreach (var wr in wordBuf)
+                    {
+                        int wrw = GetRuneDisplayWidth(wr.Rune);
+                        if (currentWidth + wrw > actualWidth && currentLine.Count > 0)
+                        {
+                            wrappedLines.Add(currentLine);
+                            currentLine = new List<StyledRune>();
+                            currentWidth = 0;
+                        }
+                        currentLine.Add(wr);
+                        currentWidth += wrw;
+                    }
+                }
+                else if (currentWidth + wordWidth > actualWidth && currentLine.Count > 0)
+                {
+                    // Trim trailing spaces
+                    while (currentLine.Count > 0 && currentLine[^1].Rune.Value == ' ')
+                        currentLine.RemoveAt(currentLine.Count - 1);
+                    wrappedLines.Add(currentLine);
+                    currentLine = new List<StyledRune>();
+                    currentWidth = 0;
+                    // Skip leading space
+                    if (wordBuf.Count > 0 && wordBuf[0].Rune.Value == ' ')
+                    {
+                        wordBuf.RemoveAt(0);
+                        wordWidth -= 1;
+                    }
+                    currentLine.AddRange(wordBuf);
+                    currentWidth += wordWidth;
+                }
+                else
+                {
+                    currentLine.AddRange(wordBuf);
+                    currentWidth += wordWidth;
+                }
+
+                wordBuf.Clear();
+                wordWidth = 0;
+            }
+        }
+
+        if (currentLine.Count > 0)
+            wrappedLines.Add(currentLine);
+
+        if (styledLine.Count == 0)
+            wrappedLines.Add(new List<StyledRune>());
+    }
+
+    private Rune[][] FinalizeLines(List<List<Rune>> wrappedLines, int actualWidth, ref int actualHeight)
+    {
+        if (wrappedLines.Count > actualHeight)
+        {
+            actualHeight = wrappedLines.Count;
+            ((IWidget)this).ComputedHeight = actualHeight;
+        }
+
+        var result = new Rune[actualHeight][];
+        for (int i = 0; i < actualHeight; i++)
+        {
+            result[i] = new Rune[actualWidth];
+            Array.Fill(result[i], new Rune(' '));
+        }
+
         for (int i = 0; i < wrappedLines.Count && i < actualHeight; i++)
         {
             var displayRunes = wrappedLines[i];
@@ -367,21 +580,17 @@ public class Text : IWidget
             {
                 Rune rune = displayRunes[j];
                 result[i][currentX] = rune;
-
                 int runeWidth = GetRuneDisplayWidth(rune);
-
-                // Fill placeholder cells for wide characters (emojis)
                 for (int k = 1; k < runeWidth && currentX + k < actualWidth; k++)
-                {
                     result[i][currentX + k] = new Rune(' ');
-                }
-
                 currentX += runeWidth;
             }
         }
 
         return result;
     }
+
+    TextStyle[][]? IWidget.GetRawStyles() => _rawStyles;
 
     /// <summary>
     /// Splits a string into words, keeping the whitespace attached to each word
@@ -656,108 +865,443 @@ public class Text : IWidget
         return 1;
     }
 
-    private static Rune ApplyTextStyleToRune(Rune rune, TextStyle style)
+    (Color[][] fg, Color[][] bg)? IWidget.GetRawColors() => _rawColors;
+
+    // ── Markdown Parsing ──────────────────────────────────────────────
+
+    private record struct StyledRune(Rune Rune, TextStyle Style, Color? Fg, Color? Bg);
+
+    /// <summary>
+    /// Parses the full text into styled lines, handling fenced code blocks and inline markdown.
+    /// </summary>
+    private List<List<StyledRune>> ParseMarkdown(string text)
     {
-        if (style == TextStyle.Normal)
+        var result = new List<List<StyledRune>>();
+        var lines = text.Split('\n');
+        bool inCodeBlock = false;
+        string codeBlockLang = "";
+        var codeBg = CodeBackgroundColor;
+        var codeFg = CodeForegroundColor;
+
+        foreach (var line in lines)
         {
-            return rune;
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("```"))
+            {
+                if (!inCodeBlock)
+                {
+                    inCodeBlock = true;
+                    codeBlockLang = trimmed.Length > 3 ? trimmed[3..].Trim() : "";
+                    // Don't add the ``` line itself
+                    continue;
+                }
+                else
+                {
+                    inCodeBlock = false;
+                    codeBlockLang = "";
+                    continue;
+                }
+            }
+
+            if (inCodeBlock)
+            {
+                result.Add(HighlightSyntax(line, codeBlockLang, codeBg));
+            }
+            else if (trimmed.StartsWith("### "))
+            {
+                // H3 — bold
+                var content = trimmed[4..];
+                var styledLine = new List<StyledRune>();
+                foreach (Rune r in content.EnumerateRunes())
+                    styledLine.Add(new StyledRune(r, TextStyle.Bold, null, null));
+                result.Add(styledLine);
+            }
+            else if (trimmed.StartsWith("## "))
+            {
+                // H2 — bold
+                var content = trimmed[3..];
+                var styledLine = new List<StyledRune>();
+                foreach (Rune r in content.EnumerateRunes())
+                    styledLine.Add(new StyledRune(r, TextStyle.Bold, null, null));
+                result.Add(styledLine);
+            }
+            else if (trimmed.StartsWith("# "))
+            {
+                // H1 — bold
+                var content = trimmed[2..];
+                var styledLine = new List<StyledRune>();
+                foreach (Rune r in content.EnumerateRunes())
+                    styledLine.Add(new StyledRune(r, TextStyle.Bold, null, null));
+                result.Add(styledLine);
+            }
+            else
+            {
+                result.Add(ParseInlineMarkdown(line));
+            }
         }
 
-        // Only apply styling to ASCII characters that can be converted
-        // For emojis and other complex unicode, return as-is
-        if (!rune.IsAscii)
-        {
-            return rune;
-        }
-
-        int value = rune.Value;
-        if (value > 127)
-        {
-            return rune;
-        }
-
-        char c = (char)value;
-
-        // Transform based on style
-        if (style == TextStyle.Bold)
-        {
-            return ConvertToBold(c);
-        }
-        else if (style == TextStyle.Italic)
-        {
-            return ConvertToItalic(c);
-        }
-        else if (style == TextStyle.BoldItalic)
-        {
-            return ConvertToBoldItalic(c);
-        }
-        else if (style == TextStyle.Underline || style == TextStyle.Strikethrough)
-        {
-            // For underline and strikethrough, we use the base character
-            // Note: Combining characters are not well-supported in Rune rendering
-            // so we'll just return the base character
-            return rune;
-        }
-        else
-        {
-            return rune;
-        }
+        return result;
     }
 
-    private static Rune ConvertToBold(char c)
+    /// <summary>
+    /// Parses inline markdown: **bold**, *italic*, `code`, ~~strike~~, bullet lists
+    /// </summary>
+    private List<StyledRune> ParseInlineMarkdown(string line)
     {
-        // Unicode Mathematical Alphanumeric Symbols - Bold
-        if (c >= 'A' && c <= 'Z')
+        var result = new List<StyledRune>();
+        bool isBold = false, isItalic = false, isStrike = false, isCode = false;
+        var codeBg = CodeBackgroundColor;
+        var codeFg = CodeForegroundColor;
+        int i = 0;
+
+        // Detect bullet list lines: "* ", "- ", "1. " etc. at start (after optional whitespace)
+        var trimmed = line.AsSpan().TrimStart();
+        int contentStart = line.Length - trimmed.Length;
+        bool isBulletLine = false;
+        int bulletEnd = 0; // index after the bullet prefix (including the space)
+
+        if (trimmed.Length >= 2)
         {
-            int codePoint = 0x1D400 + (c - 'A');
-            return new Rune(codePoint);
-        }
-        if (c >= 'a' && c <= 'z')
-        {
-            int codePoint = 0x1D41A + (c - 'a');
-            return new Rune(codePoint);
-        }
-        if (c >= '0' && c <= '9')
-        {
-            int codePoint = 0x1D7CE + (c - '0');
-            return new Rune(codePoint);
+            // "* " or "- " or "+ "
+            if ((trimmed[0] == '*' || trimmed[0] == '-' || trimmed[0] == '+') && trimmed[1] == ' ')
+            {
+                isBulletLine = true;
+                bulletEnd = contentStart + 2;
+            }
+            // "1. ", "2. " etc.
+            else if (char.IsDigit(trimmed[0]))
+            {
+                int d = 0;
+                while (d < trimmed.Length && char.IsDigit(trimmed[d])) d++;
+                if (d < trimmed.Length - 1 && trimmed[d] == '.' && trimmed[d + 1] == ' ')
+                {
+                    isBulletLine = true;
+                    bulletEnd = contentStart + d + 2;
+                }
+            }
         }
 
-        return new Rune(c);
+        // Render bullet prefix as literal text (not markdown)
+        if (isBulletLine)
+        {
+            // Replace "* " with "• " for nicer bullets, keep "- " and numbered as-is
+            if (line[contentStart] == '*')
+            {
+                // Add leading whitespace
+                for (int w = 0; w < contentStart; w++)
+                    result.Add(new StyledRune(new Rune(line[w]), TextStyle.Normal, null, null));
+                result.Add(new StyledRune(new Rune('•'), TextStyle.Normal, null, null));
+                result.Add(new StyledRune(new Rune(' '), TextStyle.Normal, null, null));
+            }
+            else
+            {
+                for (int w = 0; w < bulletEnd; w++)
+                    result.Add(new StyledRune(new Rune(line[w]), TextStyle.Normal, null, null));
+            }
+            i = bulletEnd;
+        }
+
+        while (i < line.Length)
+        {
+            // Backtick — inline code (no nesting inside code)
+            if (line[i] == '`' && !isCode)
+            {
+                isCode = true;
+                i++;
+                continue;
+            }
+            if (line[i] == '`' && isCode)
+            {
+                isCode = false;
+                i++;
+                continue;
+            }
+
+            // Inside inline code — no markdown parsing
+            if (isCode)
+            {
+                if (char.IsHighSurrogate(line[i]) && i + 1 < line.Length && char.IsLowSurrogate(line[i + 1]))
+                {
+                    result.Add(new StyledRune(new Rune(line[i], line[i + 1]), TextStyle.Normal, codeFg, codeBg));
+                    i += 2;
+                }
+                else
+                {
+                    result.Add(new StyledRune(new Rune(line[i]), TextStyle.Normal, codeFg, codeBg));
+                    i++;
+                }
+                continue;
+            }
+
+            // ~~strikethrough~~
+            if (i + 1 < line.Length && line[i] == '~' && line[i + 1] == '~')
+            {
+                isStrike = !isStrike;
+                i += 2;
+                continue;
+            }
+
+            // *** or ___ — bold+italic toggle
+            if (i + 2 < line.Length &&
+                ((line[i] == '*' && line[i + 1] == '*' && line[i + 2] == '*') ||
+                 (line[i] == '_' && line[i + 1] == '_' && line[i + 2] == '_')))
+            {
+                isBold = !isBold;
+                isItalic = !isItalic;
+                i += 3;
+                continue;
+            }
+
+            // ** or __ — bold toggle
+            if (i + 1 < line.Length &&
+                ((line[i] == '*' && line[i + 1] == '*') ||
+                 (line[i] == '_' && line[i + 1] == '_')))
+            {
+                isBold = !isBold;
+                i += 2;
+                continue;
+            }
+
+            // * or _ — italic toggle (only mid-word/inline, not at line start as bullet)
+            if (line[i] == '*' || line[i] == '_')
+            {
+                isItalic = !isItalic;
+                i++;
+                continue;
+            }
+
+            // Regular character (handle surrogate pairs for emojis)
+            var style = GetCombinedStyle(isBold, isItalic, isStrike);
+            if (char.IsHighSurrogate(line[i]) && i + 1 < line.Length && char.IsLowSurrogate(line[i + 1]))
+            {
+                result.Add(new StyledRune(new Rune(line[i], line[i + 1]), style, null, null));
+                i += 2;
+            }
+            else
+            {
+                result.Add(new StyledRune(new Rune(line[i]), style, null, null));
+                i++;
+            }
+        }
+
+        return result;
     }
 
-    private static Rune ConvertToItalic(char c)
+    private static TextStyle GetCombinedStyle(bool bold, bool italic, bool strike)
     {
-        // Unicode Mathematical Alphanumeric Symbols - Italic
-        if (c >= 'A' && c <= 'Z')
-        {
-            int codePoint = 0x1D434 + (c - 'A');
-            return new Rune(codePoint);
-        }
-        if (c >= 'a' && c <= 'z')
-        {
-            int codePoint = 0x1D44E + (c - 'a');
-            return new Rune(codePoint);
-        }
-
-        return new Rune(c);
+        if (bold && italic) return TextStyle.BoldItalic;
+        if (bold) return TextStyle.Bold;
+        if (italic) return TextStyle.Italic;
+        if (strike) return TextStyle.Strikethrough;
+        return TextStyle.Normal;
     }
 
-    private static Rune ConvertToBoldItalic(char c)
+    // ── Syntax Highlighting ──────────────────────────────────────────
+
+    private static readonly HashSet<string> Keywords = new(StringComparer.Ordinal)
     {
-        // Unicode Mathematical Alphanumeric Symbols - Bold Italic
-        if (c >= 'A' && c <= 'Z')
+        "if", "else", "for", "foreach", "while", "do", "switch", "case", "break", "continue",
+        "return", "class", "struct", "enum", "interface", "record",
+        "function", "fn", "func", "def", "lambda",
+        "var", "let", "const", "mut", "ref", "out",
+        "import", "from", "export", "require", "include", "using", "namespace", "package", "module",
+        "public", "private", "protected", "internal", "static", "abstract", "virtual", "override", "sealed",
+        "void", "int", "float", "double", "string", "bool", "char", "byte", "long", "short",
+        "true", "false", "null", "nil", "None", "undefined", "NaN",
+        "new", "this", "self", "super", "base",
+        "async", "await", "yield",
+        "try", "catch", "finally", "throw", "raise", "except",
+        "in", "is", "as", "not", "and", "or", "typeof", "sizeof", "nameof",
+        "where", "select", "from", "join", "on", "into", "orderby", "group",
+        "with", "match", "when", "then", "end", "begin",
+        "print", "println", "printf", "fmt", "console", "log",
+    };
+
+    // Catppuccin Mocha colors for syntax highlighting
+    private static readonly Color SyntaxKeyword = Color.Parse("#89b4fa");   // Blue
+    private static readonly Color SyntaxString = Color.Parse("#a6e3a1");    // Green
+    private static readonly Color SyntaxComment = Color.Parse("#6c7086");   // Overlay0
+    private static readonly Color SyntaxNumber = Color.Parse("#fab387");    // Peach
+    private static readonly Color SyntaxFunction = Color.Parse("#f9e2af");  // Yellow
+    private static readonly Color SyntaxType = Color.Parse("#94e2d5");      // Teal
+    private static readonly Color SyntaxOperator = Color.Parse("#9399b2");  // Overlay2
+    private static readonly Color SyntaxAttribute = Color.Parse("#cba6f7"); // Mauve
+
+    private static readonly HashSet<string> BuiltinTypes = new(StringComparer.Ordinal)
+    {
+        // C# / Java / C / C++
+        "String", "Int32", "Int64", "Boolean", "Double", "Single", "Decimal", "Byte", "Char",
+        "Object", "List", "Dictionary", "Array", "HashSet", "Queue", "Stack",
+        "Task", "Func", "Action", "IEnumerable", "IList", "IDictionary", "ICollection",
+        "Console", "Math", "File", "Path", "Directory", "Stream", "Exception",
+        "StringBuilder", "DateTime", "TimeSpan", "Guid",
+        // Python
+        "str", "dict", "list", "tuple", "set", "frozenset", "type", "object",
+        // JS/TS
+        "Promise", "Map", "Set", "WeakMap", "WeakSet", "RegExp", "Error", "JSON",
+        "Number", "Symbol", "BigInt", "Date",
+    };
+
+    private List<StyledRune> HighlightSyntax(string line, string language, Color? codeBg)
+    {
+        var result = new List<StyledRune>();
+        int i = 0;
+
+        while (i < line.Length)
         {
-            int codePoint = 0x1D468 + (c - 'A');
-            return new Rune(codePoint);
-        }
-        if (c >= 'a' && c <= 'z')
-        {
-            int codePoint = 0x1D482 + (c - 'a');
-            return new Rune(codePoint);
+            char c = line[i];
+
+            // Line comment: // or #
+            if ((c == '/' && i + 1 < line.Length && line[i + 1] == '/') ||
+                (c == '#' && (language != "csharp" && language != "c#")))
+            {
+                for (int j = i; j < line.Length;)
+                {
+                    if (char.IsHighSurrogate(line[j]) && j + 1 < line.Length && char.IsLowSurrogate(line[j + 1]))
+                    {
+                        result.Add(new StyledRune(new Rune(line[j], line[j + 1]), TextStyle.Italic, SyntaxComment, codeBg));
+                        j += 2;
+                    }
+                    else
+                    {
+                        result.Add(new StyledRune(new Rune(line[j]), TextStyle.Italic, SyntaxComment, codeBg));
+                        j++;
+                    }
+                }
+                return result;
+            }
+
+            // Decorators / Attributes: @word or [word]
+            if (c == '@' && i + 1 < line.Length && char.IsLetter(line[i + 1]))
+            {
+                int start = i;
+                i++;
+                while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_' || line[i] == '.'))
+                    i++;
+                for (int j = start; j < i; j++)
+                    result.Add(new StyledRune(new Rune(line[j]), TextStyle.Italic, SyntaxAttribute, codeBg));
+                continue;
+            }
+
+            // String literals
+            if (c == '"' || c == '\'')
+            {
+                char quote = c;
+                result.Add(new StyledRune(new Rune(c), TextStyle.Normal, SyntaxString, codeBg));
+                i++;
+                while (i < line.Length)
+                {
+                    if (line[i] == '\\' && i + 1 < line.Length)
+                    {
+                        result.Add(new StyledRune(new Rune(line[i]), TextStyle.Normal, SyntaxString, codeBg));
+                        i++;
+                        if (char.IsHighSurrogate(line[i]) && i + 1 < line.Length && char.IsLowSurrogate(line[i + 1]))
+                        {
+                            result.Add(new StyledRune(new Rune(line[i], line[i + 1]), TextStyle.Normal, SyntaxString, codeBg));
+                            i += 2;
+                        }
+                        else
+                        {
+                            result.Add(new StyledRune(new Rune(line[i]), TextStyle.Normal, SyntaxString, codeBg));
+                            i++;
+                        }
+                        continue;
+                    }
+                    if (char.IsHighSurrogate(line[i]) && i + 1 < line.Length && char.IsLowSurrogate(line[i + 1]))
+                    {
+                        result.Add(new StyledRune(new Rune(line[i], line[i + 1]), TextStyle.Normal, SyntaxString, codeBg));
+                        i += 2;
+                        continue;
+                    }
+                    result.Add(new StyledRune(new Rune(line[i]), TextStyle.Normal, SyntaxString, codeBg));
+                    if (line[i] == quote) { i++; break; }
+                    i++;
+                }
+                continue;
+            }
+
+            // Numbers
+            if (char.IsDigit(c) && (i == 0 || !char.IsLetter(line[i - 1])))
+            {
+                while (i < line.Length && (char.IsDigit(line[i]) || line[i] == '.' || line[i] == 'x' || line[i] == 'f' || line[i] == 'L' || line[i] == '_'))
+                {
+                    result.Add(new StyledRune(new Rune(line[i]), TextStyle.Normal, SyntaxNumber, codeBg));
+                    i++;
+                }
+                continue;
+            }
+
+            // Keywords / identifiers / types / functions
+            if (char.IsLetter(c) || c == '_')
+            {
+                int start = i;
+                while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_'))
+                    i++;
+                string word = line[start..i];
+
+                // Determine token type
+                Color? fg;
+                TextStyle ws;
+
+                if (Keywords.Contains(word))
+                {
+                    fg = SyntaxKeyword;
+                    ws = TextStyle.Normal;
+                }
+                else if (i < line.Length && line[i] == '(')
+                {
+                    // Function call: word followed by (
+                    fg = SyntaxFunction;
+                    ws = TextStyle.Normal;
+                }
+                else if (BuiltinTypes.Contains(word) || (word.Length > 1 && char.IsUpper(word[0]) && word.Any(char.IsLower)))
+                {
+                    // Known types OR PascalCase identifiers (likely types/classes)
+                    fg = SyntaxType;
+                    ws = TextStyle.Normal;
+                }
+                else
+                {
+                    fg = null;
+                    ws = TextStyle.Normal;
+                }
+
+                foreach (char ch in word)
+                    result.Add(new StyledRune(new Rune(ch), ws, fg, codeBg));
+                continue;
+            }
+
+            // Operators: =, ==, !=, <=, >=, =>, ->, &&, ||, ++, --
+            if ("=!<>&|+-".Contains(c) && i + 1 < line.Length && "=>&|+-".Contains(line[i + 1]))
+            {
+                result.Add(new StyledRune(new Rune(line[i]), TextStyle.Normal, SyntaxOperator, codeBg));
+                result.Add(new StyledRune(new Rune(line[i + 1]), TextStyle.Normal, SyntaxOperator, codeBg));
+                i += 2;
+                continue;
+            }
+
+            // Single-char operators and punctuation
+            if ("=<>!&|+-*/%^~?:.;,".Contains(c))
+            {
+                result.Add(new StyledRune(new Rune(c), TextStyle.Normal, SyntaxOperator, codeBg));
+                i++;
+                continue;
+            }
+
+            // Brackets/braces/other — keep default color (handle surrogate pairs)
+            if (char.IsHighSurrogate(c) && i + 1 < line.Length && char.IsLowSurrogate(line[i + 1]))
+            {
+                result.Add(new StyledRune(new Rune(line[i], line[i + 1]), TextStyle.Normal, null, codeBg));
+                i += 2;
+            }
+            else
+            {
+                result.Add(new StyledRune(new Rune(c), TextStyle.Normal, null, codeBg));
+                i++;
+            }
         }
 
-        return new Rune(c);
+        return result;
     }
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
@@ -798,7 +1342,10 @@ public class Text : IWidget
             BackgroundColor = BackgroundColor,
             ForegroundColor = ForegroundColor,
             FocusBackgroundColor = FocusBackgroundColor,
-            FocusForegroundColor = FocusForegroundColor
+            FocusForegroundColor = FocusForegroundColor,
+            Markdown = Markdown,
+            CodeBackgroundColor = CodeBackgroundColor,
+            CodeForegroundColor = CodeForegroundColor
         };
 
         return clone;
