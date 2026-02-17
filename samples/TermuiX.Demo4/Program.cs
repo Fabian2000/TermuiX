@@ -69,7 +69,7 @@ string GetSimpleCard(int index)
         """;
 }
 
-if (componentContainer != null && addBtn != null && clearBtn != null && exitBtn != null)
+if (componentContainer is not null && addBtn is not null && clearBtn is not null && exitBtn is not null)
 {
     addBtn.Click += (s, e) =>
     {

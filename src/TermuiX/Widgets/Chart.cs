@@ -24,11 +24,13 @@ public class ChartDataSeries
 }
 
 /// <summary>
-/// A chart widget for visualizing data series with axes and legends.
+/// A chart widget for visualizing data series using Braille characters for high-resolution rendering.
+/// Each terminal cell contains a 2×4 Braille dot grid, providing 8× the resolution of character-based charts.
 /// </summary>
 public class Chart : IWidget
 {
     private readonly List<ChartDataSeries> _series = [];
+    private Color[][]? _rawFg;
 
     /// <summary>
     /// Gets the collection of data series to display in the chart.
@@ -84,9 +86,13 @@ public class Chart : IWidget
     /// Gets or sets the height of the chart.
     /// </summary>
     public string Height { get; set; } = "15ch";
+    /// <summary>Gets or sets the minimum width constraint.</summary>
     public string MinWidth { get; set; } = "";
+    /// <summary>Gets or sets the maximum width constraint.</summary>
     public string MaxWidth { get; set; } = "";
+    /// <summary>Gets or sets the minimum height constraint.</summary>
     public string MinHeight { get; set; } = "";
+    /// <summary>Gets or sets the maximum height constraint.</summary>
     public string MaxHeight { get; set; } = "";
 
     /// <summary>
@@ -218,20 +224,30 @@ public class Chart : IWidget
 
     Rune[][] IWidget.GetRaw()
     {
-        int width = GetWidthInChars();
-        int height = GetHeightInChars();
+        // Use ComputedWidth/Height set by the Renderer (supports fill, %, etc.)
+        int computedW = ((IWidget)this).ComputedWidth;
+        int computedH = ((IWidget)this).ComputedHeight;
+        int width = computedW > 0 ? computedW : ParseSize(Width, 60);
+        int height = computedH > 0 ? computedH : ParseSize(Height, 15);
 
         if (width <= 0 || height <= 0 || _series.Count == 0)
         {
+            _rawFg = null;
             return CreateEmptyResult(width, height);
         }
 
-        // Calculate dimensions
+        // Initialize per-cell foreground color array
+        _rawFg = new Color[height][];
+        for (int i = 0; i < height; i++)
+        {
+            _rawFg[i] = new Color[width];
+        }
+
         // Layout: [Legend                  ]
         //         [Y-axis labels][Chart area]
-        //         [           ][X-axis line]
-        int legendHeight = ShowLegend && _series.Count > 0 ? 1 : 0; // 1 line for legend at top
-        int xAxisHeight = ShowAxes ? 2 : 0; // 1 for line, 1 for labels
+        //         [             ][X-axis line]
+        int legendHeight = ShowLegend && _series.Count > 0 ? 1 : 0;
+        int xAxisHeight = ShowAxes ? 2 : 0;
         int yAxisWidth = ShowAxes ? YAxisWidth : 0;
 
         int chartHeight = height - legendHeight - xAxisHeight;
@@ -239,6 +255,7 @@ public class Chart : IWidget
 
         if (chartHeight < 3 || chartWidth < 10)
         {
+            _rawFg = null;
             return CreateEmptyResult(width, height);
         }
 
@@ -250,7 +267,7 @@ public class Chart : IWidget
             Array.Fill(result[i], new Rune(' '));
         }
 
-        // Render legend at the TOP
+        // Render legend at the top
         if (ShowLegend && _series.Count > 0)
         {
             RenderLegend(result, 0, width);
@@ -265,16 +282,16 @@ public class Chart : IWidget
             maxY = minY + 1;
         }
 
-        // Render Y-axis (offset by legend height)
+        // Render Y-axis
         if (ShowAxes)
         {
             RenderYAxis(result, minY, maxY, chartHeight, yAxisWidth, legendHeight);
         }
 
-        // Render chart area (ONLY dots, no lines)
-        RenderChartData(result, minY, maxY, chartWidth, chartHeight, yAxisWidth, legendHeight);
+        // Render chart data using Braille
+        RenderBrailleData(result, minY, maxY, chartWidth, chartHeight, yAxisWidth, legendHeight);
 
-        // Render X-axis (offset by legend height)
+        // Render X-axis
         if (ShowAxes)
         {
             RenderXAxis(result, legendHeight + chartHeight, yAxisWidth, chartWidth);
@@ -283,8 +300,23 @@ public class Chart : IWidget
         return result;
     }
 
+    private static int ParseSize(string size, int fallback)
+    {
+        if (size.EndsWith("ch"))
+        {
+            var value = size[..^2].Trim();
+            if (int.TryParse(value, out int result))
+            {
+                return result;
+            }
+        }
+        return fallback;
+    }
+
     private Rune[][] CreateEmptyResult(int width, int height)
     {
+        width = Math.Max(width, 1);
+        height = Math.Max(height, 1);
         var result = new Rune[height][];
         for (int i = 0; i < height; i++)
         {
@@ -296,7 +328,7 @@ public class Chart : IWidget
 
     private double CalculateMinY()
     {
-        if (_series.Count == 0) return 0;
+        if (_series.Count == 0) { return 0; }
 
         double min = double.MaxValue;
         foreach (var series in _series)
@@ -304,7 +336,7 @@ public class Chart : IWidget
             if (series.Data.Count > 0)
             {
                 double seriesMin = series.Data.Min();
-                if (seriesMin < min) min = seriesMin;
+                if (seriesMin < min) { min = seriesMin; }
             }
         }
 
@@ -313,7 +345,7 @@ public class Chart : IWidget
 
     private double CalculateMaxY()
     {
-        if (_series.Count == 0) return 100;
+        if (_series.Count == 0) { return 100; }
 
         double max = double.MinValue;
         foreach (var series in _series)
@@ -321,7 +353,7 @@ public class Chart : IWidget
             if (series.Data.Count > 0)
             {
                 double seriesMax = series.Data.Max();
-                if (seriesMax > max) max = seriesMax;
+                if (seriesMax > max) { max = seriesMax; }
             }
         }
 
@@ -384,108 +416,144 @@ public class Chart : IWidget
         }
     }
 
-    private void RenderChartData(Rune[][] result, double minY, double maxY, int chartWidth, int chartHeight, int xOffset, int yOffset)
+    private void RenderBrailleData(Rune[][] result, double minY, double maxY, int chartWidth, int chartHeight, int xOffset, int yOffset)
     {
-        // Draw ONLY data points, no lines
-        // Use different symbols for different series
-        char[] symbols = ['●', '○', '■', '□', '▲', '△'];
+        // Braille pixel resolution: each cell is 2 wide × 4 tall
+        int pixelWidth = chartWidth * 2;
+        int pixelHeight = chartHeight * 4;
 
-        int seriesIndex = 0;
+        // Braille dot grid (one byte per cell, bits map to dots)
+        var brailleGrid = new byte[chartHeight][];
+        // Color per cell (last series to touch a cell wins)
+        var cellColors = new Color[chartHeight][];
+        for (int i = 0; i < chartHeight; i++)
+        {
+            brailleGrid[i] = new byte[chartWidth];
+            cellColors[i] = new Color[chartWidth];
+        }
+
+        // Render each series
         foreach (var series in _series)
         {
-            if (series.Data.Count == 0) continue;
+            if (series.Data.Count == 0) { continue; }
 
-            char symbol = symbols[seriesIndex % symbols.Length];
-            seriesIndex++;
-
+            // Map data points to Braille pixel coordinates
+            var points = new (int px, int py)[series.Data.Count];
             for (int i = 0; i < series.Data.Count; i++)
             {
-                double value = series.Data[i];
-                int x = (int)(i * (double)(chartWidth - 1) / Math.Max(1, series.Data.Count - 1));
-                int y = MapValueToY(value, minY, maxY, chartHeight);
-
-                int screenX = xOffset + x;
-                int screenY = yOffset + y;
-
-                if (screenX >= xOffset && screenX < xOffset + chartWidth &&
-                    screenY >= yOffset && screenY < yOffset + chartHeight)
+                int px;
+                if (series.Data.Count == 1)
                 {
-                    result[screenY][screenX] = new Rune(symbol);
+                    px = pixelWidth / 2;
+                }
+                else
+                {
+                    px = (int)((long)i * (pixelWidth - 1) / (series.Data.Count - 1));
+                }
+
+                double normalized = (series.Data[i] - minY) / (maxY - minY);
+                int py = (pixelHeight - 1) - (int)(normalized * (pixelHeight - 1));
+                py = Math.Clamp(py, 0, pixelHeight - 1);
+
+                points[i] = (px, py);
+            }
+
+            // Draw lines between consecutive points using Bresenham
+            for (int i = 0; i < points.Length - 1; i++)
+            {
+                DrawBrailleLine(brailleGrid, cellColors, series.Color, chartWidth, chartHeight,
+                    points[i].px, points[i].py, points[i + 1].px, points[i + 1].py);
+            }
+
+            // If only one point, just set it
+            if (points.Length == 1)
+            {
+                SetBraillePixel(brailleGrid, cellColors, series.Color, chartWidth, chartHeight, points[0].px, points[0].py);
+            }
+        }
+
+        // Convert Braille grid to Runes and set colors
+        for (int cy = 0; cy < chartHeight; cy++)
+        {
+            for (int cx = 0; cx < chartWidth; cx++)
+            {
+                if (brailleGrid[cy][cx] != 0)
+                {
+                    result[yOffset + cy][xOffset + cx] = new Rune((char)(0x2800 + brailleGrid[cy][cx]));
+                    if (_rawFg is not null)
+                    {
+                        _rawFg[yOffset + cy][xOffset + cx] = cellColors[cy][cx];
+                    }
                 }
             }
         }
     }
 
-    private int MapValueToY(double value, double minY, double maxY, int chartHeight)
+    private static void SetBraillePixel(byte[][] grid, Color[][] cellColors, Color color, int cellWidth, int cellHeight, int px, int py)
     {
-        double range = maxY - minY;
-        double normalized = (value - minY) / range;
+        int cx = px / 2;
+        int cy = py / 4;
 
-        // Invert Y (0 is top of screen)
-        int y = chartHeight - 1 - (int)(normalized * (chartHeight - 1));
+        if (cx < 0 || cx >= cellWidth || cy < 0 || cy >= cellHeight)
+        {
+            return;
+        }
 
-        return Math.Clamp(y, 0, chartHeight - 1);
+        int subX = px % 2;
+        int subY = py % 4;
+
+        // Map (subX, subY) to Braille dot bit
+        byte bit = (subX, subY) switch
+        {
+            (0, 0) => 0x01, // dot 1
+            (0, 1) => 0x02, // dot 2
+            (0, 2) => 0x04, // dot 3
+            (0, 3) => 0x40, // dot 7
+            (1, 0) => 0x08, // dot 4
+            (1, 1) => 0x10, // dot 5
+            (1, 2) => 0x20, // dot 6
+            (1, 3) => 0x80, // dot 8
+            _ => 0
+        };
+
+        grid[cy][cx] |= bit;
+        cellColors[cy][cx] = color;
     }
 
-    private void DrawLine(Rune[][] result, int x1, int y1, int x2, int y2, int xOffset, int chartWidth, int chartHeight)
+    private static void DrawBrailleLine(byte[][] grid, Color[][] cellColors, Color color, int cellWidth, int cellHeight, int x0, int y0, int x1, int y1)
     {
-        // Simple Bresenham's line algorithm
-        int dx = Math.Abs(x2 - x1);
-        int dy = Math.Abs(y2 - y1);
-        int sx = x1 < x2 ? 1 : -1;
-        int sy = y1 < y2 ? 1 : -1;
+        int dx = Math.Abs(x1 - x0);
+        int dy = Math.Abs(y1 - y0);
+        int sx = x0 < x1 ? 1 : -1;
+        int sy = y0 < y1 ? 1 : -1;
         int err = dx - dy;
-
-        int x = x1;
-        int y = y1;
 
         while (true)
         {
-            // Plot point
-            int screenX = xOffset + x;
-            int screenY = y;
+            SetBraillePixel(grid, cellColors, color, cellWidth, cellHeight, x0, y0);
 
-            if (screenX >= xOffset && screenX < xOffset + chartWidth &&
-                screenY >= 0 && screenY < chartHeight &&
-                result[screenY][screenX].Value != '●') // Don't overwrite data points
-            {
-                // Choose character based on direction
-                if (dx > dy * 2)
-                    result[screenY][screenX] = new Rune('─');
-                else if (dy > dx * 2)
-                    result[screenY][screenX] = new Rune('│');
-                else if ((sx > 0 && sy > 0) || (sx < 0 && sy < 0))
-                    result[screenY][screenX] = new Rune('\\');
-                else
-                    result[screenY][screenX] = new Rune('/');
-            }
-
-            if (x == x2 && y == y2) break;
+            if (x0 == x1 && y0 == y1) { break; }
 
             int e2 = 2 * err;
             if (e2 > -dy)
             {
                 err -= dy;
-                x += sx;
+                x0 += sx;
             }
             if (e2 < dx)
             {
                 err += dx;
-                y += sy;
+                y0 += sy;
             }
         }
     }
 
     private void RenderLegend(Rune[][] result, int y, int width)
     {
-        if (y >= result.Length) return;
+        if (y >= result.Length) { return; }
 
         int x = 0;
 
-        // Use same symbols as in RenderChartData
-        char[] symbols = ['●', '○', '■', '□', '▲', '△'];
-
-        // Write series labels with markers
         for (int i = 0; i < _series.Count; i++)
         {
             var series = _series[i];
@@ -493,14 +561,18 @@ public class Chart : IWidget
             // Add separator if not first
             if (i > 0)
             {
-                if (x < width) result[y][x++] = new Rune(' ');
-                if (x < width) result[y][x++] = new Rune(' ');
+                if (x < width) { result[y][x++] = new Rune(' '); }
+                if (x < width) { result[y][x++] = new Rune(' '); }
             }
 
-            // Add marker (matching symbol from chart)
-            char symbol = symbols[i % symbols.Length];
-            if (x < width) result[y][x++] = new Rune(symbol);
-            if (x < width) result[y][x++] = new Rune(' ');
+            // Add Braille marker (small filled block) in series color
+            if (x < width)
+            {
+                result[y][x] = new Rune('⣿');
+                if (_rawFg is not null) { _rawFg[y][x] = series.Color; }
+                x++;
+            }
+            if (x < width) { result[y][x++] = new Rune(' '); }
 
             // Add label
             for (int j = 0; j < series.Label.Length && x < width; j++, x++)
@@ -513,35 +585,33 @@ public class Chart : IWidget
     private string FormatNumber(double value)
     {
         if (Math.Abs(value) >= 1000000)
+        {
             return (value / 1000000.0).ToString("0.#") + "M";
+        }
         else if (Math.Abs(value) >= 1000)
+        {
             return (value / 1000.0).ToString("0.#") + "K";
+        }
         else if (Math.Abs(value) < 0.01 && value != 0)
+        {
             return value.ToString("0.##E+0");
+        }
         else
+        {
             return value.ToString("0.##");
+        }
     }
 
-    private int GetWidthInChars()
+    (Color[][] fg, Color[][] bg)? IWidget.GetRawColors()
     {
-        if (Width.EndsWith("ch"))
+        if (_rawFg is null) { return null; }
+        // Only fg overrides needed — bg stays default (no override)
+        var emptyBg = new Color[_rawFg.Length][];
+        for (int i = 0; i < _rawFg.Length; i++)
         {
-            var value = Width[..^2].Trim();
-            if (int.TryParse(value, out int result))
-                return result;
+            emptyBg[i] = new Color[_rawFg[i].Length];
         }
-        return 60;
-    }
-
-    private int GetHeightInChars()
-    {
-        if (Height.EndsWith("ch"))
-        {
-            var value = Height[..^2].Trim();
-            if (int.TryParse(value, out int result))
-                return result;
-        }
-        return 15;
+        return (_rawFg, emptyBg);
     }
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)

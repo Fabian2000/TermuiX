@@ -226,7 +226,7 @@ public class TreeView : IWidget
     Rune[][] IWidget.GetRaw()
     {
         int width = GetWidthInChars();
-        if (width < 3) width = 3;
+        if (width < 3) { width = 3; }
 
         var visible = GetVisibleNodes();
         int height = Math.Max(1, visible.Count);
@@ -269,7 +269,7 @@ public class TreeView : IWidget
             for (int d = 0; d < depth && x < width; d++)
             {
                 result[row][x] = new Rune(' ');
-                if (x + 1 < width) result[row][x + 1] = new Rune(' ');
+                if (x + 1 < width) { result[row][x + 1] = new Rune(' '); }
                 x += 2;
             }
 
@@ -277,9 +277,13 @@ public class TreeView : IWidget
             if (x < width)
             {
                 if (node.Children.Count > 0)
+                {
                     result[row][x] = node.IsExpanded ? new Rune('▾') : new Rune('▸');
+                }
                 else
+                {
                     result[row][x] = new Rune(' ');
+                }
                 x++;
             }
 
@@ -287,7 +291,7 @@ public class TreeView : IWidget
             foreach (Rune r in node.Text.EnumerateRunes())
             {
                 int rw = Text.GetRuneDisplayWidth(r);
-                if (x + rw > width) break;
+                if (x + rw > width) { break; }
                 result[row][x] = r;
                 x += rw;
             }
@@ -302,15 +306,17 @@ public class TreeView : IWidget
 
     (Color[][] fg, Color[][] bg)? IWidget.GetRawColors()
     {
-        if (_rawFg != null && _rawBg != null)
+        if (_rawFg is not null && _rawBg is not null)
+        {
             return (_rawFg, _rawBg);
+        }
         return null;
     }
 
     void IWidget.KeyPress(ConsoleKeyInfo keyInfo)
     {
         var visible = GetVisibleNodes();
-        if (visible.Count == 0) return;
+        if (visible.Count == 0) { return; }
 
         switch (keyInfo.Key)
         {
@@ -348,11 +354,11 @@ public class TreeView : IWidget
                         visible = GetVisibleNodes();
                         _selectedIndex = Math.Min(_selectedIndex, visible.Count - 1);
                     }
-                    else if (node.Parent != null && node.Parent != _root)
+                    else if (node.Parent is not null && node.Parent != _root)
                     {
                         // Move to parent
                         int parentIdx = visible.IndexOf(node.Parent);
-                        if (parentIdx >= 0) _selectedIndex = parentIdx;
+                        if (parentIdx >= 0) { _selectedIndex = parentIdx; }
                     }
                 }
                 break;
@@ -384,7 +390,7 @@ public class TreeView : IWidget
 
     void IWidget.MousePress(MouseEventArgs args)
     {
-        if (args.EventType != MouseEventType.LeftButtonPressed) return;
+        if (args.EventType != MouseEventType.LeftButtonPressed) { return; }
 
         var visible = GetVisibleNodes();
         int clickedIndex = args.LocalY;
@@ -414,15 +420,19 @@ public class TreeView : IWidget
         // so the selected row stays visible.
         IWidget? scrollParent = ((IWidget)this).Parent;
         while (scrollParent is not null && !scrollParent.ScrollY)
+        {
             scrollParent = scrollParent.Parent;
+        }
 
-        if (scrollParent is null) return;
+        if (scrollParent is null) { return; }
 
         // The selected row's position within the TreeView is simply _selectedIndex (1 row per node).
         // The TreeView's position within the scroll container is PositionY.
         int treePosY = 0;
         if (PositionY.EndsWith("ch") && int.TryParse(PositionY[..^2].Trim(), out int py))
+        {
             treePosY = py;
+        }
 
         int rowY = treePosY + _selectedIndex;
         long currentScroll = scrollParent.ScrollOffsetY;
@@ -431,14 +441,20 @@ public class TreeView : IWidget
         int containerHeight = scrollParent.ComputedHeight;
         // Subtract padding/border approximation (Container with border = 2 rows)
         if (scrollParent is Container c && c.HasBorder)
+        {
             containerHeight -= 2;
+        }
 
-        if (containerHeight <= 0) return;
+        if (containerHeight <= 0) { return; }
 
         if (rowY < currentScroll)
+        {
             scrollParent.ScrollOffsetY = rowY;
+        }
         else if (rowY >= currentScroll + containerHeight)
+        {
             scrollParent.ScrollOffsetY = rowY - containerHeight + 1;
+        }
     }
 
     private List<TreeNode> GetVisibleNodes()
@@ -455,7 +471,9 @@ public class TreeView : IWidget
         {
             result.Add(child);
             if (child.IsExpanded)
+            {
                 CollectVisibleNodes(child, result);
+            }
         }
     }
 
@@ -463,7 +481,7 @@ public class TreeView : IWidget
     {
         int depth = 0;
         var current = node.Parent;
-        while (current != null && current != _root)
+        while (current is not null && current != _root)
         {
             depth++;
             current = current.Parent;
@@ -474,11 +492,11 @@ public class TreeView : IWidget
     private int GetWidthInChars()
     {
         int computed = ((IWidget)this).ComputedWidth;
-        if (computed > 0) return computed;
+        if (computed > 0) { return computed; }
         if (Width.EndsWith("ch"))
         {
             var value = Width[..^2].Trim();
-            if (int.TryParse(value, out int result)) return result;
+            if (int.TryParse(value, out int result)) { return result; }
         }
         return 30;
     }
@@ -521,7 +539,9 @@ public class TreeView : IWidget
         if (deep)
         {
             foreach (var child in _root.Children)
+            {
                 clone._root.AddChild(child.Clone());
+            }
         }
 
         return clone;
@@ -603,7 +623,9 @@ public class TreeNode
     {
         var clone = new TreeNode(Text) { IsExpanded = IsExpanded, Tag = Tag };
         foreach (var child in _children)
+        {
             clone.AddChild(child.Clone());
+        }
         return clone;
     }
 }

@@ -16,7 +16,7 @@ internal class HitTestMap
     /// </summary>
     internal void Reset(int width, int height)
     {
-        if (_map == null || _width != width || _height != height)
+        if (_map is null || _width != width || _height != height)
         {
             _map = new List<IWidget>?[height][];
             for (int y = 0; y < height; y++)
@@ -46,7 +46,7 @@ internal class HitTestMap
     internal void Set(int x, int y, int width, int height, IWidget widget,
                       int clipX, int clipY, int clipWidth, int clipHeight)
     {
-        if (_map == null) return;
+        if (_map is null) { return; }
 
         _bounds[widget] = (x, y, width, height);
 
@@ -73,12 +73,16 @@ internal class HitTestMap
     /// </summary>
     internal IWidget? GetWidgetAt(int x, int y)
     {
-        if (_map == null || x < 0 || y < 0 || y >= _height || x >= _width)
+        if (_map is null || x < 0 || y < 0 || y >= _height || x >= _width)
+        {
             return null;
+        }
 
         var list = _map[y][x];
-        if (list == null || list.Count == 0)
+        if (list is null || list.Count == 0)
+        {
             return null;
+        }
 
         return list[^1];
     }
@@ -92,22 +96,28 @@ internal class HitTestMap
     /// </summary>
     internal IWidget? GetFocusableWidgetAt(int x, int y)
     {
-        if (_map == null || x < 0 || y < 0 || y >= _height || x >= _width)
+        if (_map is null || x < 0 || y < 0 || y >= _height || x >= _width)
+        {
             return null;
+        }
 
         var list = _map[y][x];
-        if (list == null || list.Count == 0)
+        if (list is null || list.Count == 0)
+        {
             return null;
+        }
 
         // Walk from innermost to outermost in the render stack.
         // First, try the Parent chain from the innermost widget.
         // If that fails, check each widget in the stack directly.
         var innermost = list[^1];
         IWidget? target = innermost;
-        while (target != null)
+        while (target is not null)
         {
             if (target.CanFocus && !target.Disabled)
+            {
                 return target;
+            }
             target = target.Parent;
         }
 
@@ -118,7 +128,9 @@ internal class HitTestMap
         for (int i = list.Count - 2; i >= 0; i--)
         {
             if (list[i].CanFocus && !list[i].Disabled)
+            {
                 return list[i];
+            }
         }
 
         return null;
@@ -130,10 +142,12 @@ internal class HitTestMap
     internal IWidget? GetScrollableWidgetAt(int x, int y)
     {
         var widget = GetWidgetAt(x, y);
-        while (widget != null)
+        while (widget is not null)
         {
             if (widget.ScrollX || widget.ScrollY)
+            {
                 return widget;
+            }
             widget = widget.Parent;
         }
         return null;

@@ -17,7 +17,7 @@ internal static partial class MouseInput
     /// </summary>
     internal static void Enable()
     {
-        if (_enabled) return;
+        if (_enabled) { return; }
 
         if (OperatingSystem.IsWindows())
         {
@@ -36,7 +36,7 @@ internal static partial class MouseInput
     /// </summary>
     internal static void Disable()
     {
-        if (!_enabled) return;
+        if (!_enabled) { return; }
 
         if (OperatingSystem.IsWindows())
         {
@@ -61,7 +61,7 @@ internal static partial class MouseInput
         mouseEvent = default;
         keyEvent = default;
 
-        if (!_enabled) return 0;
+        if (!_enabled) { return 0; }
 
         if (OperatingSystem.IsWindows())
         {
@@ -108,33 +108,48 @@ internal static partial class MouseInput
         keyEvent = default;
 
         if (!GetNumberOfConsoleInputEvents(_windowsConsoleHandle, out uint numEvents) || numEvents == 0)
+        {
             return 0;
+        }
 
         INPUT_RECORD record;
         unsafe
         {
             if (!ReadConsoleInput(_windowsConsoleHandle, &record, 1, out uint eventsRead) || eventsRead == 0)
+            {
                 return 0;
+            }
         }
 
         if (record.EventType == MOUSE_EVENT)
         {
             ref var mouse = ref record.MouseEvent;
             MouseEventType? eventType = null;
-            bool isShift = (mouse.ControlKeyState & SHIFT_PRESSED) != 0;
+            bool isCtrl = (mouse.ControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0;
+            bool isShift = isCtrl || (mouse.ControlKeyState & SHIFT_PRESSED) != 0;
 
             if (mouse.EventFlags == 0) // Button pressed or released
             {
                 if ((mouse.ButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) != 0)
+                {
                     eventType = MouseEventType.LeftButtonPressed;
+                }
                 else if ((mouse.ButtonState & RIGHTMOST_BUTTON_PRESSED) != 0)
+                {
                     eventType = MouseEventType.RightButtonPressed;
+                }
                 else
+                {
                     eventType = MouseEventType.LeftButtonReleased;
+                }
+            }
+            else if (mouse.EventFlags == MOUSE_MOVED)
+            {
+                eventType = MouseEventType.Moved;
             }
             else if (mouse.EventFlags == MOUSE_WHEELED)
             {
-                int wheelDelta = (int)(mouse.ButtonState >> 16);
+                short wheelDelta = (short)(mouse.ButtonState >> 16);
                 eventType = wheelDelta > 0 ? MouseEventType.WheelUp : MouseEventType.WheelDown;
             }
 
@@ -152,16 +167,22 @@ internal static partial class MouseInput
             return 0;
         }
 
-        if (record.EventType == KEY_EVENT && record.KeyEvent.KeyDown)
+        if (record.EventType == KEY_EVENT && record.KeyEvent.KeyDown != 0)
         {
             ref var key = ref record.KeyEvent;
             var modifiers = (ConsoleModifiers)0;
             if ((key.ControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0)
+            {
                 modifiers |= ConsoleModifiers.Control;
+            }
             if ((key.ControlKeyState & SHIFT_PRESSED) != 0)
+            {
                 modifiers |= ConsoleModifiers.Shift;
+            }
             if ((key.ControlKeyState & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0)
+            {
                 modifiers |= ConsoleModifiers.Alt;
+            }
 
             keyEvent = new ConsoleKeyInfo(
                 key.UnicodeChar,
@@ -186,6 +207,7 @@ internal static partial class MouseInput
     private const ushort KEY_EVENT = 0x0001;
     private const uint FROM_LEFT_1ST_BUTTON_PRESSED = 0x0001;
     private const uint RIGHTMOST_BUTTON_PRESSED = 0x0002;
+    private const uint MOUSE_MOVED = 0x0001;
     private const uint MOUSE_WHEELED = 0x0004;
     private const uint LEFT_CTRL_PRESSED = 0x0008;
     private const uint RIGHT_CTRL_PRESSED = 0x0004;
@@ -214,8 +236,7 @@ internal static partial class MouseInput
     [StructLayout(LayoutKind.Sequential)]
     private struct KEY_EVENT_RECORD
     {
-        [MarshalAs(UnmanagedType.Bool)]
-        public bool KeyDown;
+        public uint KeyDown;
         public ushort RepeatCount;
         public ushort VirtualKeyCode;
         public ushort VirtualScanCode;
@@ -275,7 +296,9 @@ internal static partial class MouseInput
         {
             int existing = UnixBufCount;
             if (existing > 0)
+            {
                 Buffer.BlockCopy(_unixBuf, _unixBufStart, _unixBuf, 0, existing);
+            }
             _unixBufStart = 0;
             _unixBufEnd = existing;
 
@@ -424,11 +447,11 @@ internal static partial class MouseInput
     private static bool TryParseIntFromBuf(int from, int to, out int result)
     {
         result = 0;
-        if (from >= to) return false;
+        if (from >= to) { return false; }
         for (int i = from; i < to; i++)
         {
             byte b = _unixBuf[_unixBufStart + i];
-            if (b < (byte)'0' || b > (byte)'9') return false;
+            if (b < (byte)'0' || b > (byte)'9') { return false; }
             result = result * 10 + (b - '0');
         }
         return true;
@@ -476,7 +499,9 @@ internal static partial class MouseInput
 
         int count = UnixBufCount;
         if (count == 0)
+        {
             return 0;
+        }
 
         // Check for SGR mouse sequence: ESC [ < Cb ; Cx ; Cy M/m
         if (count >= 3 &&
@@ -500,7 +525,9 @@ internal static partial class MouseInput
             {
                 // Incomplete sequence - if buffer is getting too large, discard it
                 if (count > 32)
+                {
                     UnixBufClear();
+                }
                 return 0;
             }
 
@@ -517,7 +544,7 @@ internal static partial class MouseInput
             {
                 if (BufAt(i) == (byte)';')
                 {
-                    if (semi1 == -1) semi1 = i;
+                    if (semi1 == -1) { semi1 = i; }
                     else { semi2 = i; break; }
                 }
             }
@@ -643,11 +670,17 @@ internal static partial class MouseInput
                         {
                             int digit = b - (byte)'0';
                             if (paramIndex == 0)
+                            {
                                 paramBuf = paramBuf * 10 + digit;
+                            }
                             else if (paramIndex == 1)
+                            {
                                 modifier = modifier * 10 + digit;
+                            }
                             else
+                            {
                                 param3 = param3 * 10 + digit;
+                            }
                         }
                         else
                         {
@@ -767,7 +800,9 @@ internal static partial class MouseInput
                 while (UnixBufCount > 0 && BufAt(0) < (byte)'@')
                     UnixBufConsume(1);
                 if (UnixBufCount > 0)
+                {
                     UnixBufConsume(1); // Remove the final letter
+                }
 
                 return 0;
             }
@@ -829,7 +864,9 @@ internal static partial class MouseInput
         if (seqLen > 1)
         {
             if (UnixBufCount < seqLen)
+            {
                 return 0; // Incomplete UTF-8 sequence, wait for more bytes
+            }
 
             // Decode UTF-8 to a Unicode codepoint
             int codepoint = seqLen switch

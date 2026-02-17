@@ -206,7 +206,7 @@ public class Checkbox : IWidget
         var result = new Rune[1][];
         result[0] = new Rune[2];
 
-        result[0][0] = _checked ? new Rune('☒') : new Rune('☐');
+        result[0][0] = _checked ? new Rune('☑') : new Rune('☐');
         result[0][1] = new Rune(' ');
 
         return result;

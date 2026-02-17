@@ -92,7 +92,7 @@ void ScrollToBottom()
     }
 }
 
-if (messageContainer != null && sendBtn != null && topBtn != null && bottomBtn != null && exitBtn != null)
+if (messageContainer is not null && sendBtn is not null && topBtn is not null && bottomBtn is not null && exitBtn is not null)
 {
     sendBtn.Click += (s, e) =>
     {
@@ -127,7 +127,7 @@ if (messageContainer != null && sendBtn != null && topBtn != null && bottomBtn !
 
     topBtn.Click += (s, e) =>
     {
-        if (messageContainer != null)
+        if (messageContainer is not null)
         {
             ((IWidget)messageContainer).ScrollOffsetY = 0;
         }

@@ -56,7 +56,7 @@ public sealed class TermuiX
             _mouseEnabled = value;
             if (!value)
             {
-                if (_hoveredWidget != null)
+                if (_hoveredWidget is not null)
                 {
                     _hoveredWidget.Hovered = false;
                     _hoveredWidget = null;
@@ -120,7 +120,7 @@ public sealed class TermuiX
         Thread.Sleep(50);
 
         // Remove Ctrl+C handler if it was set
-        if (_cancelHandler != null)
+        if (_cancelHandler is not null)
         {
             Console.CancelKeyPress -= _cancelHandler;
             _cancelHandler = null;
@@ -303,7 +303,7 @@ public sealed class TermuiX
 
     private static void FindWidgetsByGroup<T>(IWidget widget, string group, List<T> results) where T : class, IWidget
     {
-        if (widget.Group != null && widget is T typedWidget)
+        if (widget.Group is not null && widget is T typedWidget)
         {
             var groups = widget.Group.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             foreach (var g in groups)
@@ -461,9 +461,13 @@ public sealed class TermuiX
 
             long currentScrollY = scrollTargetY.ScrollOffsetY;
             if (widgetPosY < currentScrollY)
+            {
                 scrollTargetY.ScrollOffsetY = widgetPosY;
+            }
             else if (widgetPosY + widgetHeight > currentScrollY + contentHeight)
+            {
                 scrollTargetY.ScrollOffsetY = widgetPosY + widgetHeight - contentHeight;
+            }
         }
 
         // Find nearest X-scrollable ancestor
@@ -479,9 +483,13 @@ public sealed class TermuiX
 
             long currentScrollX = scrollTargetX.ScrollOffsetX;
             if (widgetPosX < currentScrollX)
+            {
                 scrollTargetX.ScrollOffsetX = widgetPosX;
+            }
             else if (widgetPosX + widgetWidth > currentScrollX + contentWidth)
+            {
                 scrollTargetX.ScrollOffsetX = widgetPosX + widgetWidth - contentWidth;
+            }
         }
     }
 
@@ -739,13 +747,17 @@ public sealed class TermuiX
                 int result = MouseInput.TryRead(out var mouseEvent, out var keyEvent);
 
                 if (result == 0)
+                {
                     break;
+                }
 
                 if (result == 1)
                 {
                     // Mouse disabled → drain event, don't process
                     if (!_mouseEnabled)
+                    {
                         continue;
+                    }
 
                     if (mouseEvent.EventType == MouseEventType.Moved)
                     {
@@ -838,19 +850,25 @@ public sealed class TermuiX
         if (e.EventType == MouseEventType.WheelUp || e.EventType == MouseEventType.WheelDown)
         {
             var scrollable = _hitTestMap.GetScrollableWidgetAt(e.X, e.Y);
-            if (scrollable != null)
+            if (scrollable is not null)
             {
                 bool horizontal = e.Shift;
 
                 // Auto-detect: if widget only has horizontal scrollbar (no vertical),
                 // route regular wheel to horizontal scroll
                 if (!horizontal && scrollable.HasHorizontalScrollbar && !scrollable.HasVerticalScrollbar)
+                {
                     horizontal = true;
+                }
 
                 if (horizontal)
+                {
                     HandleScrollHorizontalOnWidget(scrollable, e.EventType == MouseEventType.WheelUp);
+                }
                 else
+                {
                     HandleScrollOnWidget(scrollable, e.EventType == MouseEventType.WheelUp);
+                }
             }
             return;
         }
@@ -860,7 +878,7 @@ public sealed class TermuiX
             _focusVisible = false;
 
             // Drag: forward move events to the widget that received the initial press
-            if (_dragTarget != null)
+            if (_dragTarget is not null)
             {
                 var bounds = _hitTestMap.GetBounds(_dragTarget);
                 int bx = bounds?.X ?? 0;
@@ -877,12 +895,12 @@ public sealed class TermuiX
             var target = _hitTestMap.GetFocusableWidgetAt(e.X, e.Y);
             if (target != _hoveredWidget)
             {
-                if (_hoveredWidget != null)
+                if (_hoveredWidget is not null)
                 {
                     _hoveredWidget.Hovered = false;
                 }
                 _hoveredWidget = target;
-                if (_hoveredWidget != null)
+                if (_hoveredWidget is not null)
                 {
                     _hoveredWidget.Hovered = true;
                 }
@@ -898,7 +916,7 @@ public sealed class TermuiX
         if (e.EventType == MouseEventType.LeftButtonPressed || e.EventType == MouseEventType.RightButtonPressed)
         {
             var target = _hitTestMap.GetFocusableWidgetAt(e.X, e.Y);
-            if (target != null)
+            if (target is not null)
             {
                 SetFocus(target, FocusChangeReason.Click);
                 _dragTarget = target;
@@ -918,7 +936,10 @@ public sealed class TermuiX
 
     private void HandleScrollOnWidget(IWidget scrollTarget, bool up)
     {
-        if (scrollTarget.Children.Count == 0) return;
+        if (scrollTarget.Children.Count == 0)
+        {
+            return;
+        }
 
         int contentHeight = CalculateContentHeight(scrollTarget);
 
@@ -951,7 +972,10 @@ public sealed class TermuiX
 
     private void HandleScrollHorizontalOnWidget(IWidget scrollTarget, bool left)
     {
-        if (scrollTarget.Children.Count == 0) return;
+        if (scrollTarget.Children.Count == 0)
+        {
+            return;
+        }
 
         int contentWidth = CalculateContentWidth(scrollTarget);
 
@@ -1106,7 +1130,9 @@ public sealed class TermuiX
         if (skipUnchanged)
         {
             if (_prevFrameBuf.Length < pos)
+            {
                 _prevFrameBuf = new char[pos];
+            }
             _renderBuf.AsSpan(0, pos).CopyTo(_prevFrameBuf);
             _prevFrameLen = pos;
         }

@@ -153,9 +153,13 @@ public class Button : IWidget
         get => _container.Height;
         set => _container.Height = value;
     }
+    /// <summary>Gets or sets the minimum width constraint.</summary>
     public string MinWidth { get; set; } = "";
+    /// <summary>Gets or sets the maximum width constraint.</summary>
     public string MaxWidth { get; set; } = "";
+    /// <summary>Gets or sets the minimum height constraint.</summary>
     public string MinHeight { get; set; } = "";
+    /// <summary>Gets or sets the maximum height constraint.</summary>
     public string MaxHeight { get; set; } = "";
 
     /// <summary>

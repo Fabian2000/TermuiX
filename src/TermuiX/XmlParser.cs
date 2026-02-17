@@ -53,14 +53,14 @@ internal static class XmlParser
         bool matches = false;
 
         // Match by Name (like CSS #id)
-        if (name != null && widget.Name != null &&
+        if (name is not null && widget.Name is not null &&
             widget.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
         {
             matches = true;
         }
 
         // Match by Group (like CSS .class) — widget can have multiple space-separated groups
-        if (group != null && widget.Group != null)
+        if (group is not null && widget.Group is not null)
         {
             var widgetGroups = widget.Group.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             foreach (var wg in widgetGroups)
@@ -238,7 +238,7 @@ internal static class XmlParser
             {
                 if (childElement.Name.LocalName.Equals("Style", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (styles != null)
+                    if (styles is not null)
                     {
                         var styleAttrs = childElement.Attributes()
                             .ToDictionary(a => a.Name.LocalName, a => a.Value, StringComparer.OrdinalIgnoreCase);
@@ -491,6 +491,10 @@ internal static class XmlParser
         {
             SetTableProperty(table, propLower, value);
         }
+        else if (widget is TreeView treeViewWidget)
+        {
+            SetTreeViewProperty(treeViewWidget, propLower, value);
+        }
     }
 
     private static void SetStackPanelProperty(StackPanel stackPanel, string propertyName, string value)
@@ -625,12 +629,14 @@ internal static class XmlParser
             case "placeholder":
                 input.Placeholder = value;
                 break;
+#pragma warning disable CS0618
             case "bordercolor":
                 input.BorderColor = Color.Parse(value);
                 break;
             case "focusbordercolor":
                 input.FocusBorderColor = Color.Parse(value);
                 break;
+#pragma warning restore CS0618
             case "placeholdercolor":
                 input.PlaceholderColor = Color.Parse(value);
                 break;
@@ -749,6 +755,19 @@ internal static class XmlParser
     private static void SetTableProperty(Table table, string propertyName, string value)
     {
         // Table has no additional properties beyond IWidget
+    }
+
+    private static void SetTreeViewProperty(TreeView treeView, string propertyName, string value)
+    {
+        switch (propertyName)
+        {
+            case "highlightbackgroundcolor":
+                treeView.HighlightBackgroundColor = Color.Parse(value);
+                break;
+            case "highlightforegroundcolor":
+                treeView.HighlightForegroundColor = Color.Parse(value);
+                break;
+        }
     }
 
 }

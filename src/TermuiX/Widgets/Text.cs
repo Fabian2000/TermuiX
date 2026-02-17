@@ -283,7 +283,7 @@ public class Text : IWidget
                 foreach (Rune rune in sourceLine.EnumerateRunes())
                 {
                     int rw = GetRuneDisplayWidth(rune);
-                    if (lineWidth + rw > actualWidth) break;
+                    if (lineWidth + rw > actualWidth) { break; }
                     lineRunes.Add(rune);
                     lineWidth += rw;
                 }
@@ -330,7 +330,7 @@ public class Text : IWidget
                 foreach (var sr in styledLine)
                 {
                     int rw = GetRuneDisplayWidth(sr.Rune);
-                    if (lineWidth + rw > actualWidth) break;
+                    if (lineWidth + rw > actualWidth) { break; }
                     lineOut.Add(sr);
                     lineWidth += rw;
                 }
@@ -371,7 +371,9 @@ public class Text : IWidget
             var line = wrappedLines[i];
             int totalWidth = 0;
             foreach (var sr in line)
+            {
                 totalWidth += GetRuneDisplayWidth(sr.Rune);
+            }
 
             int offset = TextAlign switch
             {
@@ -404,7 +406,9 @@ public class Text : IWidget
                     result[i][currentX + k] = new Rune(' ');
                     _rawStyles[i][currentX + k] = sr.Style;
                     if (sr.Bg.HasValue)
+                    {
                         bgBuf[i][currentX + k] = sr.Bg.Value;
+                    }
                 }
                 currentX += runeWidth;
             }
@@ -450,7 +454,9 @@ public class Text : IWidget
             if (currentWidth + wordWidth > actualWidth && currentLine.Count > 0)
             {
                 while (currentLine.Count > 0 && currentLine[^1].Value == ' ')
+                {
                     currentLine.RemoveAt(currentLine.Count - 1);
+                }
                 wrappedLines.Add(currentLine);
                 currentLine = new List<Rune>();
                 currentWidth = 0;
@@ -466,10 +472,14 @@ public class Text : IWidget
         }
 
         if (currentLine.Count > 0)
+        {
             wrappedLines.Add(currentLine);
+        }
 
         if (wrappedLines.Count == 0 || sourceLine.Length == 0)
+        {
             wrappedLines.Add(new List<Rune>());
+        }
     }
 
     private static void WrapStyledLine(List<StyledRune> styledLine, int actualWidth, List<List<StyledRune>> wrappedLines)
@@ -515,7 +525,9 @@ public class Text : IWidget
                 {
                     // Trim trailing spaces
                     while (currentLine.Count > 0 && currentLine[^1].Rune.Value == ' ')
+                    {
                         currentLine.RemoveAt(currentLine.Count - 1);
+                    }
                     wrappedLines.Add(currentLine);
                     currentLine = new List<StyledRune>();
                     currentWidth = 0;
@@ -540,10 +552,14 @@ public class Text : IWidget
         }
 
         if (currentLine.Count > 0)
+        {
             wrappedLines.Add(currentLine);
+        }
 
         if (styledLine.Count == 0)
+        {
             wrappedLines.Add(new List<StyledRune>());
+        }
     }
 
     private Rune[][] FinalizeLines(List<List<Rune>> wrappedLines, int actualWidth, ref int actualHeight)
@@ -566,7 +582,9 @@ public class Text : IWidget
             var displayRunes = wrappedLines[i];
             int totalDisplayWidth = 0;
             foreach (var r in displayRunes)
+            {
                 totalDisplayWidth += GetRuneDisplayWidth(r);
+            }
 
             int offset = TextAlign switch
             {
@@ -582,7 +600,9 @@ public class Text : IWidget
                 result[i][currentX] = rune;
                 int runeWidth = GetRuneDisplayWidth(rune);
                 for (int k = 1; k < runeWidth && currentX + k < actualWidth; k++)
+                {
                     result[i][currentX + k] = new Rune(' ');
+                }
                 currentX += runeWidth;
             }
         }
@@ -611,7 +631,9 @@ public class Text : IWidget
         }
 
         if (start < text.Length)
+        {
             words.Add(text[start..]);
+        }
 
         return words;
     }
@@ -627,8 +649,10 @@ public class Text : IWidget
 
         if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
         {
-            if (parent == null)
+            if (parent is null)
+            {
                 return isWidth ? Console.WindowWidth : Console.WindowHeight;
+            }
             return isWidth ?
                 (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
                 (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
@@ -647,7 +671,7 @@ public class Text : IWidget
         {
             int parentSizeValue;
 
-            if (parent == null)
+            if (parent is null)
             {
                 // No parent - use console dimensions
                 parentSizeValue = isWidth ? Console.WindowWidth : Console.WindowHeight;
@@ -718,13 +742,20 @@ public class Text : IWidget
         return 0;
     }
 
+    /// <summary>
+    /// Returns the display width of a rune in terminal columns (0, 1, or 2).
+    /// </summary>
+    /// <param name="rune">The rune to measure.</param>
+    /// <returns>The number of terminal columns the rune occupies.</returns>
     public static int GetRuneDisplayWidth(Rune rune)
     {
         int value = rune.Value;
 
         // Control characters
         if (value == 0 || Rune.IsControl(rune))
+        {
             return 0;
+        }
 
         // Explicit zero-width characters
         if (value == 0x200B ||                          // Zero-Width Space
@@ -913,7 +944,9 @@ public class Text : IWidget
                 var content = trimmed[4..];
                 var styledLine = new List<StyledRune>();
                 foreach (Rune r in content.EnumerateRunes())
+                {
                     styledLine.Add(new StyledRune(r, TextStyle.Bold, null, null));
+                }
                 result.Add(styledLine);
             }
             else if (trimmed.StartsWith("## "))
@@ -922,7 +955,9 @@ public class Text : IWidget
                 var content = trimmed[3..];
                 var styledLine = new List<StyledRune>();
                 foreach (Rune r in content.EnumerateRunes())
+                {
                     styledLine.Add(new StyledRune(r, TextStyle.Bold, null, null));
+                }
                 result.Add(styledLine);
             }
             else if (trimmed.StartsWith("# "))
@@ -931,7 +966,9 @@ public class Text : IWidget
                 var content = trimmed[2..];
                 var styledLine = new List<StyledRune>();
                 foreach (Rune r in content.EnumerateRunes())
+                {
                     styledLine.Add(new StyledRune(r, TextStyle.Bold, null, null));
+                }
                 result.Add(styledLine);
             }
             else
@@ -972,7 +1009,7 @@ public class Text : IWidget
             else if (char.IsDigit(trimmed[0]))
             {
                 int d = 0;
-                while (d < trimmed.Length && char.IsDigit(trimmed[d])) d++;
+                while (d < trimmed.Length && char.IsDigit(trimmed[d])) { d++; }
                 if (d < trimmed.Length - 1 && trimmed[d] == '.' && trimmed[d + 1] == ' ')
                 {
                     isBulletLine = true;
@@ -989,14 +1026,18 @@ public class Text : IWidget
             {
                 // Add leading whitespace
                 for (int w = 0; w < contentStart; w++)
+                {
                     result.Add(new StyledRune(new Rune(line[w]), TextStyle.Normal, null, null));
+                }
                 result.Add(new StyledRune(new Rune('•'), TextStyle.Normal, null, null));
                 result.Add(new StyledRune(new Rune(' '), TextStyle.Normal, null, null));
             }
             else
             {
                 for (int w = 0; w < bulletEnd; w++)
+                {
                     result.Add(new StyledRune(new Rune(line[w]), TextStyle.Normal, null, null));
+                }
             }
             i = bulletEnd;
         }
@@ -1089,10 +1130,10 @@ public class Text : IWidget
 
     private static TextStyle GetCombinedStyle(bool bold, bool italic, bool strike)
     {
-        if (bold && italic) return TextStyle.BoldItalic;
-        if (bold) return TextStyle.Bold;
-        if (italic) return TextStyle.Italic;
-        if (strike) return TextStyle.Strikethrough;
+        if (bold && italic) { return TextStyle.BoldItalic; }
+        if (bold) { return TextStyle.Bold; }
+        if (italic) { return TextStyle.Italic; }
+        if (strike) { return TextStyle.Strikethrough; }
         return TextStyle.Normal;
     }
 
@@ -1177,9 +1218,13 @@ public class Text : IWidget
                 int start = i;
                 i++;
                 while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_' || line[i] == '.'))
+                {
                     i++;
+                }
                 for (int j = start; j < i; j++)
+                {
                     result.Add(new StyledRune(new Rune(line[j]), TextStyle.Italic, SyntaxAttribute, codeBg));
+                }
                 continue;
             }
 
@@ -1236,7 +1281,9 @@ public class Text : IWidget
             {
                 int start = i;
                 while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_'))
+                {
                     i++;
+                }
                 string word = line[start..i];
 
                 // Determine token type
@@ -1267,7 +1314,9 @@ public class Text : IWidget
                 }
 
                 foreach (char ch in word)
+                {
                     result.Add(new StyledRune(new Rune(ch), ws, fg, codeBg));
+                }
                 continue;
             }
 
