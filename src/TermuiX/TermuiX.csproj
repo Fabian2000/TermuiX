@@ -19,7 +19,7 @@
     <RepositoryUrl>https://github.com/Fabian2000/Termui</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>icon.png</PackageIcon>
+    <PackageIcon>Icon.png</PackageIcon>
     <Copyright>Copyright (c) 2025 Fabian Schlüter</Copyright>
 
     <!-- Generate Documentation -->
@@ -46,7 +46,7 @@
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-    <None Include="..\..\Preview.png" Pack="true" PackagePath="\icon.png" />
+    <None Include="..\..\Icon.png" Pack="true" PackagePath="\Icon.png" />
   </ItemGroup>
 
   <ItemGroup>

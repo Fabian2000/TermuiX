@@ -272,8 +272,10 @@ public class Line : IWidget
 
         if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
         {
-            if (parent == null)
+            if (parent is null)
+            {
                 return isWidth ? Console.WindowWidth : Console.WindowHeight;
+            }
             return isWidth ?
                 (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
                 (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
@@ -292,7 +294,7 @@ public class Line : IWidget
         {
             int parentSizeValue;
 
-            if (parent == null)
+            if (parent is null)
             {
                 // No parent - use console dimensions
                 parentSizeValue = isWidth ? Console.WindowWidth : Console.WindowHeight;

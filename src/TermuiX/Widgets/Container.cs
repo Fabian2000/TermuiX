@@ -206,7 +206,7 @@ public class Container : IWidget
         var wrappedXml = $"<Container>{xml}</Container>";
         var tempContainer = XmlParser.Parse(wrappedXml) as Container;
 
-        if (tempContainer != null)
+        if (tempContainer is not null)
         {
             foreach (var child in ((IWidget)tempContainer).Children)
             {
@@ -237,7 +237,7 @@ public class Container : IWidget
         var wrappedXml = $"<Container>{xml}</Container>";
         var tempContainer = XmlParser.Parse(wrappedXml) as Container;
 
-        if (tempContainer != null)
+        if (tempContainer is not null)
         {
             int i = index;
             foreach (var child in ((IWidget)tempContainer).Children)
@@ -343,8 +343,10 @@ public class Container : IWidget
         // "fill" in GetRaw context: behave like 100% (StackPanel layout will override via ComputedWidth/Height)
         if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
         {
-            if (parent == null)
+            if (parent is null)
+            {
                 return isWidth ? Console.WindowWidth : Console.WindowHeight;
+            }
 
             int parentSizeValue = isWidth ?
                 (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
@@ -365,7 +367,7 @@ public class Container : IWidget
         {
             int parentSizeValue;
 
-            if (parent == null)
+            if (parent is null)
             {
                 // No parent - use console dimensions
                 parentSizeValue = isWidth ? Console.WindowWidth : Console.WindowHeight;

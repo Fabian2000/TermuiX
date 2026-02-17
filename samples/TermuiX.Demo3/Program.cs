@@ -66,7 +66,7 @@ int currentPosition = -50;
 // Animation speed (characters per frame)
 const int animationSpeed = 3;
 
-if (burgerBtn != null && sidebar != null && closeBtn != null)
+if (burgerBtn is not null && sidebar is not null && closeBtn is not null)
 {
     burgerBtn.Click += (s, e) =>
     {
@@ -94,7 +94,7 @@ try
     while (running)
     {
         // Animation logic
-        if (animating && sidebar != null)
+        if (animating && sidebar is not null)
         {
             if (currentPosition < targetPosition)
             {

@@ -204,13 +204,15 @@ public class Input : IWidget
     }
 
     /// <summary>
-    /// Gets or sets the border color.
+    /// Gets or sets the border color. Not rendered; wrap Input in a bordered Container instead.
     /// </summary>
+    [Obsolete("Input does not render borders. Wrap in a bordered Container instead.")]
     public Color BorderColor { get; set; } = ConsoleColor.DarkGray;
 
     /// <summary>
-    /// Gets or sets the border color when focused.
+    /// Gets or sets the border color when focused. Not rendered; wrap Input in a bordered Container instead.
     /// </summary>
+    [Obsolete("Input does not render borders. Wrap in a bordered Container instead.")]
     public Color FocusBorderColor { get; set; } = ConsoleColor.White;
 
     /// <summary>
@@ -312,7 +314,7 @@ public class Input : IWidget
         ((IWidget)this).ComputedWidth = width;
         ((IWidget)this).ComputedHeight = height;
 
-        if (width <= 0 || height <= 0) return [];
+        if (width <= 0 || height <= 0) { return []; }
 
         // Temporarily override colors if disabled
         Color originalBg = _backgroundColor;
@@ -405,17 +407,25 @@ public class Input : IWidget
             {
                 // Editor-style: Enter = newline, Ctrl+Enter = submit
                 if (hasCtrl)
+                {
                     OnSubmit();
+                }
                 else
+                {
                     InsertChar('\n');
+                }
             }
             else
             {
                 // Chat-style (default): Enter = submit, Ctrl+Enter = newline
                 if (hasCtrl)
+                {
                     InsertChar('\n');
+                }
                 else
+                {
                     OnSubmit();
+                }
             }
         }
         else if (keyInfo.Key == ConsoleKey.Backspace)
@@ -507,7 +517,9 @@ public class Input : IWidget
     {
         // Don't allow newlines in single-line mode
         if (!Multiline && (c == '\n' || c == '\r'))
+        {
             return;
+        }
 
         // Insert character as string (handles surrogate pairs correctly)
         InsertText(c.ToString());
@@ -526,7 +538,7 @@ public class Input : IWidget
 
     private void MoveCursorVertical(int direction)
     {
-        if (string.IsNullOrEmpty(_text)) return;
+        if (string.IsNullOrEmpty(_text)) { return; }
 
         var lines = _text.Split('\n');
 
@@ -550,7 +562,9 @@ public class Input : IWidget
         // Calculate target line
         int targetLine = currentLine + direction;
         if (targetLine < 0 || targetLine >= lines.Length)
+        {
             return; // Out of bounds
+        }
 
         // Calculate new cursor position
         int newPosition = 0;
@@ -594,8 +608,10 @@ public class Input : IWidget
 
         if (size.Equals("fill", StringComparison.OrdinalIgnoreCase))
         {
-            if (parent == null)
+            if (parent is null)
+            {
                 return isWidth ? Console.WindowWidth : Console.WindowHeight;
+            }
             return isWidth ?
                 (parent.ComputedWidth > 0 ? parent.ComputedWidth : Console.WindowWidth) :
                 (parent.ComputedHeight > 0 ? parent.ComputedHeight : Console.WindowHeight);
@@ -614,7 +630,7 @@ public class Input : IWidget
         {
             int parentSizeValue;
 
-            if (parent == null)
+            if (parent is null)
             {
                 // No parent - use console dimensions
                 parentSizeValue = isWidth ? Console.WindowWidth : Console.WindowHeight;
@@ -885,7 +901,7 @@ public class Input : IWidget
         for (int displayLineIdx = 0; displayLineIdx < height; displayLineIdx++)
         {
             int sourceLineIdx = _scrollOffsetY + displayLineIdx;
-            if (sourceLineIdx >= wrappedLines.Count) break;
+            if (sourceLineIdx >= wrappedLines.Count) { break; }
 
             var lineRunes = wrappedLines[sourceLineIdx];
 
@@ -982,8 +998,10 @@ public class Input : IWidget
             ForegroundColor = ForegroundColor,
             FocusBackgroundColor = FocusBackgroundColor,
             FocusForegroundColor = FocusForegroundColor,
+#pragma warning disable CS0618
             BorderColor = BorderColor,
             FocusBorderColor = FocusBorderColor,
+#pragma warning restore CS0618
             PlaceholderColor = PlaceholderColor,
             CursorColor = CursorColor,
             Disabled = Disabled,

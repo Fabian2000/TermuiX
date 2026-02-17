@@ -56,10 +56,10 @@ public class Table : IWidget
     {
         get
         {
-            if (_rows.Count == 0) return "1ch";
+            if (_rows.Count == 0) { return "1ch"; }
 
             int columnCount = _rows.Max(r => r.Cells.Count);
-            if (columnCount == 0) return "1ch";
+            if (columnCount == 0) { return "1ch"; }
 
             int[] columnWidths = CalculateColumnWidths(columnCount);
             int width = columnWidths.Sum() + (HasBorder ? columnCount + 1 : columnCount - 1);
@@ -76,7 +76,7 @@ public class Table : IWidget
     {
         get
         {
-            if (_rows.Count == 0) return "1ch";
+            if (_rows.Count == 0) { return "1ch"; }
 
             int[] rowHeights = CalculateRowHeights();
             int contentHeight = rowHeights.Sum();
@@ -345,7 +345,7 @@ public class Table : IWidget
 
     private void RenderHorizontalBorder(Rune[] line, int[] columnWidths, bool isTop, bool isBottom)
     {
-        if (BorderStyle == null) return;
+        if (BorderStyle is null) { return; }
 
         char left, right, mid, horizontal;
 
@@ -418,7 +418,7 @@ public class Table : IWidget
                 int cellWidth = columnWidths[col];
                 TableCell? cell = col < row.Cells.Count ? row.Cells[col] : null;
 
-                if (cell != null)
+                if (cell is not null)
                 {
                     RenderCellLine(output, y, x, cellWidth, cell, line);
                 }
@@ -466,10 +466,12 @@ public class Table : IWidget
             int charIdx = 0;
             foreach (Rune rune in lines[lineIndex].EnumerateRunes())
             {
-                if (charIdx >= contentWidth) break;
+                if (charIdx >= contentWidth) { break; }
                 output[y][x + charIdx] = rune;
-                if (cell.Style != TextStyle.Normal && _rawStyles != null)
+                if (cell.Style != TextStyle.Normal && _rawStyles is not null)
+                {
                     _rawStyles[y][x + charIdx] = cell.Style;
+                }
                 charIdx++;
             }
         }

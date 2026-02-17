@@ -1,52 +1,62 @@
 # TermuiX
 
-A modern, declarative terminal UI library for .NET 9.0 and .NET 10.0 that brings XML-based UI definition to the console.
+A declarative terminal UI library for .NET. Define your interface in XML, style with TrueColor, handle mouse and keyboard input, and build real applications.
 
-![TermuiX Demo](https://github.com/Fabian2000/Termui/blob/main/Preview.png?raw=true)
+![TermuiX Demo](https://raw.githubusercontent.com/Fabian2000/Termui/main/Preview_v2_small.gif)
 
-## Why TermuiX?
+## Changelog
 
-TermuiX offers a unique approach to terminal UI development:
+### v2.0.0
 
-- **Zero Dependencies** - Pure .NET implementation with no external dependencies or native bindings
-- **Declarative UI** - Define your interface in XML, similar to web development or XAML
-- **Simple Rendering Model** - Straightforward render loop - call `Render()` when ready, no complex state management
-- **Pure C#** - No need to learn platform-specific APIs or deal with interop complexities
-- **Cross-Platform** - Works on any platform that supports .NET 9.0/10.0 and ANSI terminals
-- **AOT Compatible** - Full support for Native AOT compilation for minimal deployment size and fast startup
-- **Extensible** - Register custom widgets and components for reusable UI patterns
+- Cross-platform mouse input (Windows P/Invoke, Unix ANSI SGR)
+- Click-to-focus, scroll wheel, hover, drag support
+- Right-click events on Button
+- StackPanel layout engine with Direction, Justify, Align, Wrap
+- Fill sizing for flexible layouts (distributes remaining space)
+- StackPanel margin support in layout calculation
+- Percentage rounding fix for gap-free cumulative layouts
+- Color.Inherit for cascading colors through the widget tree
+- TrueColor RGB support (#RRGGBB, #RGB, rgb(R,G,B))
+- Min/Max width and height constraints (MinWidth, MaxWidth, MinHeight, MaxHeight)
+- TreeView widget with expand/collapse, keyboard navigation, mouse, SelectNode API
+- Style element for bulk property application (name and group matching, like CSS)
+- Markdown rendering in Text widget (bold, italic, code, strikethrough, fenced code blocks)
+- ANSI SGR text styles (rendered via escape sequences instead of Unicode substitution)
+- ScrollX/ScrollY per-axis scroll control (Scrollable remains as convenience for both)
+- Insert API on Container (Insert at specific index)
+- Ctrl+Wheel horizontal scroll, auto-detect scroll direction for horizontal-only containers
+- Zero-width character support in GetRuneDisplayWidth (combining marks, variation selectors)
+- Fixed UTF-8 multi-byte decoding in Unix mouse input
+- Fixed StackPanel cross-axis sizing, auto-size with margins, shrink-wrap with MaxWidth
+- AiChat sample: AI chat interface with markdown rendering and streaming
+- FileManager2 sample: modern TUI file manager with TreeView, tabs, context menu, file operations
 
-Perfect for building dashboards, TUI tools, interactive CLIs, and terminal-based applications.
+### v1.1.0
 
-## Features
+- Custom widget and component registration for XML parser
+- Disabled state for all interactive widgets with DisabledBackgroundColor/DisabledForegroundColor
+- .NET 10.0 multi-targeting and Native AOT support
+- Emoji and Unicode support with proper display width calculation (East Asian, zero-width characters)
+- Widget cloning (deep and shallow)
+- Reusable component model (BuildXml + Initialize pattern)
+- FileManager sample with file operations, filter, sort, dropdowns, confirmation dialogs
+- Focus improvements and auto-scroll to keep focused widget visible
+- Multiline Input navigation fix
+- Fixed clipping and relative positioning bugs
 
-- **Declarative XML-based UI** - Define your terminal UI using familiar XML syntax
-- **Rich Widget Set** - Comprehensive collection of interactive widgets with disabled state support
-- **Event-Driven Architecture** - Clean event handling for user interactions
-- **Flexible Styling** - Support for colors, borders, text styles (bold, italic, underline, strikethrough)
-- **Advanced Layout** - Positioned and scrollable containers with padding support
-- **Keyboard Navigation** - Built-in Tab/Shift+Tab navigation and custom keyboard shortcuts
-- **Multi-line Support** - Tables and inputs with multi-line text capabilities
-- **Unicode & Emoji Support** - Full support for emojis, East Asian characters, and wide Unicode characters
-- **Custom Widgets** - Register your own widget types and reusable components in XML
-- **Widget Cloning** - Deep and shallow cloning support for all widgets
+### v1.0.0
 
-## Available Widgets
-
-### Interactive Widgets
-- **Button** - Clickable buttons with customizable styling and focus states
-- **Input** - Single-line and multi-line text input with password mode
-- **Checkbox** - Toggle checkboxes with checked/unchecked states
-- **RadioButton** - Mutually exclusive radio button groups
-- **Slider** - Adjustable value slider with min/max/step configuration
-
-### Display Widgets
-- **Text** - Static or dynamic text with various alignments and styles
-- **Table** - Multi-row, multi-column tables with borders and text styling
-- **Chart** - Line charts with multiple data series and legends
-- **ProgressBar** - Progress indicators and marquee animations
-- **Line** - Horizontal and vertical separator lines
-- **Container** - Layout containers with optional borders and scrolling
+- Initial release with XML-based declarative UI
+- Widgets: Container, Button, Text, Input, Checkbox, RadioButton, Slider, ProgressBar, Chart, Table, Line
+- XML parser for widget tree construction
+- Keyboard navigation (Tab/Shift+Tab)
+- Scrollable containers with scroll wheel support
+- Text formatting (Bold, Italic, Underline, Strikethrough)
+- Horizontal scrolling and Slider widget
+- Border styles (Single, Double, RoundedCorners)
+- Percentage and character unit sizing
+- Padding on all widgets
+- GetWidget/GetWidgetsByGroup for widget lookup by name or group
 
 ## Installation
 
@@ -57,452 +67,89 @@ dotnet add package TermuiX
 ## Quick Start
 
 ```csharp
-using System.Threading;
+using TermuiXLib = TermuiX.TermuiX;
 using TermuiX.Widgets;
 
-var xml = """
-<Container Width="100%" Height="100%" BackgroundColor="DarkBlue">
-    <Text PositionX="2ch" PositionY="1ch"
-          ForegroundColor="Yellow"
-          Style="Bold">
-        Welcome to TermuiX!
-    </Text>
-
-    <Button Name="myButton" PositionX="2ch" PositionY="3ch"
-            BorderColor="White" TextColor="Cyan"
-            RoundedCorners="true">
-        Click Me
-    </Button>
-</Container>
-""";
-
-// Initialize and load UI
-var termui = TermuiX.TermuiX.Init();
-termui.LoadXml(xml);
-
-// Get widget reference and attach event
-var button = termui.GetWidget<Button>("myButton");
-if (button is not null)
+var termui = TermuiXLib.Init();
+try
 {
-    bool running = true;
-    button.Click += (sender, e) => running = false;
+    termui.LoadXml(@"
+    <StackPanel Direction='Vertical' Width='100%' Height='100%'
+        BackgroundColor='#1e1e2e' PaddingLeft='2ch' PaddingTop='1ch'>
+        <Text ForegroundColor='#cdd6f4' Style='Bold'>Hello, TermuiX!</Text>
+        <Button Name='btn' Width='15ch' MarginTop='1ch'
+            BackgroundColor='#313244' FocusBackgroundColor='#45475a'
+            TextColor='#cdd6f4' FocusTextColor='#ffffff'
+            BorderColor='#45475a' FocusBorderColor='#89b4fa'
+            BorderStyle='Single' RoundedCorners='true'>Click Me</Button>
+        <Text Name='output' ForegroundColor='#a6adc8' MarginTop='1ch' />
+    </StackPanel>");
 
-    try
+    var btn = termui.GetWidget<Button>("btn");
+    var output = termui.GetWidget<Text>("output");
+    btn!.Click += (_, _) => output!.Content = "Button clicked!";
+
+    while (true)
     {
-        while (running)
-        {
-            termui.Render();
-            Thread.Sleep(16); // 60 FPS
-        }
+        termui.Render();
+        await Task.Delay(16);
     }
-    finally
-    {
-        TermuiX.TermuiX.DeInit();
-    }
+}
+finally
+{
+    TermuiXLib.DeInit();
 }
 ```
 
-## Usage Examples
+## Documentation
 
-### Creating a Form
+Full documentation is available in the [docs/](docs/) directory:
 
-```xml
-<Container Width="100%" Height="100%" BackgroundColor="DarkBlue">
-    <Container PositionX="5ch" PositionY="5ch" Width="32ch" Height="3ch"
-               BorderStyle="Single" RoundedCorners="true">
-        <Input Name="nameInput" PositionX="0ch" PositionY="0ch"
-               Width="30ch" Height="1ch"
-               Placeholder="Enter your name..."
-               FocusBackgroundColor="DarkBlue"
-               FocusForegroundColor="White" />
-    </Container>
+- [Introduction and API Reference](docs/index.md)
+- [Layout System](docs/layout.md) - Container, StackPanel, sizing (ch, %, fill, auto), margins, padding
+- [Widget Reference](docs/widgets.md) - Every widget with all properties, events, and behaviors
+- [Styling](docs/styling.md) - Colors, borders, focus states, text styles, Style element
+- [Events and Input](docs/events.md) - Mouse, keyboard, focus system, shortcuts
+- [XML Reference](docs/xml-reference.md) - Parser syntax, dynamic Add/Remove, custom widgets
+- [Best Practices](docs/best-practices.md) - Known behaviors, layout quirks, patterns
+- [Examples](docs/examples.md) - Complete working examples
 
-    <Checkbox Name="agreeCheckbox" PositionX="5ch" PositionY="9ch" />
-    <Text PositionX="7ch" PositionY="9ch">I agree to the terms</Text>
+## Widgets
 
-    <Button Name="submitButton" PositionX="5ch" PositionY="11ch"
-            RoundedCorners="true">Submit</Button>
-</Container>
-```
-
-### Creating a Table
-
-```xml
-<Table Name="dataTable" PositionX="5ch" PositionY="5ch"
-       BorderStyle="Single" BorderColor="White"
-       RoundedCorners="true">
-    <TableRow>
-        <TableCell Style="Bold">Name</TableCell>
-        <TableCell Style="Bold">Age</TableCell>
-        <TableCell Style="Bold">City</TableCell>
-    </TableRow>
-    <TableRow>
-        <TableCell>Alice</TableCell>
-        <TableCell>25</TableCell>
-        <TableCell>New York</TableCell>
-    </TableRow>
-    <TableRow>
-        <TableCell>Bob</TableCell>
-        <TableCell>30</TableCell>
-        <TableCell>London</TableCell>
-    </TableRow>
-</Table>
-```
-
-### Creating a Chart
-
-```csharp
-var chart = termui.GetWidget<Chart>("salesChart");
-if (chart is not null)
-{
-    var series1 = new ChartDataSeries
-    {
-        Label = "Product A",
-        Color = ConsoleColor.Green,
-        Data = [10, 15, 13, 17, 22, 28, 35, 42]
-    };
-
-    chart.AddSeries(series1);
-    chart.XLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"];
-}
-```
-
-## Widget Properties
-
-### Common Properties
-
-All widgets support these common properties:
-
-- `Name` - Unique identifier for retrieving widgets via `GetWidget<T>()`
-- `PositionX`, `PositionY` - Position in characters (e.g., "10ch")
-- `Width`, `Height` - Dimensions in characters or percentage (e.g., "50ch", "100%")
-- `PaddingLeft`, `PaddingRight`, `PaddingTop`, `PaddingBottom` - Padding in characters
-- `ForegroundColor`, `BackgroundColor` - Standard console colors
-- `FocusForegroundColor`, `FocusBackgroundColor` - Colors when focused
-- `Visible` - Show/hide widget
-- `CanFocus` - Enable/disable focus capability
-
-### Container-Specific
-
-- `BorderStyle` - `Single`, `Double`, or `None`
-- `BorderColor` - Border color
-- `RoundedCorners` - Enable rounded corners (single border only)
-- `Scrollable` - Enable scrolling for overflow content
-
-### Input-Specific
-
-- `Placeholder` - Placeholder text
-- `IsPassword` - Hide input characters
-- `Multiline` - Enable multi-line input
-- `Value` - Current text value
-
-### Text Styles
-
-- `Normal` - Regular text
-- `Bold` - Bold text (Unicode mathematical alphanumeric symbols)
-- `Italic` - Italic text (Unicode mathematical alphanumeric symbols)
-- `BoldItalic` - Combined bold and italic
-- `Underline` - Underlined text
-- `Strikethrough` - Text with strikethrough
-
-## Event Handling
-
-### Button Click Events
-
-```csharp
-button.Click += (sender, e) =>
-{
-    Console.WriteLine("Button clicked!");
-};
-```
-
-### Input Events
-
-```csharp
-input.TextChanged += (sender, e) =>
-{
-    Console.WriteLine($"New value: {input.Value}");
-};
-
-input.EnterPressed += (sender, e) =>
-{
-    Console.WriteLine("Enter key pressed!");
-};
-```
-
-### Checkbox Events
-
-```csharp
-checkbox.CheckedChanged += (sender, e) =>
-{
-    Console.WriteLine($"Checked: {checkbox.Checked}");
-};
-```
-
-### RadioButton Events
-
-```csharp
-radioButton.SelectionChanged += (sender, e) =>
-{
-    Console.WriteLine($"Selected: {radioButton.Selected}");
-};
-```
-
-### Slider Events
-
-```csharp
-slider.ValueChanged += (sender, newValue) =>
-{
-    Console.WriteLine($"Value: {newValue}");
-};
-```
-
-### Keyboard Shortcuts
-
-```csharp
-termui.Shortcut += (sender, key) =>
-{
-    if (key.Key == ConsoleKey.S) // Ctrl+S
-    {
-        // Handle save shortcut
-    }
-};
-```
-
-## Advanced Features
-
-### Modal Dialogs
-
-Create modal dialogs by toggling container visibility:
-
-```csharp
-var mainPage = termui.GetWidget<Container>("mainPage");
-var confirmModal = termui.GetWidget<Container>("confirmModal");
-
-// Show modal
-mainPage.Visible = false;
-confirmModal.Visible = true;
-termui.SetFocus(modalYesButton);
-```
-
-### Scrollable Containers
-
-```xml
-<Container Width="30ch" Height="10ch" Scrollable="true">
-    <!-- Content larger than container will be scrollable -->
-    <RadioButton Name="option1" PositionX="2ch" PositionY="2ch" />
-    <RadioButton Name="option2" PositionX="2ch" PositionY="3ch" />
-    <!-- ... many more options ... -->
-</Container>
-```
-
-Use Page Up/Page Down or Ctrl+Page Up/Page Down to scroll.
-
-### Dynamic Updates
-
-```csharp
-// Update text dynamically
-outputText.Content = "Updated message!";
-
-// Update progress bar
-progressBar.Value = 0.75; // 75%
-
-// Update slider
-volumeSlider.Value = 50;
-```
-
-## Console State Management
-
-TermuiX automatically manages console state:
-
-```csharp
-// Initialize - clears screen, hides cursor
-var termui = TermuiX.TermuiX.Init();
-
-// DeInit - restores cursor, clears screen, resets colors
-TermuiX.TermuiX.DeInit();
-```
-
-### Ctrl+C Handling
-
-Ctrl+C automatically calls `DeInit()` to restore console state. You can control this behavior:
-
-```csharp
-// Disable automatic exit on Ctrl+C
-TermuiX.TermuiX.AllowCancelKeyExit = false;
-```
-
-## Border Styles
-
-TermuiX supports multiple border styles:
-
-- **Single** - Single-line borders (┌─┐│└┘)
-- **Double** - Double-line borders (╔═╗║╚╝)
-- **RoundedCorners** - Rounded corners with single borders (╭─╮│╰╯)
-
-```xml
-<Container BorderStyle="Single" RoundedCorners="true">
-    <!-- Content -->
-</Container>
-```
+| Widget | Description | Focusable |
+| ------ | ----------- | --------- |
+| Container | Base container with absolute positioning, borders, scrolling | No |
+| StackPanel | Directional layout with justify, align, wrap | No |
+| Button | Clickable with border, focus states, right-click | Yes |
+| Text | Static display with markdown, alignment, styles | No |
+| Input | Text input with cursor, placeholder, multiline | Yes |
+| Checkbox | Toggle (checked/unchecked) | Yes |
+| RadioButton | Single-selection with auto-deselect siblings | Yes |
+| Slider | Numeric range with keyboard and mouse | Yes |
+| TreeView | Hierarchical tree with expand/collapse | Yes |
+| Line | Horizontal/vertical separator | No |
+| ProgressBar | Determinate progress or marquee animation | No |
+| Chart | Data visualization with multiple series | No |
+| Table | Data table with borders and styled cells | No |
 
 ## Requirements
 
 - .NET 9.0 or .NET 10.0
-- Terminal with Unicode support
-- Terminal with ANSI color support
-
-## What's New in v1.1.0
-
-### Custom Widget & Component Registration
-Register your own widget types and reusable components directly in the XML parser:
-
-```csharp
-// Register a custom widget
-termui.RegisterWidget("CustomButton", attrs =>
-{
-    var text = attrs.GetValueOrDefault("Text", "Default");
-    return new CustomButton(text);
-});
-
-// Register a reusable component
-var fileExplorer = new FileExplorer(termui);
-termui.RegisterComponent("FileExplorer", attrs =>
-{
-    var width = attrs.GetValueOrDefault("Width", "100%");
-    return fileExplorer.BuildXml();
-});
-fileExplorer.Initialize();
-
-// Use in XML
-// <CustomButton Text="Click Me" />
-// <FileExplorer Width="80%" Height="90%" />
-```
-
-### Emoji & Unicode Support
-Full support for emojis, East Asian characters (CJK), and all wide Unicode characters with proper display width calculation:
-
-```xml
-<Text>Hello 👋 World! 你好世界</Text>
-<Button>Save 💾</Button>
-```
-
-### Disabled State for All Interactive Widgets
-All interactive widgets now support disabled states with customizable colors:
-
-```xml
-<Button Name="submitBtn" Disabled="true"
-        DisabledForegroundColor="Gray"
-        DisabledBackgroundColor="DarkGray">
-    Submit
-</Button>
-
-<Input Disabled="true" DisabledForegroundColor="DarkGray" />
-<Checkbox Disabled="true" />
-<RadioButton Disabled="true" />
-<Slider Disabled="true" />
-```
-
-### .NET 10.0 & AOT Support
-- Multi-targeting for .NET 9.0 and .NET 10.0
-- Full Native AOT compatibility for minimal deployment size
-- Enabled AOT analyzer for build-time warnings
-
-### New FileManager Sample
-Complete file explorer implementation demonstrating:
-- Two-column layout with file properties
-- Navigation with history (back/forward buttons)
-- File operations (copy, move, delete, rename)
-- Confirmation dialogs
-- Filter and sort functionality
-- Custom component registration
-
-### Library Improvements
-- Auto-scroll to keep focused widgets visible
-- Better rendering of wide characters and emojis
-- Improved layout calculations with scrollbar awareness
-- Enhanced clipboard support in Input widget
-- Better multiline navigation with proper rune handling
-
-## Additional Features
-
-### Reusable Components
-
-Create reusable UI components by adding XML strings dynamically to containers:
-
-```csharp
-var container = termui.GetWidget<Container>("myContainer");
-
-string cardComponent = """
-    <Container Width="30ch" Height="5ch" BorderStyle="Single" BorderColor="White">
-        <Text PositionX="1ch" PositionY="1ch">Card Title</Text>
-    </Container>
-    """;
-
-container.Add(cardComponent);  // Components are automatically cloned
-```
-
-### Negative Positioning
-
-Use negative positions to place widgets off-screen or create animated transitions:
-
-```xml
-<Container PositionX="-50ch" PositionY="0ch" Width="40ch" Height="100%">
-    <!-- Sidebar that can slide in from the left -->
-</Container>
-```
-
-```csharp
-// Animate position changes
-sidebar.PositionX = $"{currentPosition}ch";
-```
-
-### Widget Cloning
-
-All widgets support deep and shallow cloning:
-
-```csharp
-var originalButton = termui.GetWidget<Button>("myButton");
-var clonedButton = originalButton.Clone(deep: true);  // Deep clone with children
-```
+- Terminal with Unicode and ANSI color support
+- Full Native AOT compatibility
 
 ## Samples
 
-Check out the included samples:
+- **TermuiX.Demo16** - Modern dashboard with all widgets (the README screenshot)
+- **TermuiX.FileManager2** - Modern TUI file manager with TreeView, tabs, context menu, file operations
+- **TermuiX.AiChat** - AI chat interface with markdown rendering
 
-- **TermuiX.Demo** - Comprehensive demo with forms, charts, modals, and more
-- **TermuiX.Demo2** - Table widget demonstration with multi-line text
-- **TermuiX.Demo3** - Animated sidebar with burger menu using negative positioning
-- **TermuiX.Demo4** - Component model demonstration with dynamic widget addition
-- **TermuiX.Demo5** - Auto-scroll messenger with programmatic scroll control
-- **TermuiX.FileManager** - Full-featured file explorer with custom component registration
-
-Run samples:
+Run a sample:
 
 ```bash
-cd samples/TermuiX.Demo
-dotnet run
-
-cd samples/TermuiX.Demo2
-dotnet run
-
-cd samples/TermuiX.Demo3
-dotnet run
-
-cd samples/TermuiX.Demo4
-dotnet run
-
-cd samples/TermuiX.Demo5
-dotnet run
-
-cd samples/TermuiX.FileManager
-dotnet run
+dotnet run --project samples/TermuiX.Demo16
 ```
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.
+MIT License - see LICENSE file for details.

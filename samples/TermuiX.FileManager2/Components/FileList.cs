@@ -13,6 +13,7 @@ public class FileList
 
     private string _currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     private readonly Dictionary<Button, string> _buttonPathMap = [];
+    private readonly Dictionary<string, Checkbox> _checkboxPathMap = [];
     private readonly HashSet<string> _selectedItems = [];
     private string? _lastFocusedPath;
     private string? _previousFocusedPath;
@@ -716,6 +717,7 @@ public class FileList
         var toRemove = ((IWidget)_fileListPanel).Children.ToList();
         foreach (var child in toRemove) _fileListPanel.Remove(child);
         _buttonPathMap.Clear();
+        _checkboxPathMap.Clear();
         _itemCounter = 0;
 
         try
@@ -801,20 +803,52 @@ public class FileList
     {
         if (_fileListPanel is null) return;
 
-        // In multi-select mode, show checkbox prefix
-        string prefix = "";
-        if (_multiSelectMode)
-            prefix = _checkedItems.Contains(fullPath) ? "☑ " : "☐ ";
-
-        var displayText = $"{prefix}{label}";
-        var escaped = SecurityElement.Escape(displayText);
+        var escaped = SecurityElement.Escape(label);
         var name = $"fl_{_itemCounter++}";
-        var xml = $@"<Button Name='{name}' Width='100%' Height='1ch' BorderStyle='None'
-            PaddingLeft='1ch' PaddingRight='1ch' PaddingTop='0ch' PaddingBottom='0ch'
-            BackgroundColor='#191919' FocusBackgroundColor='#2a2a2a'
-            TextColor='#d0d0d0' FocusTextColor='#ffffff' TextAlign='Left'
-            AllowWrapping='false'>{escaped}</Button>";
-        _fileListPanel.Add(xml);
+
+        if (_multiSelectMode)
+        {
+            var cbName = $"cb_{_itemCounter}";
+            var xml = $@"<StackPanel Direction='Horizontal' Width='100%' Height='1ch'
+                BackgroundColor='#191919'>
+                <Checkbox Name='{cbName}' Checked='{_checkedItems.Contains(fullPath).ToString().ToLower()}'
+                    BackgroundColor='#191919' FocusBackgroundColor='#2a2a2a'
+                    ForegroundColor='#d0d0d0' FocusForegroundColor='#ffffff' />
+                <Button Name='{name}' Width='fill' Height='1ch' BorderStyle='None'
+                    PaddingLeft='0ch' PaddingRight='1ch' PaddingTop='0ch' PaddingBottom='0ch'
+                    BackgroundColor='#191919' FocusBackgroundColor='#2a2a2a'
+                    TextColor='#d0d0d0' FocusTextColor='#ffffff' TextAlign='Left'
+                    AllowWrapping='false'>{escaped}</Button>
+            </StackPanel>";
+            _fileListPanel.Add(xml);
+
+            var cb = _termui.GetWidget<Checkbox>(cbName);
+            if (cb is not null)
+            {
+                _checkboxPathMap[fullPath] = cb;
+                cb.CheckedChanged += (_, isChecked) =>
+                {
+                    if (isChecked)
+                    {
+                        _checkedItems.Add(fullPath);
+                    }
+                    else
+                    {
+                        _checkedItems.Remove(fullPath);
+                    }
+                    EmitCurrentStats();
+                };
+            }
+        }
+        else
+        {
+            var xml = $@"<Button Name='{name}' Width='100%' Height='1ch' BorderStyle='None'
+                PaddingLeft='1ch' PaddingRight='1ch' PaddingTop='0ch' PaddingBottom='0ch'
+                BackgroundColor='#191919' FocusBackgroundColor='#2a2a2a'
+                TextColor='#d0d0d0' FocusTextColor='#ffffff' TextAlign='Left'
+                AllowWrapping='false'>{escaped}</Button>";
+            _fileListPanel.Add(xml);
+        }
 
         var btn = _termui.GetWidget<Button>(name);
         if (btn is not null)
@@ -829,17 +863,11 @@ public class FileList
     {
         if (_multiSelectMode)
         {
-            // Toggle check
-            if (!_checkedItems.Add(path))
-                _checkedItems.Remove(path);
-
-            // Update button text to show checkbox state
-            var isDir = Directory.Exists(path);
-            var name = Path.GetFileName(path);
-            var check = _checkedItems.Contains(path) ? "☑" : "☐";
-            var icon = isDir ? "📁" : "📄";
-            button.Text = $"{check} {icon} {name}";
-            EmitCurrentStats();
+            // Toggle checkbox
+            if (_checkboxPathMap.TryGetValue(path, out var cb))
+            {
+                cb.Checked = !cb.Checked;
+            }
             return;
         }
 

@@ -32,7 +32,7 @@ namespace TermuiX
             }
 
             // Only reallocate when terminal size changes
-            if (_cachedOutput == null || _cachedWidth != _width || _cachedHeight != _height)
+            if (_cachedOutput is null || _cachedWidth != _width || _cachedHeight != _height)
             {
                 _cachedOutput = new Rune[_height][];
                 _cachedFg = new Color[_height][];
@@ -89,14 +89,16 @@ namespace TermuiX
             bool parentIsVert = isInStackPanel && widget.Parent is Widgets.StackPanel sp3 && sp3.Direction == Widgets.StackDirection.Vertical;
             int layoutMain = 0;
             if (isInStackPanel)
+            {
                 layoutMain = parentIsVert ? widget.ComputedHeight : widget.ComputedWidth;
+            }
 
             // StackPanel auto-size: compute size from children when Width/Height is "auto"
             if (widget is Widgets.StackPanel autoStack)
             {
                 var (autoW, autoH) = ResolveAutoSize(autoStack, parentWidth, parentHeight);
-                if (autoW > 0) width = autoW;
-                if (autoH > 0) height = autoH;
+                if (autoW > 0) { width = autoW; }
+                if (autoH > 0) { height = autoH; }
             }
 
             // For children inside a StackPanel, use ComputedWidth/Height.
@@ -106,25 +108,33 @@ namespace TermuiX
             {
                 if (parentIsVert)
                 {
-                    if (widget.ComputedWidth > 0) width = widget.ComputedWidth;
-                    if (layoutMain > 0) height = layoutMain;
+                    if (widget.ComputedWidth > 0) { width = widget.ComputedWidth; }
+                    if (layoutMain > 0) { height = layoutMain; }
                 }
                 else
                 {
-                    if (layoutMain > 0) width = layoutMain;
-                    if (widget.ComputedHeight > 0) height = widget.ComputedHeight;
+                    if (layoutMain > 0) { width = layoutMain; }
+                    if (widget.ComputedHeight > 0) { height = widget.ComputedHeight; }
                 }
             }
 
             // Apply min/max constraints
             if (!string.IsNullOrEmpty(widget.MinWidth))
+            {
                 width = Math.Max(width, ParseSize(widget.MinWidth, parentWidth));
+            }
             if (!string.IsNullOrEmpty(widget.MaxWidth))
+            {
                 width = Math.Min(width, ParseSize(widget.MaxWidth, parentWidth));
+            }
             if (!string.IsNullOrEmpty(widget.MinHeight))
+            {
                 height = Math.Max(height, ParseSize(widget.MinHeight, parentHeight));
+            }
             if (!string.IsNullOrEmpty(widget.MaxHeight))
+            {
                 height = Math.Min(height, ParseSize(widget.MaxHeight, parentHeight));
+            }
 
             int posX = ParseSize(widget.PositionX, parentWidth);
             int posY = ParseSize(widget.PositionY, parentHeight);
@@ -167,10 +177,12 @@ namespace TermuiX
                 int rawH = raw.Length;
                 int rawW = 0;
                 for (int i = 0; i < raw.Length; i++)
-                    if (raw[i] != null && raw[i].Length > rawW) rawW = raw[i].Length;
+                {
+                    if (raw[i] is not null && raw[i].Length > rawW) { rawW = raw[i].Length; }
+                }
 
-                if (rawW > width) width = rawW;
-                if (rawH > height) height = rawH;
+                if (rawW > width) { width = rawW; }
+                if (rawH > height) { height = rawH; }
             }
 
             hitTestMap?.Set(absX, absY, width, height, widget, parentX, parentY, parentWidth, parentHeight);
@@ -245,10 +257,10 @@ namespace TermuiX
                                 // Only override cells that have an explicit color set.
                                 // default(Color) (= ConsoleColor.Black, value 0) means
                                 // "no override" — keep the widget's resolved color.
-                                if (rcFg != default) fgColors[targetY][targetX] = rcFg;
-                                if (rcBg != default) bgColors[targetY][targetX] = rcBg;
+                                if (rcFg != default) { fgColors[targetY][targetX] = rcFg; }
+                                if (rcBg != default) { bgColors[targetY][targetX] = rcBg; }
                             }
-                            if (rawStyles != null && y < rawStyles.Length && x < rawStyles[y].Length)
+                            if (rawStyles is not null && y < rawStyles.Length && x < rawStyles[y].Length)
                             {
                                 styleBuffer[targetY][targetX] = rawStyles[y][x];
                             }
@@ -291,7 +303,7 @@ namespace TermuiX
                 int childIndex = 0;
                 foreach (var child in widget.Children)
                 {
-                    if (!child.Visible) continue;
+                    if (!child.Visible) { continue; }
 
                     // Pre-set ComputedWidth/Height from MaxWidth/MaxHeight constraints
                     // so nested widgets (e.g. Text inside a MaxWidth StackPanel) can
@@ -304,7 +316,9 @@ namespace TermuiX
                         {
                             int maxW = Math.Min(ParseSize(child.MaxWidth, contentWidth), crossAxisSize);
                             if (child.ComputedWidth == 0 || child.ComputedWidth > maxW)
+                            {
                                 child.ComputedWidth = maxW;
+                            }
                         }
                     }
                     else
@@ -313,7 +327,9 @@ namespace TermuiX
                         {
                             int maxH = Math.Min(ParseSize(child.MaxHeight, contentHeight), crossAxisSize);
                             if (child.ComputedHeight == 0 || child.ComputedHeight > maxH)
+                            {
                                 child.ComputedHeight = maxH;
+                            }
                         }
                     }
 
@@ -324,8 +340,8 @@ namespace TermuiX
                     bool mainIsAuto = string.IsNullOrEmpty(mainStr) || mainStr.Trim().Equals("auto", StringComparison.OrdinalIgnoreCase);
                     if (mainIsAuto && child is Widgets.StackPanel)
                     {
-                        if (isVertical) child.ComputedHeight = 0;
-                        else child.ComputedWidth = 0;
+                        if (isVertical) { child.ComputedHeight = 0; }
+                        else { child.ComputedWidth = 0; }
                     }
 
                     var rawContent = child.GetRaw();
@@ -383,13 +399,17 @@ namespace TermuiX
                             if (rawContent.Length == 0 && fromMeasure > 0 && child is Widgets.Container childContainer)
                             {
                                 if (childContainer.HasBorder)
+                                {
                                     fromMeasure += 2;
+                                }
                                 fromMeasure += isVertical
                                     ? ParseSize(child.PaddingTop, 0) + ParseSize(child.PaddingBottom, 0)
                                     : ParseSize(child.PaddingLeft, 0) + ParseSize(child.PaddingRight, 0);
                             }
                             if (fromMeasure > intrinsic)
+                            {
                                 intrinsic = fromMeasure;
+                            }
                         }
                         mainChildSize = intrinsic;
                     }
@@ -415,7 +435,9 @@ namespace TermuiX
                         {
                             int intrinsicMain = isVertical ? rawContent.Length : (rawContent.Length > 0 ? rawContent[0].Length : 0);
                             if (intrinsicMain > mainChildSize)
+                            {
                                 mainChildSize = intrinsicMain;
+                            }
                         }
                     }
 
@@ -449,28 +471,44 @@ namespace TermuiX
                         if (!isFill)
                         {
                             if (!string.IsNullOrEmpty(child.MinHeight))
+                            {
                                 mainChildSize = Math.Max(mainChildSize, ParseSize(child.MinHeight, contentHeight));
+                            }
                             if (!string.IsNullOrEmpty(child.MaxHeight))
+                            {
                                 mainChildSize = Math.Min(mainChildSize, ParseSize(child.MaxHeight, contentHeight));
+                            }
                         }
                         if (!string.IsNullOrEmpty(child.MinWidth))
+                        {
                             crossChildSize = Math.Max(crossChildSize, ParseSize(child.MinWidth, contentWidth));
+                        }
                         if (!string.IsNullOrEmpty(child.MaxWidth))
+                        {
                             crossChildSize = Math.Min(crossChildSize, ParseSize(child.MaxWidth, contentWidth));
+                        }
                     }
                     else
                     {
                         if (!isFill)
                         {
                             if (!string.IsNullOrEmpty(child.MinWidth))
+                            {
                                 mainChildSize = Math.Max(mainChildSize, ParseSize(child.MinWidth, contentWidth));
+                            }
                             if (!string.IsNullOrEmpty(child.MaxWidth))
+                            {
                                 mainChildSize = Math.Min(mainChildSize, ParseSize(child.MaxWidth, contentWidth));
+                            }
                         }
                         if (!string.IsNullOrEmpty(child.MinHeight))
+                        {
                             crossChildSize = Math.Max(crossChildSize, ParseSize(child.MinHeight, contentHeight));
+                        }
                         if (!string.IsNullOrEmpty(child.MaxHeight))
+                        {
                             crossChildSize = Math.Min(crossChildSize, ParseSize(child.MaxHeight, contentHeight));
+                        }
                     }
 
                     if (!isFill)
@@ -503,16 +541,24 @@ namespace TermuiX
                         if (isVertical)
                         {
                             if (!string.IsNullOrEmpty(m.child.MinHeight))
+                            {
                                 fillSize = Math.Max(fillSize, ParseSize(m.child.MinHeight, contentHeight));
+                            }
                             if (!string.IsNullOrEmpty(m.child.MaxHeight))
+                            {
                                 fillSize = Math.Min(fillSize, ParseSize(m.child.MaxHeight, contentHeight));
+                            }
                         }
                         else
                         {
                             if (!string.IsNullOrEmpty(m.child.MinWidth))
+                            {
                                 fillSize = Math.Max(fillSize, ParseSize(m.child.MinWidth, contentWidth));
+                            }
                             if (!string.IsNullOrEmpty(m.child.MaxWidth))
+                            {
                                 fillSize = Math.Min(fillSize, ParseSize(m.child.MaxWidth, contentWidth));
+                            }
                         }
 
                         measured[idx] = (m.child, fillSize, m.crossSize, m.mMain0, m.mMain1, m.mCross0, m.mCross1);
@@ -564,7 +610,7 @@ namespace TermuiX
 
                     currentLine.Add(i);
                     currentMainUsed += totalMain;
-                    if (totalCross > currentMaxCross) currentMaxCross = totalCross;
+                    if (totalCross > currentMaxCross) { currentMaxCross = totalCross; }
                 }
 
                 if (currentLine.Count > 0)
@@ -669,7 +715,9 @@ namespace TermuiX
                         {
                             bool isLast = li == line.Count - 1;
                             if (justify == Widgets.StackJustify.SpaceBetween && isLast)
+                            {
                                 continue;
+                            }
 
                             mainOffset += spacing;
                             if (remainder > 0)
@@ -713,9 +761,13 @@ namespace TermuiX
                 if (widget is Widgets.StackPanel sp && sp.Wrap)
                 {
                     if (sp.Direction == Widgets.StackDirection.Horizontal)
+                    {
                         suppressHorizontal = true; // wrapping prevents horizontal overflow
+                    }
                     else
+                    {
                         suppressVertical = true; // wrapping prevents vertical overflow
+                    }
                 }
 
                 willRenderVerticalScrollbar = widget.ScrollY && !suppressVertical && contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0);
@@ -738,7 +790,7 @@ namespace TermuiX
 
             foreach (var child in widget.Children)
             {
-                RenderWidget(output, fgColors, bgColors, styleBuffer, child, childClipX, childClipY, childClipWidth, childClipHeight, childScrollX, childScrollY, hitTestMap, focusVisible, resolvedBg, resolvedFg);
+                RenderWidget(output, fgColors, bgColors, styleBuffer, child, childClipX, childClipY, childClipWidth, childClipHeight, childScrollX, childScrollY, hitTestMap, focusVisible, bgColor, fgColor);
             }
 
             // Render scrollbars AFTER children so they're always on top
@@ -769,9 +821,13 @@ namespace TermuiX
                 if (widget is Widgets.StackPanel spRender && spRender.Wrap)
                 {
                     if (spRender.Direction == Widgets.StackDirection.Horizontal)
+                    {
                         renderSuppressH = true;
+                    }
                     else
+                    {
                         renderSuppressV = true;
+                    }
                 }
 
                 if (widget.ScrollY && !renderSuppressV && contentWidth > 0 && (maxChildBottom > contentHeight || scrollY > 0))
@@ -862,20 +918,30 @@ namespace TermuiX
             int availCrossWidth = parentWidth;
             int availCrossHeight = parentHeight;
             if (!string.IsNullOrEmpty(stack.MaxWidth))
+            {
                 availCrossWidth = Math.Min(availCrossWidth, ParseSize(stack.MaxWidth, parentWidth));
+            }
             if (!string.IsNullOrEmpty(stack.MaxHeight))
+            {
                 availCrossHeight = Math.Min(availCrossHeight, ParseSize(stack.MaxHeight, parentHeight));
+            }
             int borderSize = stack.HasBorder ? 2 : 0;
             int innerWidth = availCrossWidth - borderSize - ParseSize(stack.PaddingLeft, 0) - ParseSize(stack.PaddingRight, 0);
             int innerHeight = availCrossHeight - borderSize - ParseSize(stack.PaddingTop, 0) - ParseSize(stack.PaddingBottom, 0);
-            if (innerWidth < 0) innerWidth = 0;
-            if (innerHeight < 0) innerHeight = 0;
+            if (innerWidth < 0) { innerWidth = 0; }
+            if (innerHeight < 0) { innerHeight = 0; }
 
             // Measure all visible children
             var items = new List<(int mainSize, int crossSize)>();
             foreach (var child in ((IWidget)stack).Children)
             {
-                if (!child.Visible) continue;
+                if (!child.Visible) { continue; }
+
+                // Reset stale ComputedWidth/Height from previous frames or side effects
+                // (e.g. MeasureChildrenMainAxis setting cross-axis values on grandchildren).
+                // This ensures GetRaw() uses declared sizes, not polluted cached values.
+                child.ComputedWidth = 0;
+                child.ComputedHeight = 0;
 
                 // Pre-set cross-axis ComputedWidth/Height only when the child has a
                 // %-based size (needs parent as reference) or a MaxWidth/MaxHeight constraint.
@@ -888,8 +954,10 @@ namespace TermuiX
                     {
                         int childCross = innerWidth;
                         if (!string.IsNullOrEmpty(child.MaxWidth))
+                        {
                             childCross = Math.Min(childCross, ParseSize(child.MaxWidth, innerWidth));
-                        if (childCross > 0) child.ComputedWidth = childCross;
+                        }
+                        if (childCross > 0) { child.ComputedWidth = childCross; }
                     }
                 }
                 else
@@ -900,8 +968,10 @@ namespace TermuiX
                     {
                         int childCross = innerHeight;
                         if (!string.IsNullOrEmpty(child.MaxHeight))
+                        {
                             childCross = Math.Min(childCross, ParseSize(child.MaxHeight, innerHeight));
-                        if (childCross > 0) child.ComputedHeight = childCross;
+                        }
+                        if (childCross > 0) { child.ComputedHeight = childCross; }
                     }
                 }
 
@@ -909,14 +979,14 @@ namespace TermuiX
                 if (child is Widgets.StackPanel childStack)
                 {
                     var (cAutoW, cAutoH) = ResolveAutoSize(childStack, innerWidth, innerHeight);
-                    if (cAutoW > 0) child.ComputedWidth = cAutoW;
-                    if (cAutoH > 0) child.ComputedHeight = cAutoH;
+                    if (cAutoW > 0) { child.ComputedWidth = cAutoW; }
+                    if (cAutoH > 0) { child.ComputedHeight = cAutoH; }
                 }
 
                 // Measure the child's actual rendered dimensions from GetRaw()
                 var childRaw = child.GetRaw();
                 int cw = 0, ch = 0;
-                if (childRaw != null && childRaw.Length > 0)
+                if (childRaw is not null && childRaw.Length > 0)
                 {
                     ch = childRaw.Length;
                     if (child is Widgets.Text)
@@ -925,36 +995,52 @@ namespace TermuiX
                         // so auto-sized parent StackPanels can shrink-wrap around short text.
                         for (int i = 0; i < childRaw.Length; i++)
                         {
-                            if (childRaw[i] == null) continue;
+                            if (childRaw[i] is null) { continue; }
                             int lineW = childRaw[i].Length;
                             while (lineW > 0 && childRaw[i][lineW - 1].Value == ' ')
+                            {
                                 lineW--;
-                            if (lineW > cw) cw = lineW;
+                            }
+                            if (lineW > cw) { cw = lineW; }
                         }
                     }
                     else
                     {
                         for (int i = 0; i < childRaw.Length; i++)
                         {
-                            if (childRaw[i] != null && childRaw[i].Length > cw)
+                            if (childRaw[i] is not null && childRaw[i].Length > cw)
+                            {
                                 cw = childRaw[i].Length;
+                            }
                         }
                     }
                 }
                 if (cw == 0)
+                {
                     cw = child.ComputedWidth > 0 ? child.ComputedWidth : ParseSize(child.Width, innerWidth);
+                }
                 if (ch == 0)
+                {
                     ch = child.ComputedHeight > 0 ? child.ComputedHeight : ParseSize(child.Height, innerHeight);
+                }
 
                 // Apply min/max constraints
                 if (!string.IsNullOrEmpty(child.MinWidth))
+                {
                     cw = Math.Max(cw, ParseSize(child.MinWidth, innerWidth));
+                }
                 if (!string.IsNullOrEmpty(child.MaxWidth))
+                {
                     cw = Math.Min(cw, ParseSize(child.MaxWidth, innerWidth));
+                }
                 if (!string.IsNullOrEmpty(child.MinHeight))
+                {
                     ch = Math.Max(ch, ParseSize(child.MinHeight, innerHeight));
+                }
                 if (!string.IsNullOrEmpty(child.MaxHeight))
+                {
                     ch = Math.Min(ch, ParseSize(child.MaxHeight, innerHeight));
+                }
 
                 child.ComputedWidth = cw;
                 child.ComputedHeight = ch;
@@ -993,18 +1079,18 @@ namespace TermuiX
                     if (lineMain > 0 && lineMain + item.mainSize > mainAxisLimit)
                     {
                         // Finish line
-                        if (lineMain > maxLineMain) maxLineMain = lineMain;
+                        if (lineMain > maxLineMain) { maxLineMain = lineMain; }
                         totalCross += lineMaxCross;
                         lineMain = 0;
                         lineMaxCross = 0;
                     }
 
                     lineMain += item.mainSize;
-                    if (item.crossSize > lineMaxCross) lineMaxCross = item.crossSize;
+                    if (item.crossSize > lineMaxCross) { lineMaxCross = item.crossSize; }
                 }
 
                 // Last line
-                if (lineMain > maxLineMain) maxLineMain = lineMain;
+                if (lineMain > maxLineMain) { maxLineMain = lineMain; }
                 totalCross += lineMaxCross;
 
                 totalStack = maxLineMain;
@@ -1016,7 +1102,7 @@ namespace TermuiX
                 foreach (var item in items)
                 {
                     totalStack += item.mainSize;
-                    if (item.crossSize > maxCross) maxCross = item.crossSize;
+                    if (item.crossSize > maxCross) { maxCross = item.crossSize; }
                 }
             }
 
@@ -1025,13 +1111,13 @@ namespace TermuiX
 
             if (isVert)
             {
-                if (autoH) height = totalStack + border + padV;
-                if (autoW) width = maxCross + border + padH;
+                if (autoH) { height = totalStack + border + padV; }
+                if (autoW) { width = maxCross + border + padH; }
             }
             else
             {
-                if (autoW) width = totalStack + border + padH;
-                if (autoH) height = maxCross + border + padV;
+                if (autoW) { width = totalStack + border + padH; }
+                if (autoH) { height = maxCross + border + padV; }
             }
 
             // Store computed values so GetRaw() and external code can use them
@@ -1054,41 +1140,59 @@ namespace TermuiX
             // Determine effective cross-axis size for children (respecting parent MaxWidth/MaxHeight)
             int childCrossSize = crossAxisSize;
             if (parentIsVertical && !string.IsNullOrEmpty(parent.MaxWidth))
+            {
                 childCrossSize = Math.Min(ParseSize(parent.MaxWidth, contentWidth), crossAxisSize);
+            }
             else if (!parentIsVertical && !string.IsNullOrEmpty(parent.MaxHeight))
+            {
                 childCrossSize = Math.Min(ParseSize(parent.MaxHeight, contentHeight), crossAxisSize);
+            }
 
             // Account for border + padding reducing available space
             if (parent is Widgets.Container containerParent && containerParent.HasBorder)
+            {
                 childCrossSize -= 2;
+            }
             int padCross = parentIsVertical
                 ? ParseSize(parent.PaddingLeft, 0) + ParseSize(parent.PaddingRight, 0)
                 : ParseSize(parent.PaddingTop, 0) + ParseSize(parent.PaddingBottom, 0);
             childCrossSize -= padCross;
-            if (childCrossSize < 0) childCrossSize = 0;
+            if (childCrossSize < 0) { childCrossSize = 0; }
 
             // Set parent's ComputedWidth/Height so children querying parent size
             // (e.g. Text with Width="100%" calling CalculateSize) get the correct value.
             if (parentIsVertical && childCrossSize > 0)
+            {
                 parent.ComputedWidth = childCrossSize;
+            }
             else if (!parentIsVertical && childCrossSize > 0)
+            {
                 parent.ComputedHeight = childCrossSize;
+            }
 
             foreach (var gc in parent.Children)
             {
-                if (!gc.Visible) continue;
+                if (!gc.Visible) { continue; }
 
                 // Pre-set ComputedWidth/Height so nested GetRaw() can wrap correctly.
                 // Respect MaxWidth/MaxHeight constraints on the child.
                 int gcCross = childCrossSize;
                 if (parentIsVertical && !string.IsNullOrEmpty(gc.MaxWidth))
+                {
                     gcCross = Math.Min(gcCross, ParseSize(gc.MaxWidth, childCrossSize));
+                }
                 else if (!parentIsVertical && !string.IsNullOrEmpty(gc.MaxHeight))
+                {
                     gcCross = Math.Min(gcCross, ParseSize(gc.MaxHeight, childCrossSize));
+                }
                 if (parentIsVertical && gcCross > 0)
+                {
                     gc.ComputedWidth = gcCross;
+                }
                 else if (!parentIsVertical && gcCross > 0)
+                {
                     gc.ComputedHeight = gcCross;
+                }
 
                 // Clear stale main-axis size for auto-sized containers WITH a cross-axis
                 // constraint (MaxWidth/MaxHeight) so GetRaw() returns [] and we measure
@@ -1098,8 +1202,8 @@ namespace TermuiX
                 bool gcHasCrossConstraint = parentIsVertical ? !string.IsNullOrEmpty(gc.MaxWidth) : !string.IsNullOrEmpty(gc.MaxHeight);
                 if (gcMainIsAuto && gc is Widgets.StackPanel && gcHasCrossConstraint)
                 {
-                    if (parentIsVertical) gc.ComputedHeight = 0;
-                    else gc.ComputedWidth = 0;
+                    if (parentIsVertical) { gc.ComputedHeight = 0; }
+                    else { gc.ComputedWidth = 0; }
                 }
 
                 var gcRaw = gc.GetRaw();
@@ -1129,7 +1233,9 @@ namespace TermuiX
 
                 // If still 0 and has children, measure recursively
                 if (gcMainSize == 0 && gc.Children.Count > 0)
+                {
                     gcMainSize = MeasureChildrenMainAxis(gc, parentIsVertical, contentWidth, contentHeight, gcCross);
+                }
 
                 // Add border + padding of the child container itself on the main axis.
                 // MeasureChildrenMainAxis and recursive calls measure inner content only;
@@ -1137,7 +1243,9 @@ namespace TermuiX
                 if (gcMainSize > 0 && gcRaw.Length == 0 && gc is Widgets.Container gcContainer)
                 {
                     if (gcContainer.HasBorder)
+                    {
                         gcMainSize += 2;
+                    }
                     gcMainSize += parentIsVertical
                         ? ParseSize(gc.PaddingTop, 0) + ParseSize(gc.PaddingBottom, 0)
                         : ParseSize(gc.PaddingLeft, 0) + ParseSize(gc.PaddingRight, 0);
@@ -1148,9 +1256,13 @@ namespace TermuiX
                 int gcMMain1 = parentIsVertical ? ParseSize(gc.MarginBottom, contentHeight) : ParseSize(gc.MarginRight, contentWidth);
 
                 if (childIsHoriz == !parentIsVertical)
+                {
                     intrinsic += gcMMain0 + gcMainSize + gcMMain1;
+                }
                 else
+                {
                     intrinsic = Math.Max(intrinsic, gcMMain0 + gcMainSize + gcMMain1);
+                }
             }
 
             return intrinsic;

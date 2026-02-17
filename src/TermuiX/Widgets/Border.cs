@@ -79,9 +79,13 @@ public class Border : IWidget
     /// Gets or sets the height of the border.
     /// </summary>
     public string Height { get; set; } = "100%";
+    /// <summary>Gets or sets the minimum width constraint.</summary>
     public string MinWidth { get; set; } = "";
+    /// <summary>Gets or sets the maximum width constraint.</summary>
     public string MaxWidth { get; set; } = "";
+    /// <summary>Gets or sets the minimum height constraint.</summary>
     public string MinHeight { get; set; } = "";
+    /// <summary>Gets or sets the maximum height constraint.</summary>
     public string MaxHeight { get; set; } = "";
 
     /// <summary>
@@ -227,7 +231,7 @@ public class Border : IWidget
         var clone = new Border
         {
             Style = Style,
-            Child = deep && _child != null ? null : _child, // Note: Child widget is not cloned in deep mode, just referenced
+            Child = deep && _child is not null ? null : _child, // Note: Child widget is not cloned in deep mode, just referenced
             Name = Name,
             Group = Group,
             Width = Width,

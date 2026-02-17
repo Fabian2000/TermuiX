@@ -373,14 +373,16 @@ public class Slider : IWidget
     /// </summary>
     internal void SetValueFromLocalX(int localX)
     {
-        if (Disabled || _lastTrackWidth < 3) return;
+        if (Disabled || _lastTrackWidth < 3) { return; }
 
         // localX 0 = '[', localX trackWidth-1 = ']', inner positions are 1..trackWidth-2
         double ratio = Math.Clamp((localX - 1.0) / (_lastTrackWidth - 3), 0.0, 1.0);
         double raw = _min + ratio * (_max - _min);
         // Snap to Step grid so mouse input produces the same clean values as keyboard
         if (Step > 0)
+        {
             raw = Math.Round(raw / Step) * Step;
+        }
         Value = raw;
     }
 

@@ -68,7 +68,9 @@ public readonly struct Color : IEquatable<Color>
     public static Color Parse(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
+        {
             return new Color(ConsoleColor.Black);
+        }
 
         value = value.Trim();
 
@@ -111,11 +113,15 @@ public readonly struct Color : IEquatable<Color>
 
         // Inherit
         if (value.Equals("inherit", StringComparison.OrdinalIgnoreCase))
+        {
             return Inherit;
+        }
 
         // ConsoleColor name
         if (Enum.TryParse<ConsoleColor>(value, ignoreCase: true, out var cc))
+        {
             return new Color(cc);
+        }
 
         throw new FormatException($"Unknown color: {value}");
     }
@@ -128,30 +134,51 @@ public readonly struct Color : IEquatable<Color>
         _ => throw new FormatException($"Invalid hex digit: {c}")
     };
 
+    /// <inheritdoc />
     public bool Equals(Color other) => _value == other._value;
+    /// <inheritdoc />
     public override bool Equals(object? obj) => obj is Color c && Equals(c);
+    /// <inheritdoc />
     public override int GetHashCode() => (int)_value;
+    /// <summary>Determines whether two Color values are equal.</summary>
     public static bool operator ==(Color left, Color right) => left._value == right._value;
+    /// <summary>Determines whether two Color values are not equal.</summary>
     public static bool operator !=(Color left, Color right) => left._value != right._value;
 
+    /// <inheritdoc />
     public override string ToString() => IsInherit ? "Inherit" : IsRgb ? $"#{R:X2}{G:X2}{B:X2}" : ConsoleColor.ToString();
 
-    // Pre-defined colors matching ConsoleColor
+    /// <summary>Black console color.</summary>
     public static readonly Color Black = new(ConsoleColor.Black);
+    /// <summary>Dark blue console color.</summary>
     public static readonly Color DarkBlue = new(ConsoleColor.DarkBlue);
+    /// <summary>Dark green console color.</summary>
     public static readonly Color DarkGreen = new(ConsoleColor.DarkGreen);
+    /// <summary>Dark cyan console color.</summary>
     public static readonly Color DarkCyan = new(ConsoleColor.DarkCyan);
+    /// <summary>Dark red console color.</summary>
     public static readonly Color DarkRed = new(ConsoleColor.DarkRed);
+    /// <summary>Dark magenta console color.</summary>
     public static readonly Color DarkMagenta = new(ConsoleColor.DarkMagenta);
+    /// <summary>Dark yellow console color.</summary>
     public static readonly Color DarkYellow = new(ConsoleColor.DarkYellow);
+    /// <summary>Gray console color.</summary>
     public static readonly Color Gray = new(ConsoleColor.Gray);
+    /// <summary>Dark gray console color.</summary>
     public static readonly Color DarkGray = new(ConsoleColor.DarkGray);
+    /// <summary>Blue console color.</summary>
     public static readonly Color Blue = new(ConsoleColor.Blue);
+    /// <summary>Green console color.</summary>
     public static readonly Color Green = new(ConsoleColor.Green);
+    /// <summary>Cyan console color.</summary>
     public static readonly Color Cyan = new(ConsoleColor.Cyan);
+    /// <summary>Red console color.</summary>
     public static readonly Color Red = new(ConsoleColor.Red);
+    /// <summary>Magenta console color.</summary>
     public static readonly Color Magenta = new(ConsoleColor.Magenta);
+    /// <summary>Yellow console color.</summary>
     public static readonly Color Yellow = new(ConsoleColor.Yellow);
+    /// <summary>White console color.</summary>
     public static readonly Color White = new(ConsoleColor.White);
 
     /// <summary>

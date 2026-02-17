@@ -39,7 +39,7 @@ public class DirectoryTree
         _scrollContainer = _termui.GetWidget<Container>("treeScroll");
         if (_treeView is null) return;
 
-        // Set colors programmatically (XmlParser doesn't handle Highlight*/Focus* for TreeView)
+        // Set colors programmatically (could also use XML attributes)
         _treeView.BackgroundColor = global::TermuiX.Color.Parse("#141414");
         _treeView.ForegroundColor = global::TermuiX.Color.Parse("#909090");
         _treeView.FocusBackgroundColor = global::TermuiX.Color.Parse("#141414");
