@@ -456,7 +456,16 @@ public sealed class TermuiX
         if (scrollTargetY is not null)
         {
             int contentHeight = CalculateContentHeight(scrollTargetY);
-            int widgetPosY = ParseSize(widget.PositionY, contentHeight);
+
+            // Accumulate Y position from the widget up to the scroll container
+            int widgetPosY = 0;
+            IWidget? current = widget;
+            while (current is not null && current != scrollTargetY)
+            {
+                widgetPosY += ParseSize(current.PositionY, contentHeight);
+                current = current.Parent;
+            }
+
             int widgetHeight = ParseSize(widget.Height, contentHeight);
 
             long currentScrollY = scrollTargetY.ScrollOffsetY;

@@ -9,7 +9,8 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>TermuiX</PackageId>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
+    <PackageReleaseNotes>Fix ScrollToWidget position calculation for nested widgets.</PackageReleaseNotes>
     <Authors>Fabian Schlüter</Authors>
     <Company>Fabian Schlüter</Company>
     <Description>A modern, declarative terminal UI framework for .NET 9.0 and .NET 10.0 that brings XML-based UI definition to the console. Includes rich widget set, event-driven architecture, and advanced layout capabilities.</Description>

@@ -6,6 +6,10 @@ A declarative terminal UI library for .NET. Define your interface in XML, style 
 
 ## Changelog
 
+### v2.0.1
+
+- Fix ScrollToWidget position calculation for nested widgets (now walks the widget tree to compute cumulative Y-offset up to the scroll container)
+
 ### v2.0.0
 
 - Cross-platform mouse input (Windows P/Invoke, Unix ANSI SGR)
